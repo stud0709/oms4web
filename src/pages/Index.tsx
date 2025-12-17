@@ -1,12 +1,147 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useMemo } from 'react';
+import { Plus, Shield, Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { usePasswords } from '@/hooks/usePasswords';
+import { PasswordCard } from '@/components/PasswordCard';
+import { PasswordForm } from '@/components/PasswordForm';
+import { SearchBar } from '@/components/SearchBar';
+import { HashtagFilter } from '@/components/HashtagFilter';
+import { PasswordEntry } from '@/types/password';
 
 const Index = () => {
+  const { entries, addEntry, updateEntry, deleteEntry, getAllHashtags } = usePasswords();
+  const [search, setSearch] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
+
+  const allTags = getAllHashtags();
+
+  const filteredEntries = useMemo(() => {
+    return entries.filter(entry => {
+      const matchesSearch = !search || 
+        entry.title.toLowerCase().includes(search.toLowerCase()) ||
+        entry.username.toLowerCase().includes(search.toLowerCase()) ||
+        entry.url.toLowerCase().includes(search.toLowerCase()) ||
+        entry.hashtags.some(tag => tag.includes(search.toLowerCase()));
+      
+      const matchesTag = !selectedTag || entry.hashtags.includes(selectedTag);
+      
+      return matchesSearch && matchesTag;
+    });
+  }, [entries, search, selectedTag]);
+
+  const handleSave = (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (editingEntry) {
+      updateEntry(editingEntry.id, data);
+    } else {
+      addEntry(data);
+    }
+    setEditingEntry(null);
+  };
+
+  const handleEdit = (entry: PasswordEntry) => {
+    setEditingEntry(entry);
+    setFormOpen(true);
+  };
+
+  const handleFormClose = (open: boolean) => {
+    setFormOpen(open);
+    if (!open) {
+      setEditingEntry(null);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+        <div className="container max-w-4xl py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                <Shield className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">Vault</h1>
+                <p className="text-xs text-muted-foreground">Password Manager</p>
+              </div>
+            </div>
+            <Button onClick={() => setFormOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Entry
+            </Button>
+          </div>
+          <SearchBar value={search} onChange={setSearch} />
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container max-w-4xl py-6">
+        {allTags.length > 0 && (
+          <div className="mb-6">
+            <HashtagFilter 
+              tags={allTags} 
+              selectedTag={selectedTag} 
+              onSelectTag={setSelectedTag} 
+            />
+          </div>
+        )}
+
+        {filteredEntries.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {filteredEntries.map((entry, index) => (
+              <div 
+                key={entry.id} 
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <PasswordCard
+                  entry={entry}
+                  onEdit={handleEdit}
+                  onDelete={deleteEntry}
+                  onTagClick={setSelectedTag}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+            <div className="p-4 rounded-2xl bg-muted/50 mb-4">
+              <Lock className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">
+              {entries.length === 0 ? 'Your vault is empty' : 'No results found'}
+            </h2>
+            <p className="text-muted-foreground mb-6 max-w-sm">
+              {entries.length === 0 
+                ? 'Add your first password entry to get started. Your data is stored securely in your browser.'
+                : 'Try adjusting your search or filters to find what you\'re looking for.'}
+            </p>
+            {entries.length === 0 && (
+              <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
+                <Plus className="h-5 w-5" />
+                Create First Entry
+              </Button>
+            )}
+          </div>
+        )}
+
+        {filteredEntries.length > 0 && (
+          <p className="text-center text-sm text-muted-foreground mt-8">
+            {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+            {selectedTag && ` tagged #${selectedTag}`}
+          </p>
+        )}
+      </main>
+
+      <PasswordForm
+        open={formOpen}
+        onOpenChange={handleFormClose}
+        entry={editingEntry}
+        onSave={handleSave}
+        existingTags={allTags}
+      />
     </div>
   );
 };
