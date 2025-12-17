@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { PasswordEntry } from '@/types/password';
-import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2, Hash } from 'lucide-react';
+import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2, Hash, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +17,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface PasswordCardProps {
   entry: PasswordEntry;
@@ -27,6 +34,9 @@ interface PasswordCardProps {
 export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
+  const [showQrDialog, setShowQrDialog] = useState(false);
+
+  const isAirGapPassword = entry.password?.startsWith('oms00_');
 
   const copyToClipboard = async (text: string, label: string) => {
     await navigator.clipboard.writeText(text);
@@ -118,6 +128,16 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
               </p>
             </div>
             <div className="flex gap-1">
+              {isAirGapPassword && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setShowQrDialog(true)}
+                  title="Air Gap - Show QR Code"
+                >
+                  <QrCode className="h-4 w-4" />
+                </Button>
+              )}
               <Button variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
@@ -174,6 +194,26 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
           </div>
         )}
       </CardContent>
+
+      {/* Air Gap QR Code Dialog */}
+      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Air Gap - QR Code
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="p-4 bg-white rounded-lg">
+              <QRCodeSVG value={entry.password} size={200} />
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              Scan this QR code to transfer the password securely
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
