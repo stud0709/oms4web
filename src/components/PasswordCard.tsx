@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { QRCodeSVG } from 'qrcode.react';
+import { AirGapQrDialog } from '@/components/AirGapQrDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,12 +17,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 
 interface PasswordCardProps {
   entry: PasswordEntry;
@@ -196,24 +190,11 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
       </CardContent>
 
       {/* Air Gap QR Code Dialog */}
-      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" />
-              Air Gap - QR Code
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            <div className="p-4 bg-white rounded-lg">
-              <QRCodeSVG value={entry.password} size={200} />
-            </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Scan this QR code to transfer the password securely
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AirGapQrDialog
+        open={showQrDialog}
+        onOpenChange={setShowQrDialog}
+        password={entry.password}
+      />
     </Card>
   );
 }
