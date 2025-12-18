@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Shield, Lock } from 'lucide-react';
+import { Plus, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePasswords } from '@/hooks/usePasswords';
 import { PasswordCard } from '@/components/PasswordCard';
@@ -59,11 +59,9 @@ const Index = () => {
         <div className="container max-w-4xl py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
+              <img src="/favicon.png" alt="oms4web" className="h-10 w-10" />
               <div>
-                <h1 className="text-xl font-bold tracking-tight">Vault</h1>
+                <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
                 <p className="text-xs text-muted-foreground">Password Manager</p>
               </div>
             </div>
