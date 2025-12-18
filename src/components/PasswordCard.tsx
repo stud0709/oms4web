@@ -28,9 +28,10 @@ interface PasswordCardProps {
 export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
-  const [showQrDialog, setShowQrDialog] = useState(false);
+  const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
 
   const isAirGapPassword = entry.password?.startsWith('oms00_');
+  const isAirGapField = (value: string) => value?.startsWith('oms00_');
 
   const copyToClipboard = async (text: string, label: string) => {
     await navigator.clipboard.writeText(text);
@@ -126,7 +127,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={() => setShowQrDialog(true)}
+                  onClick={() => setQrDialogValue(entry.password)}
                   title="Air Gap - Show QR Code"
                 >
                   <QrCode className="h-4 w-4" />
@@ -153,6 +154,16 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
               </p>
             </div>
             <div className="flex gap-1">
+              {isAirGapField(field.value) && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setQrDialogValue(field.value)}
+                  title="Air Gap - Show QR Code"
+                >
+                  <QrCode className="h-4 w-4" />
+                </Button>
+              )}
               {field.isSecret && (
                 <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
                   {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -191,9 +202,9 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
 
       {/* Air Gap QR Code Dialog */}
       <AirGapQrDialog
-        open={showQrDialog}
-        onOpenChange={setShowQrDialog}
-        password={entry.password}
+        open={qrDialogValue !== null}
+        onOpenChange={(open) => !open && setQrDialogValue(null)}
+        password={qrDialogValue || ''}
       />
     </Card>
   );
