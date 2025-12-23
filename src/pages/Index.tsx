@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Plus, Lock } from 'lucide-react';
+import { useState, useMemo, useRef } from 'react';
+import { Plus, Lock, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePasswords } from '@/hooks/usePasswords';
 import { PasswordCard } from '@/components/PasswordCard';
@@ -7,9 +7,12 @@ import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
 import { HashtagFilter } from '@/components/HashtagFilter';
 import { PasswordEntry } from '@/types/password';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { entries, addEntry, updateEntry, deleteEntry, getAllHashtags } = usePasswords();
+  const { entries, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries } = usePasswords();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -65,6 +68,42 @@ const Index = () => {
     }
   };
 
+  const handleExport = () => {
+    const data = JSON.stringify(entries, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `passwords-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exported', description: `${entries.length} entries saved to file.` });
+  };
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (Array.isArray(data)) {
+          importEntries(data);
+          toast({ title: 'Imported', description: `${data.length} entries loaded.` });
+        } else {
+          throw new Error('Invalid format');
+        }
+      } catch (err) {
+        toast({ title: 'Import failed', description: 'Invalid JSON file format.', variant: 'destructive' });
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -82,6 +121,19 @@ const Index = () => {
               <Plus className="h-4 w-4" />
               New Entry
             </Button>
+            <Button variant="outline" size="icon" onClick={handleExport} title="Export">
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
+              <Upload className="h-4 w-4" />
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleImport}
+            />
           </div>
           <SearchBar value={search} onChange={setSearch} />
         </div>
