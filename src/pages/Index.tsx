@@ -17,6 +17,8 @@ const Index = () => {
 
   const allTags = getAllHashtags();
 
+  const DELETED_TAG = 'deleted';
+
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
       const matchesSearch = !search || 
@@ -27,7 +29,11 @@ const Index = () => {
       
       const matchesTag = !selectedTag || entry.hashtags.includes(selectedTag);
       
-      return matchesSearch && matchesTag;
+      // Hide deleted entries unless #deleted tag is explicitly selected
+      const isDeleted = entry.hashtags.includes(DELETED_TAG);
+      const showDeleted = selectedTag === DELETED_TAG;
+      
+      return matchesSearch && matchesTag && (!isDeleted || showDeleted);
     });
   }, [entries, search, selectedTag]);
 
@@ -43,6 +49,13 @@ const Index = () => {
   const handleEdit = (entry: PasswordEntry) => {
     setEditingEntry(entry);
     setFormOpen(true);
+  };
+
+  const handleSoftDelete = (entry: PasswordEntry) => {
+    const newHashtags = entry.hashtags.includes(DELETED_TAG) 
+      ? entry.hashtags 
+      : [...entry.hashtags, DELETED_TAG];
+    updateEntry(entry.id, { hashtags: newHashtags });
   };
 
   const handleFormClose = (open: boolean) => {
@@ -98,6 +111,7 @@ const Index = () => {
                   entry={entry}
                   onEdit={handleEdit}
                   onDelete={deleteEntry}
+                  onSoftDelete={handleSoftDelete}
                   onTagClick={setSelectedTag}
                 />
               </div>
