@@ -59,6 +59,19 @@ export function usePasswords() {
     return Array.from(tags).sort();
   }, [entries]);
 
+  const importEntries = useCallback((newEntries: PasswordEntry[]) => {
+    const processedEntries = newEntries.map(e => ({
+      ...e,
+      createdAt: new Date(e.createdAt),
+      updatedAt: new Date(e.updatedAt),
+    }));
+    setEntries(processedEntries);
+  }, []);
+
+  const exportEntries = useCallback(() => {
+    return entries;
+  }, [entries]);
+
   return {
     entries,
     isLoaded,
@@ -66,5 +79,7 @@ export function usePasswords() {
     updateEntry,
     deleteEntry,
     getAllHashtags,
+    importEntries,
+    exportEntries,
   };
 }
