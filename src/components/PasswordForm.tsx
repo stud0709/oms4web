@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { PasswordEntry, CustomField } from '@/types/password';
-import { Plus, Trash2, Eye, EyeOff, Shuffle, X } from 'lucide-react';
+import { Plus, Trash2, Eye, EyeOff, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { PasswordGenerator } from '@/components/PasswordGenerator';
 import {
   Dialog,
   DialogContent,
@@ -60,13 +61,8 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags }
     setCustomFields([]);
   };
 
-  const generatePassword = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
-    let result = '';
-    for (let i = 0; i < 20; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setPassword(result);
+  const handlePasswordGenerated = (generatedPassword: string) => {
+    setPassword(generatedPassword);
     setShowPassword(true);
   };
 
@@ -177,9 +173,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags }
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <Button type="button" variant="outline" size="icon" onClick={generatePassword} title="Generate password">
-                <Shuffle className="h-4 w-4" />
-              </Button>
+              <PasswordGenerator onGenerate={handlePasswordGenerated} />
             </div>
           </div>
 
