@@ -18,19 +18,31 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+const DELETED_TAG = 'deleted';
+
 interface PasswordCardProps {
   entry: PasswordEntry;
   onEdit: (entry: PasswordEntry) => void;
   onDelete: (id: string) => void;
+  onSoftDelete: (entry: PasswordEntry) => void;
   onTagClick: (tag: string) => void;
 }
 
-export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCardProps) {
+export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick }: PasswordCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
 
   const isAirGapPassword = entry.password?.startsWith('oms00_');
+  const isDeleted = entry.hashtags.includes(DELETED_TAG);
+
+  const handleDelete = () => {
+    if (isDeleted) {
+      onDelete(entry.id);
+    } else {
+      onSoftDelete(entry);
+    }
+  };
   const isAirGapField = (value: string) => value?.startsWith('oms00_');
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -85,15 +97,17 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+                  <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to delete "{entry.title}"? This action cannot be undone.
+                    {isDeleted 
+                      ? `Are you sure you want to permanently delete "${entry.title}"? This action cannot be undone.`
+                      : `"${entry.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onDelete(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Delete
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    {isDeleted ? 'Delete Permanently' : 'Move to Deleted'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -188,8 +202,12 @@ export function PasswordCard({ entry, onEdit, onDelete, onTagClick }: PasswordCa
             {entry.hashtags.map(tag => (
               <Badge
                 key={tag}
-                variant="secondary"
-                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                variant={tag === DELETED_TAG ? 'destructive' : 'secondary'}
+                className={`cursor-pointer transition-colors ${
+                  tag === DELETED_TAG 
+                    ? 'hover:bg-destructive/80' 
+                    : 'hover:bg-primary hover:text-primary-foreground'
+                }`}
                 onClick={() => onTagClick(tag)}
               >
                 <Hash className="h-3 w-3 mr-0.5" />

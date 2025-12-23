@@ -24,17 +24,24 @@ export function HashtagFilter({ tags, selectedTag, onSelectTag }: HashtagFilterP
             Clear filter
           </Badge>
         )}
-        {tags.map(tag => (
-          <Badge
-            key={tag}
-            variant={selectedTag === tag ? 'default' : 'secondary'}
-            className="cursor-pointer transition-all hover:scale-105"
-            onClick={() => onSelectTag(selectedTag === tag ? null : tag)}
-          >
-            <Hash className="h-3 w-3 mr-0.5" />
-            {tag}
-          </Badge>
-        ))}
+        {tags.map(tag => {
+          const isDeletedTag = tag === 'deleted';
+          const isSelected = selectedTag === tag;
+          
+          return (
+            <Badge
+              key={tag}
+              variant={isSelected ? 'default' : isDeletedTag ? 'destructive' : 'secondary'}
+              className={`cursor-pointer transition-all hover:scale-105 ${
+                isDeletedTag && !isSelected ? 'opacity-70' : ''
+              }`}
+              onClick={() => onSelectTag(isSelected ? null : tag)}
+            >
+              <Hash className="h-3 w-3 mr-0.5" />
+              {tag}
+            </Badge>
+          );
+        })}
       </div>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
