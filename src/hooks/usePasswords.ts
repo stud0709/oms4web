@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PasswordEntry } from '@/types/password';
+import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS } from '@/lib/crypto';
 
 const STORAGE_KEY = 'vault_data';
 
 interface VaultData {
   entries: PasswordEntry[];
   publicKey: string;
+  encryptionSettings: EncryptionSettings;
 }
 
 export function usePasswords() {
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
   const [publicKey, setPublicKey] = useState<string>('');
+  const [encryptionSettings, setEncryptionSettings] = useState<EncryptionSettings>(DEFAULT_ENCRYPTION_SETTINGS);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -33,6 +36,7 @@ export function usePasswords() {
             updatedAt: new Date(e.updatedAt),
           })));
           setPublicKey(data.publicKey || '');
+          setEncryptionSettings(data.encryptionSettings || DEFAULT_ENCRYPTION_SETTINGS);
         }
       } catch (e) {
         console.error('Failed to parse stored data', e);
@@ -43,10 +47,10 @@ export function usePasswords() {
 
   useEffect(() => {
     if (isLoaded) {
-      const data: VaultData = { entries, publicKey };
+      const data: VaultData = { entries, publicKey, encryptionSettings };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
-  }, [entries, publicKey, isLoaded]);
+  }, [entries, publicKey, encryptionSettings, isLoaded]);
 
   const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newEntry: PasswordEntry = {
@@ -77,7 +81,7 @@ export function usePasswords() {
     return Array.from(tags).sort();
   }, [entries]);
 
-  const importEntries = useCallback((newEntries: PasswordEntry[], newPublicKey?: string) => {
+  const importEntries = useCallback((newEntries: PasswordEntry[], newPublicKey?: string, newEncryptionSettings?: EncryptionSettings) => {
     const processedEntries = newEntries.map(e => ({
       ...e,
       createdAt: new Date(e.createdAt),
@@ -87,19 +91,27 @@ export function usePasswords() {
     if (newPublicKey !== undefined) {
       setPublicKey(newPublicKey);
     }
+    if (newEncryptionSettings !== undefined) {
+      setEncryptionSettings(newEncryptionSettings);
+    }
   }, []);
 
   const exportData = useCallback(() => {
-    return { entries, publicKey };
-  }, [entries, publicKey]);
+    return { entries, publicKey, encryptionSettings };
+  }, [entries, publicKey, encryptionSettings]);
 
   const updatePublicKey = useCallback((key: string) => {
     setPublicKey(key);
   }, []);
 
+  const updateEncryptionSettings = useCallback((settings: EncryptionSettings) => {
+    setEncryptionSettings(settings);
+  }, []);
+
   return {
     entries,
     publicKey,
+    encryptionSettings,
     isLoaded,
     addEntry,
     updateEntry,
@@ -108,5 +120,6 @@ export function usePasswords() {
     importEntries,
     exportData,
     updatePublicKey,
+    updateEncryptionSettings,
   };
 }

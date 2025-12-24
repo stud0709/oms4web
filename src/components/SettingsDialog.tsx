@@ -10,21 +10,48 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import {
+  RSA_TRANSFORMATIONS,
+  AES_TRANSFORMATIONS,
+  AES_KEY_LENGTHS,
+  EncryptionSettings,
+  DEFAULT_ENCRYPTION_SETTINGS,
+} from '@/lib/crypto';
 
 interface SettingsDialogProps {
   publicKey: string;
+  encryptionSettings: EncryptionSettings;
   onSavePublicKey: (key: string) => void;
+  onSaveEncryptionSettings: (settings: EncryptionSettings) => void;
 }
 
-export function SettingsDialog({ publicKey, onSavePublicKey }: SettingsDialogProps) {
+export function SettingsDialog({
+  publicKey,
+  encryptionSettings,
+  onSavePublicKey,
+  onSaveEncryptionSettings,
+}: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [keyValue, setKeyValue] = useState(publicKey);
+  const [rsaIdx, setRsaIdx] = useState(encryptionSettings.rsaTransformationIdx);
+  const [aesKeyLen, setAesKeyLen] = useState(encryptionSettings.aesKeyLength);
+  const [aesIdx, setAesIdx] = useState(encryptionSettings.aesTransformationIdx);
   const { toast } = useToast();
 
   useEffect(() => {
     setKeyValue(publicKey);
-  }, [publicKey]);
+    setRsaIdx(encryptionSettings.rsaTransformationIdx);
+    setAesKeyLen(encryptionSettings.aesKeyLength);
+    setAesIdx(encryptionSettings.aesTransformationIdx);
+  }, [publicKey, encryptionSettings]);
 
   const handleSave = () => {
     // Basic validation: check if it looks like base64
@@ -37,7 +64,12 @@ export function SettingsDialog({ publicKey, onSavePublicKey }: SettingsDialogPro
       return;
     }
     onSavePublicKey(keyValue.trim());
-    toast({ title: 'Settings saved', description: 'Public key has been updated.' });
+    onSaveEncryptionSettings({
+      rsaTransformationIdx: rsaIdx,
+      aesKeyLength: aesKeyLen,
+      aesTransformationIdx: aesIdx,
+    });
+    toast({ title: 'Settings saved', description: 'Encryption settings have been updated.' });
     setOpen(false);
   };
 
@@ -63,9 +95,54 @@ export function SettingsDialog({ publicKey, onSavePublicKey }: SettingsDialogPro
               rows={6}
               className="font-mono text-sm"
             />
-            <p className="text-xs text-muted-foreground">
-              The public key will be used for encryption in a future update.
-            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rsaTransformation">RSA Transformation</Label>
+            <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))}>
+              <SelectTrigger id="rsaTransformation">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RSA_TRANSFORMATIONS.map((t) => (
+                  <SelectItem key={t.idx} value={String(t.idx)}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="aesKeyLength">AES Key Length</Label>
+            <Select value={String(aesKeyLen)} onValueChange={(v) => setAesKeyLen(Number(v))}>
+              <SelectTrigger id="aesKeyLength">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AES_KEY_LENGTHS.map((len) => (
+                  <SelectItem key={len} value={String(len)}>
+                    {len} bits
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="aesTransformation">AES Transformation</Label>
+            <Select value={String(aesIdx)} onValueChange={(v) => setAesIdx(Number(v))}>
+              <SelectTrigger id="aesTransformation">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AES_TRANSFORMATIONS.map((t) => (
+                  <SelectItem key={t.idx} value={String(t.idx)}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="flex justify-end gap-2">
