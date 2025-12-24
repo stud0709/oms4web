@@ -6,11 +6,12 @@ import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
 import { HashtagFilter } from '@/components/HashtagFilter';
+import { SettingsDialog } from '@/components/SettingsDialog';
 import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { entries, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries } = usePasswords();
+  const { entries, publicKey, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries, exportData, updatePublicKey } = usePasswords();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
@@ -69,12 +70,12 @@ const Index = () => {
   };
 
   const handleExport = () => {
-    const data = JSON.stringify(entries, null, 2);
+    const data = JSON.stringify(exportData(), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `passwords-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `vault-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -90,9 +91,13 @@ const Index = () => {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
+        // Support both old format (array) and new format (object with entries)
         if (Array.isArray(data)) {
           importEntries(data);
           toast({ title: 'Imported', description: `${data.length} entries loaded.` });
+        } else if (data.entries && Array.isArray(data.entries)) {
+          importEntries(data.entries, data.publicKey);
+          toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
         } else {
           throw new Error('Invalid format');
         }
@@ -127,6 +132,7 @@ const Index = () => {
             <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
               <Upload className="h-4 w-4" />
             </Button>
+            <SettingsDialog publicKey={publicKey} onSavePublicKey={updatePublicKey} />
             <input
               ref={fileInputRef}
               type="file"
