@@ -19,9 +19,7 @@ interface PasswordPolicy {
   includeNumbers: boolean;
   includeSpecial: boolean;
   excludeAmbiguous: boolean;
-  minLetters: number;
-  minNumbers: number;
-  minSpecial: number;
+  minPerCategory: number;
 }
 
 const DEFAULT_POLICY: PasswordPolicy = {
@@ -30,9 +28,7 @@ const DEFAULT_POLICY: PasswordPolicy = {
   includeNumbers: true,
   includeSpecial: true,
   excludeAmbiguous: true,
-  minLetters: 1,
-  minNumbers: 1,
-  minSpecial: 1,
+  minPerCategory: 1,
 };
 
 const CHARS = {
@@ -74,12 +70,8 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
 
   // Validate minimum requirements vs length
   useEffect(() => {
-    const minRequired = 
-      (policy.includeLetters ? policy.minLetters : 0) +
-      (policy.includeNumbers ? policy.minNumbers : 0) +
-      (policy.includeSpecial ? policy.minSpecial : 0);
-    
     const enabledCategories = [policy.includeLetters, policy.includeNumbers, policy.includeSpecial].filter(Boolean).length;
+    const minRequired = enabledCategories * policy.minPerCategory;
     
     if (enabledCategories === 0) {
       setValidationError('Enable at least one character category');
@@ -101,19 +93,19 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
 
     let result: string[] = [];
 
-    // Add minimum required characters from each category
+    // Add minimum required characters from each enabled category
     if (policy.includeLetters) {
-      for (let i = 0; i < policy.minLetters; i++) {
+      for (let i = 0; i < policy.minPerCategory; i++) {
         result.push(letters.charAt(Math.floor(Math.random() * letters.length)));
       }
     }
     if (policy.includeNumbers) {
-      for (let i = 0; i < policy.minNumbers; i++) {
+      for (let i = 0; i < policy.minPerCategory; i++) {
         result.push(numbers.charAt(Math.floor(Math.random() * numbers.length)));
       }
     }
     if (policy.includeSpecial) {
-      for (let i = 0; i < policy.minSpecial; i++) {
+      for (let i = 0; i < policy.minPerCategory; i++) {
         result.push(special.charAt(Math.floor(Math.random() * special.length)));
       }
     }
@@ -143,13 +135,8 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
     setPolicy(prev => ({ ...prev, ...updates }));
   };
 
-  const maxMinValue = (category: 'letters' | 'numbers' | 'special') => {
-    const otherMins = 
-      (category !== 'letters' && policy.includeLetters ? policy.minLetters : 0) +
-      (category !== 'numbers' && policy.includeNumbers ? policy.minNumbers : 0) +
-      (category !== 'special' && policy.includeSpecial ? policy.minSpecial : 0);
-    return Math.max(0, policy.length - otherMins);
-  };
+  const enabledCategories = [policy.includeLetters, policy.includeNumbers, policy.includeSpecial].filter(Boolean).length;
+  const maxMinPerCategory = enabledCategories > 0 ? Math.floor(policy.length / enabledCategories) : 0;
 
   return (
     <div className="flex gap-1">
@@ -181,85 +168,49 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
             {/* Character categories */}
             <div className="space-y-3">
               {/* Letters */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={policy.includeLetters}
-                      onCheckedChange={checked => updatePolicy({ includeLetters: checked, minLetters: checked ? 1 : 0 })}
-                      id="include-letters"
-                    />
-                    <Label htmlFor="include-letters" className="text-xs">Letters (a-z, A-Z)</Label>
-                  </div>
-                </div>
-                {policy.includeLetters && (
-                  <div className="flex items-center gap-2 ml-10">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Min:</Label>
-                    <Input
-                      type="number"
-                      value={policy.minLetters}
-                      onChange={e => updatePolicy({ minLetters: Math.max(0, Math.min(maxMinValue('letters'), parseInt(e.target.value) || 0)) })}
-                      className="h-7 w-16 text-xs"
-                      min={0}
-                      max={maxMinValue('letters')}
-                    />
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={policy.includeLetters}
+                  onCheckedChange={checked => updatePolicy({ includeLetters: checked })}
+                  id="include-letters"
+                />
+                <Label htmlFor="include-letters" className="text-xs">Letters (a-z, A-Z)</Label>
               </div>
 
               {/* Numbers */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={policy.includeNumbers}
-                      onCheckedChange={checked => updatePolicy({ includeNumbers: checked, minNumbers: checked ? 1 : 0 })}
-                      id="include-numbers"
-                    />
-                    <Label htmlFor="include-numbers" className="text-xs">Numbers (0-9)</Label>
-                  </div>
-                </div>
-                {policy.includeNumbers && (
-                  <div className="flex items-center gap-2 ml-10">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Min:</Label>
-                    <Input
-                      type="number"
-                      value={policy.minNumbers}
-                      onChange={e => updatePolicy({ minNumbers: Math.max(0, Math.min(maxMinValue('numbers'), parseInt(e.target.value) || 0)) })}
-                      className="h-7 w-16 text-xs"
-                      min={0}
-                      max={maxMinValue('numbers')}
-                    />
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={policy.includeNumbers}
+                  onCheckedChange={checked => updatePolicy({ includeNumbers: checked })}
+                  id="include-numbers"
+                />
+                <Label htmlFor="include-numbers" className="text-xs">Numbers (0-9)</Label>
               </div>
 
               {/* Special */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={policy.includeSpecial}
-                      onCheckedChange={checked => updatePolicy({ includeSpecial: checked, minSpecial: checked ? 1 : 0 })}
-                      id="include-special"
-                    />
-                    <Label htmlFor="include-special" className="text-xs">Special (!@#$...)</Label>
-                  </div>
-                </div>
-                {policy.includeSpecial && (
-                  <div className="flex items-center gap-2 ml-10">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Min:</Label>
-                    <Input
-                      type="number"
-                      value={policy.minSpecial}
-                      onChange={e => updatePolicy({ minSpecial: Math.max(0, Math.min(maxMinValue('special'), parseInt(e.target.value) || 0)) })}
-                      className="h-7 w-16 text-xs"
-                      min={0}
-                      max={maxMinValue('special')}
-                    />
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={policy.includeSpecial}
+                  onCheckedChange={checked => updatePolicy({ includeSpecial: checked })}
+                  id="include-special"
+                />
+                <Label htmlFor="include-special" className="text-xs">Special (!@#$...)</Label>
               </div>
+
+              {/* Min per category */}
+              {enabledCategories > 0 && (
+                <div className="flex items-center gap-2 pt-2 border-t">
+                  <Label className="text-xs whitespace-nowrap">Min per category:</Label>
+                  <Input
+                    type="number"
+                    value={policy.minPerCategory}
+                    onChange={e => updatePolicy({ minPerCategory: Math.max(0, Math.min(maxMinPerCategory, parseInt(e.target.value) || 0)) })}
+                    className="h-7 w-16 text-xs"
+                    min={0}
+                    max={maxMinPerCategory}
+                  />
+                </div>
+              )}
 
               {/* Exclude Ambiguous */}
               <div className="flex items-center gap-2 pt-2 border-t">
