@@ -11,7 +11,7 @@ import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { entries, publicKey, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries, exportData, updatePublicKey } = usePasswords();
+  const { entries, publicKey, encryptionSettings, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries, exportData, updatePublicKey, updateEncryptionSettings } = usePasswords();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
@@ -96,7 +96,7 @@ const Index = () => {
           importEntries(data);
           toast({ title: 'Imported', description: `${data.length} entries loaded.` });
         } else if (data.entries && Array.isArray(data.entries)) {
-          importEntries(data.entries, data.publicKey);
+          importEntries(data.entries, data.publicKey, data.encryptionSettings);
           toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
         } else {
           throw new Error('Invalid format');
@@ -132,7 +132,12 @@ const Index = () => {
             <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
               <Upload className="h-4 w-4" />
             </Button>
-            <SettingsDialog publicKey={publicKey} onSavePublicKey={updatePublicKey} />
+            <SettingsDialog 
+              publicKey={publicKey} 
+              encryptionSettings={encryptionSettings}
+              onSavePublicKey={updatePublicKey} 
+              onSaveEncryptionSettings={updateEncryptionSettings}
+            />
             <input
               ref={fileInputRef}
               type="file"
