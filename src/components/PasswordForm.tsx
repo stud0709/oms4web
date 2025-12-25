@@ -194,15 +194,17 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   placeholder="••••••••"
                   className="pr-10 font-mono"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                {!password.startsWith(OMS_PREFIX) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                )}
               </div>
               <PasswordGenerator onGenerate={handlePasswordGenerated} />
             </div>
