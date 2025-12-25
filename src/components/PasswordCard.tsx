@@ -147,9 +147,11 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                   <QrCode className="h-4 w-4" />
                 </Button>
               )}
-              <Button variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
+              {!isAirGapPassword && (
+                <Button variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              )}
               <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.password, 'Password')}>
                 <Copy className="h-4 w-4" />
               </Button>
