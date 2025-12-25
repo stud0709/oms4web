@@ -216,6 +216,8 @@ const Index = () => {
         entry={editingEntry}
         onSave={handleSave}
         existingTags={allTags}
+        publicKey={publicKey}
+        encryptionSettings={encryptionSettings}
       />
     </div>
   );

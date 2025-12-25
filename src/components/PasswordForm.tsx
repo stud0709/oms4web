@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { PasswordGenerator } from '@/components/PasswordGenerator';
+import { useToast } from '@/hooks/use-toast';
+import { OMS_PREFIX, createEncryptedMessage, EncryptionSettings } from '@/lib/crypto';
 import {
   Dialog,
   DialogContent,
@@ -22,9 +24,13 @@ interface PasswordFormProps {
   entry?: PasswordEntry | null;
   onSave: (entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => void;
   existingTags: string[];
+  publicKey: string;
+  encryptionSettings: EncryptionSettings;
 }
 
-export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags }: PasswordFormProps) {
+export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, publicKey, encryptionSettings }: PasswordFormProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -93,19 +99,44 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags }
     setCustomFields(customFields.filter(f => f.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      title: title.trim() || 'Untitled',
-      username,
-      password,
-      url,
-      notes,
-      hashtags,
-      customFields: customFields.filter(f => f.label.trim()),
-    });
-    onOpenChange(false);
-    resetForm();
+    setIsSubmitting(true);
+
+    try {
+      let finalPassword = password;
+
+      // Encrypt password if it's not already encrypted and we have a public key
+      if (password && !password.startsWith(OMS_PREFIX)) {
+        if (publicKey) {
+          try {
+            finalPassword = await createEncryptedMessage(password, publicKey, encryptionSettings);
+          } catch (err) {
+            toast({
+              title: 'Encryption failed',
+              description: 'Could not encrypt password. Please check your public key settings.',
+              variant: 'destructive',
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
+      onSave({
+        title: title.trim() || 'Untitled',
+        username,
+        password: finalPassword,
+        url,
+        notes,
+        hashtags,
+        customFields: customFields.filter(f => f.label.trim()),
+      });
+      onOpenChange(false);
+      resetForm();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const suggestedTags = existingTags.filter(
@@ -278,10 +309,12 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags }
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">{entry ? 'Save Changes' : 'Create Entry'}</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Encrypting...' : entry ? 'Save Changes' : 'Create Entry'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
