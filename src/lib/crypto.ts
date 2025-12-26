@@ -88,31 +88,53 @@ function generateIv(): Uint8Array {
 }
 
 /**
- * Calculate RSA public key fingerprint (SHA-256 of modulus + exponent)
- */
-async function getFingerprint(publicKey: CryptoKey): Promise<Uint8Array> {
-  const exported = await crypto.subtle.exportKey('jwk', publicKey);
-  
-  // Decode the modulus (n) and exponent (e) from base64url
-  const modulus = base64UrlToBytes(exported.n!);
-  const exponent = base64UrlToBytes(exported.e!);
-  
-  // Concatenate and hash
-  const combined = new Uint8Array(modulus.length + exponent.length);
-  combined.set(modulus, 0);
-  combined.set(exponent, modulus.length);
-  
-  const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
-  return new Uint8Array(hashBuffer);
-}
-
-/**
  * Convert base64url to Uint8Array
  */
 function base64UrlToBytes(base64url: string): Uint8Array {
   const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
   const padding = '='.repeat((4 - base64.length % 4) % 4);
   return Uint8Array.from(atob(base64 + padding), c => c.charCodeAt(0));
+}
+
+/**
+ * Convert Uint8Array to BigInteger byte array format (matching Java's BigInteger.toByteArray())
+ * Java's BigInteger.toByteArray() returns a two's complement representation,
+ * which includes a leading zero byte if the most significant bit is set (to indicate positive number)
+ */
+function toBigIntegerBytes(bytes: Uint8Array): Uint8Array {
+  // If the high bit is set, we need to prepend a zero byte (like Java's BigInteger.toByteArray())
+  if (bytes.length > 0 && (bytes[0] & 0x80) !== 0) {
+    const result = new Uint8Array(bytes.length + 1);
+    result[0] = 0;
+    result.set(bytes, 1);
+    return result;
+  }
+  return bytes;
+}
+
+/**
+ * Calculate RSA public key fingerprint (SHA-256 of modulus + exponent)
+ * Matches Java implementation: RSAUtils.getFingerprint()
+ * Uses BigInteger byte array format (with sign byte handling)
+ */
+async function getFingerprint(publicKey: CryptoKey): Promise<Uint8Array> {
+  const exported = await crypto.subtle.exportKey('jwk', publicKey);
+  
+  // Decode the modulus (n) and exponent (e) from base64url
+  const modulusRaw = base64UrlToBytes(exported.n!);
+  const exponentRaw = base64UrlToBytes(exported.e!);
+  
+  // Convert to Java BigInteger byte array format (add leading zero if high bit set)
+  const modulus = toBigIntegerBytes(modulusRaw);
+  const exponent = toBigIntegerBytes(exponentRaw);
+  
+  // Hash: sha256.update(modulus); sha256.digest(publicExp);
+  const combined = new Uint8Array(modulus.length + exponent.length);
+  combined.set(modulus, 0);
+  combined.set(exponent, modulus.length);
+  
+  const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+  return new Uint8Array(hashBuffer);
 }
 
 /**
