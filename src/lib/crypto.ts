@@ -4,10 +4,10 @@
  */
 
 // RSA Transformations - matching Java RsaTransformation enum
-// Note: idx 0 (PKCS1Padding) removed as it's not supported by WebCrypto
 export const RSA_TRANSFORMATIONS = [
-  { idx: 0, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
-  { idx: 1, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-256' } },
+  { idx: 0, name: 'RSA/ECB/PKCS1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } }, // Note: PKCS1 not supported in WebCrypto, using OAEP
+  { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
+  { idx: 2, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-256' } },
 ] as const;
 
 // AES Transformations - matching Java AesTransformation enum
@@ -43,7 +43,7 @@ export interface EncryptionSettings {
 }
 
 export const DEFAULT_ENCRYPTION_SETTINGS: EncryptionSettings = {
-  rsaTransformationIdx: 1, // Default to SHA-256 (most secure)
+  rsaTransformationIdx: 0,
   aesKeyLength: 256,
   aesTransformationIdx: 0,
 };
