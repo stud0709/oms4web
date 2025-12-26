@@ -56,7 +56,8 @@ export async function parsePublicKey(base64Key: string, rsaTransformationIdx: nu
   const cleanKey = base64Key.replace(/\s+/g, '');
   const binaryDer = Uint8Array.from(atob(cleanKey), c => c.charCodeAt(0));
   
-  const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx];
+  // Fall back to default (idx 2) if invalid index
+  const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2];
   
   return await crypto.subtle.importKey(
     'spki',
@@ -224,10 +225,11 @@ export async function createEncryptedMessage(
   // Get the raw AES key bytes
   const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
   
-  // Encrypt the AES key with RSA
+  // Encrypt the AES key with RSA (fall back to idx 2 if invalid)
+  const rsaAlgorithm = (RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2]).algorithm;
   const encryptedAesKey = new Uint8Array(
     await crypto.subtle.encrypt(
-      RSA_TRANSFORMATIONS[rsaTransformationIdx].algorithm,
+      rsaAlgorithm,
       publicKey,
       aesKeyRaw
     )
