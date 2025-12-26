@@ -104,7 +104,7 @@ export function SettingsDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {RSA_TRANSFORMATIONS.map((t) => (
+                {Object.values(RSA_TRANSFORMATIONS).map((t) => (
                   <SelectItem key={t.idx} value={String(t.idx)}>
                     {t.name}
                   </SelectItem>
