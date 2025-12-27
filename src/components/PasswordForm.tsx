@@ -106,9 +106,14 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
     try {
       let finalPassword = password;
 
-      // Encrypt password if it's not already encrypted and we have a public key
+      // Encrypt password if it's not already encrypted
       if (password && !password.startsWith(OMS_PREFIX)) {
-        if (publicKey) {
+        if (!publicKey) {
+          toast({
+            title: 'Saved without encryption',
+            description: 'No public key is configured in Settings, so the password was stored as plain text.',
+          });
+        } else {
           try {
             finalPassword = await createEncryptedMessage(password, publicKey, encryptionSettings);
           } catch (err) {

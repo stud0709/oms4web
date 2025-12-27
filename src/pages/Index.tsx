@@ -46,6 +46,9 @@ const Index = () => {
       updateEntry(editingEntry.id, data);
     } else {
       addEntry(data);
+      // Ensure the newly created entry is visible immediately
+      setSearch('');
+      setSelectedTag(null);
     }
     setEditingEntry(null);
   };
