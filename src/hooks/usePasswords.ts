@@ -36,7 +36,12 @@ export function usePasswords() {
             updatedAt: new Date(e.updatedAt),
           })));
           setPublicKey(data.publicKey || '');
-          setEncryptionSettings(data.encryptionSettings || DEFAULT_ENCRYPTION_SETTINGS);
+          // Normalize encryption settings - if rsaTransformationIdx is not 1 or 2, reset to default
+          const loadedSettings = data.encryptionSettings || DEFAULT_ENCRYPTION_SETTINGS;
+          if (loadedSettings.rsaTransformationIdx !== 1 && loadedSettings.rsaTransformationIdx !== 2) {
+            loadedSettings.rsaTransformationIdx = DEFAULT_ENCRYPTION_SETTINGS.rsaTransformationIdx;
+          }
+          setEncryptionSettings(loadedSettings);
         }
       } catch (e) {
         console.error('Failed to parse stored data', e);
