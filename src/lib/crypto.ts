@@ -241,14 +241,17 @@ export async function createEncryptedMessage(
   // Create the inner payload: APPLICATION_ENCRYPTED_MESSAGE + message bytes
   const messageBytes = new TextEncoder().encode(message);
   const payload = createPayload(APPLICATION_IDS.ENCRYPTED_MESSAGE, messageBytes);
-  
+
+  // WebCrypto AES-CBC does not define padding, but OMS expects PKCS5/7 padding.
+  // Pad manually to be compatible with the Android implementation.
+  const paddedPayload = addPkcs7Padding(payload, 16);
+
   // Encrypt the payload with AES-CBC
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const encryptedPayload = new Uint8Array(
     await crypto.subtle.encrypt(
       { name: 'AES-CBC', iv } as AesCbcParams,
       aesKey,
-      payload as unknown as BufferSource
+      paddedPayload as unknown as BufferSource
     )
   );
   
