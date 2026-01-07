@@ -7,7 +7,7 @@
 // Note: idx 0 (PKCS1Padding) not supported by WebCrypto, removed
 export const RSA_TRANSFORMATIONS: Record<number, { idx: number; name: string; algorithm: { name: string; hash: string } }> = {
   1: { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
-  2: { idx: 2, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
+  2: { idx: 2, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-256' } },
 };
 
 // AES Transformations - matching Java AesTransformation enum
@@ -212,10 +212,8 @@ export async function createEncryptedMessage(
   message: string,
   publicKeyBase64: string,
   settings: EncryptionSettings
-): Promise<string> {  
+): Promise<string> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
-  const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx];
-  console.log(`AES transformation: ${aesTransformation.name}`);
   
   // Parse the public key
   const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
@@ -223,15 +221,12 @@ export async function createEncryptedMessage(
   // Generate AES key and IV
   const aesKey = await generateAesKey(aesKeyLength);
   const iv = generateIv();
-  console.log(`IV: ${bytesToHexBlocks(iv)}`);
   
   // Get the raw AES key bytes
   const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
   
   // Encrypt the AES key with RSA (fall back to idx 2 if invalid)
-  const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2];
-  const rsaAlgorithm = rsaTransformation.algorithm;
-  console.log(`RSA transformation: ${rsaTransformation.name}`)
+  const rsaAlgorithm = (RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2]).algorithm;
   const encryptedAesKey = new Uint8Array(
     await crypto.subtle.encrypt(
       rsaAlgorithm,
@@ -239,11 +234,9 @@ export async function createEncryptedMessage(
       aesKeyRaw
     )
   );
-  console.log(`RSA-encrypted AES key: ${bytesToHexBlocks(encryptedAesKey)}`)
   
   // Get fingerprint
   const fingerprint = await getFingerprint(publicKey);
-  console.log(`RSA fingerprint: ${bytesToHexBlocks(fingerprint)}`)
   
   // Create the inner payload: APPLICATION_ENCRYPTED_MESSAGE + message bytes
   const messageBytes = new TextEncoder().encode(message);
@@ -258,7 +251,7 @@ export async function createEncryptedMessage(
     await crypto.subtle.encrypt(
       { name: 'AES-CBC', iv } as AesCbcParams,
       aesKey,
-      payload as BufferSource
+      paddedPayload as unknown as BufferSource
     )
   );
   
@@ -288,15 +281,4 @@ export async function validatePublicKey(base64Key: string, rsaTransformationIdx:
   } catch {
     return false;
   }
-}
-
-export function bytesToHexBlocks(bytes: Uint8Array) : string {
-    // Convert each byte to a 2-digit hex string
-    const hex = Array.from(bytes, (b: number) => b.toString(16).padStart(2, '0')).join('');
-
-    // Split into blocks of 4 characters
-    const blocks = hex.match(/.{1,4}/g);
-
-    // Join blocks with a space (or any separator you want)
-    return blocks.join(' ');
 }
