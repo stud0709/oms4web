@@ -6,7 +6,7 @@
 // RSA Transformations - matching Java RsaTransformation enum
 // Note: idx 0 (PKCS1Padding) not supported by WebCrypto, removed
 export const RSA_TRANSFORMATIONS: Record<number, { idx: number; name: string; algorithm: { name: string; hash: string } }> = {
-  1: { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
+  //1: { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
   2: { idx: 2, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-256' } },
 };
 
