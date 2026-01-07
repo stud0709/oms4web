@@ -19,11 +19,9 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
-  RSA_TRANSFORMATIONS,
   AES_TRANSFORMATIONS,
   AES_KEY_LENGTHS,
   EncryptionSettings,
-  DEFAULT_ENCRYPTION_SETTINGS,
 } from '@/lib/crypto';
 
 interface SettingsDialogProps {
@@ -41,14 +39,12 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [keyValue, setKeyValue] = useState(publicKey);
-  const [rsaIdx, setRsaIdx] = useState(encryptionSettings.rsaTransformationIdx);
   const [aesKeyLen, setAesKeyLen] = useState(encryptionSettings.aesKeyLength);
   const [aesIdx, setAesIdx] = useState(encryptionSettings.aesTransformationIdx);
   const { toast } = useToast();
 
   useEffect(() => {
     setKeyValue(publicKey);
-    setRsaIdx(encryptionSettings.rsaTransformationIdx);
     setAesKeyLen(encryptionSettings.aesKeyLength);
     setAesIdx(encryptionSettings.aesTransformationIdx);
   }, [publicKey, encryptionSettings]);
@@ -65,7 +61,7 @@ export function SettingsDialog({
     }
     onSavePublicKey(keyValue.trim());
     onSaveEncryptionSettings({
-      rsaTransformationIdx: rsaIdx,
+      rsaTransformationIdx: 2, // Always use RSA/ECB/OAEPWithSHA-256AndMGF1Padding
       aesKeyLength: aesKeyLen,
       aesTransformationIdx: aesIdx,
     });
@@ -95,22 +91,6 @@ export function SettingsDialog({
               rows={6}
               className="font-mono text-sm"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="rsaTransformation">RSA Transformation</Label>
-            <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))}>
-              <SelectTrigger id="rsaTransformation">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.values(RSA_TRANSFORMATIONS).map((t) => (
-                  <SelectItem key={t.idx} value={String(t.idx)}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">
