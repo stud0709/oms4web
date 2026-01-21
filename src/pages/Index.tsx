@@ -11,7 +11,7 @@ import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { entries, publicKey, encryptionSettings, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries, exportData, updatePublicKey, updateEncryptionSettings } = usePasswords();
+  const { entries, publicKey, encryptionSettings, encryptionEnabled, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries, exportData, updatePublicKey, updateEncryptionSettings, updateEncryptionEnabled } = usePasswords();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
@@ -138,8 +138,10 @@ const Index = () => {
             <SettingsDialog 
               publicKey={publicKey} 
               encryptionSettings={encryptionSettings}
+              encryptionEnabled={encryptionEnabled}
               onSavePublicKey={updatePublicKey} 
               onSaveEncryptionSettings={updateEncryptionSettings}
+              onSaveEncryptionEnabled={updateEncryptionEnabled}
             />
             <input
               ref={fileInputRef}
@@ -221,6 +223,7 @@ const Index = () => {
         existingTags={allTags}
         publicKey={publicKey}
         encryptionSettings={encryptionSettings}
+        encryptionEnabled={encryptionEnabled}
       />
     </div>
   );

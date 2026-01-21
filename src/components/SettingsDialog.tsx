@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -29,21 +30,26 @@ import {
 interface SettingsDialogProps {
   publicKey: string;
   encryptionSettings: EncryptionSettings;
+  encryptionEnabled: boolean;
   onSavePublicKey: (key: string) => void;
   onSaveEncryptionSettings: (settings: EncryptionSettings) => void;
+  onSaveEncryptionEnabled: (enabled: boolean) => void;
 }
 
 export function SettingsDialog({
   publicKey,
   encryptionSettings,
+  encryptionEnabled,
   onSavePublicKey,
   onSaveEncryptionSettings,
+  onSaveEncryptionEnabled,
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [keyValue, setKeyValue] = useState(publicKey);
   const [rsaIdx, setRsaIdx] = useState(encryptionSettings.rsaTransformationIdx);
   const [aesKeyLen, setAesKeyLen] = useState(encryptionSettings.aesKeyLength);
   const [aesIdx, setAesIdx] = useState(encryptionSettings.aesTransformationIdx);
+  const [encEnabled, setEncEnabled] = useState(encryptionEnabled);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -51,11 +57,12 @@ export function SettingsDialog({
     setRsaIdx(encryptionSettings.rsaTransformationIdx);
     setAesKeyLen(encryptionSettings.aesKeyLength);
     setAesIdx(encryptionSettings.aesTransformationIdx);
-  }, [publicKey, encryptionSettings]);
+    setEncEnabled(encryptionEnabled);
+  }, [publicKey, encryptionSettings, encryptionEnabled]);
 
   const handleSave = () => {
-    // Basic validation: check if it looks like base64
-    if (keyValue.trim() && !/^[A-Za-z0-9+/=\s]+$/.test(keyValue.trim())) {
+    // Basic validation: check if it looks like base64 (only if encryption is enabled and key is provided)
+    if (encEnabled && keyValue.trim() && !/^[A-Za-z0-9+/=\s]+$/.test(keyValue.trim())) {
       toast({
         title: 'Invalid format',
         description: 'Public key must be base64 encoded.',
@@ -63,12 +70,21 @@ export function SettingsDialog({
       });
       return;
     }
+    // Warn if encryption is enabled but no key is set
+    if (encEnabled && !keyValue.trim()) {
+      toast({
+        title: 'Warning',
+        description: 'Encryption is enabled but no public key is set. You won\'t be able to save password entries.',
+        variant: 'destructive',
+      });
+    }
     onSavePublicKey(keyValue.trim());
     onSaveEncryptionSettings({
       rsaTransformationIdx: rsaIdx,
       aesKeyLength: aesKeyLen,
       aesTransformationIdx: aesIdx,
     });
+    onSaveEncryptionEnabled(encEnabled);
     toast({ title: 'Settings saved', description: 'Encryption settings have been updated.' });
     setOpen(false);
   };
@@ -82,9 +98,25 @@ export function SettingsDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+        <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+            <div className="space-y-0.5">
+              <Label htmlFor="encryptionEnabled" className="font-medium">
+                Enable password generator & encryption
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                When enabled, passwords will be encrypted and the generator will be available
+              </p>
+            </div>
+            <Switch
+              id="encryptionEnabled"
+              checked={encEnabled}
+              onCheckedChange={setEncEnabled}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
             <Textarea
@@ -94,12 +126,13 @@ export function SettingsDialog({
               onChange={(e) => setKeyValue(e.target.value)}
               rows={6}
               className="font-mono text-sm"
+              disabled={!encEnabled}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="rsaTransformation">RSA Transformation</Label>
-            <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))}>
+            <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))} disabled={!encEnabled}>
               <SelectTrigger id="rsaTransformation">
                 <SelectValue />
               </SelectTrigger>
@@ -115,7 +148,7 @@ export function SettingsDialog({
 
           <div className="space-y-2">
             <Label htmlFor="aesKeyLength">AES Key Length</Label>
-            <Select value={String(aesKeyLen)} onValueChange={(v) => setAesKeyLen(Number(v))}>
+            <Select value={String(aesKeyLen)} onValueChange={(v) => setAesKeyLen(Number(v))} disabled={!encEnabled}>
               <SelectTrigger id="aesKeyLength">
                 <SelectValue />
               </SelectTrigger>
@@ -131,7 +164,7 @@ export function SettingsDialog({
 
           <div className="space-y-2">
             <Label htmlFor="aesTransformation">AES Transformation</Label>
-            <Select value={String(aesIdx)} onValueChange={(v) => setAesIdx(Number(v))}>
+            <Select value={String(aesIdx)} onValueChange={(v) => setAesIdx(Number(v))} disabled={!encEnabled}>
               <SelectTrigger id="aesTransformation">
                 <SelectValue />
               </SelectTrigger>
