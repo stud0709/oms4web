@@ -8,12 +8,14 @@ interface VaultData {
   entries: PasswordEntry[];
   publicKey: string;
   encryptionSettings: EncryptionSettings;
+  encryptionEnabled: boolean;
 }
 
 export function usePasswords() {
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
   const [publicKey, setPublicKey] = useState<string>('');
   const [encryptionSettings, setEncryptionSettings] = useState<EncryptionSettings>(DEFAULT_ENCRYPTION_SETTINGS);
+  const [encryptionEnabled, setEncryptionEnabled] = useState<boolean>(true);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export function usePasswords() {
             loadedSettings.rsaTransformationIdx = DEFAULT_ENCRYPTION_SETTINGS.rsaTransformationIdx;
           }
           setEncryptionSettings(loadedSettings);
+          setEncryptionEnabled(data.encryptionEnabled !== false); // Default to true if not set
         }
       } catch (e) {
         console.error('Failed to parse stored data', e);
@@ -52,10 +55,10 @@ export function usePasswords() {
 
   useEffect(() => {
     if (isLoaded) {
-      const data: VaultData = { entries, publicKey, encryptionSettings };
+      const data: VaultData = { entries, publicKey, encryptionSettings, encryptionEnabled };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
-  }, [entries, publicKey, encryptionSettings, isLoaded]);
+  }, [entries, publicKey, encryptionSettings, encryptionEnabled, isLoaded]);
 
   const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newEntry: PasswordEntry = {
@@ -102,8 +105,8 @@ export function usePasswords() {
   }, []);
 
   const exportData = useCallback(() => {
-    return { entries, publicKey, encryptionSettings };
-  }, [entries, publicKey, encryptionSettings]);
+    return { entries, publicKey, encryptionSettings, encryptionEnabled };
+  }, [entries, publicKey, encryptionSettings, encryptionEnabled]);
 
   const updatePublicKey = useCallback((key: string) => {
     setPublicKey(key);
@@ -113,10 +116,15 @@ export function usePasswords() {
     setEncryptionSettings(settings);
   }, []);
 
+  const updateEncryptionEnabled = useCallback((enabled: boolean) => {
+    setEncryptionEnabled(enabled);
+  }, []);
+
   return {
     entries,
     publicKey,
     encryptionSettings,
+    encryptionEnabled,
     isLoaded,
     addEntry,
     updateEntry,
@@ -126,5 +134,6 @@ export function usePasswords() {
     exportData,
     updatePublicKey,
     updateEncryptionSettings,
+    updateEncryptionEnabled,
   };
 }

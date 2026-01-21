@@ -26,9 +26,10 @@ interface PasswordFormProps {
   existingTags: string[];
   publicKey: string;
   encryptionSettings: EncryptionSettings;
+  encryptionEnabled: boolean;
 }
 
-export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, publicKey, encryptionSettings }: PasswordFormProps) {
+export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, publicKey, encryptionSettings, encryptionEnabled }: PasswordFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
@@ -106,14 +107,19 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
     try {
       let finalPassword = password;
 
-      // Encrypt password if it's not already encrypted
+      // Check if password needs encryption
       if (password && !password.startsWith(OMS_PREFIX)) {
-        if (!publicKey) {
-          toast({
-            title: 'Saved without encryption',
-            description: 'No public key is configured in Settings, so the password was stored as plain text.',
-          });
-        } else {
+        if (encryptionEnabled) {
+          // Encryption is required
+          if (!publicKey) {
+            toast({
+              title: 'Cannot save entry',
+              description: 'Encryption is enabled but no public key is configured. Please add your public key in Settings.',
+              variant: 'destructive',
+            });
+            setIsSubmitting(false);
+            return;
+          }
           try {
             finalPassword = await createEncryptedMessage(password, publicKey, encryptionSettings);
           } catch (err) {
@@ -125,6 +131,15 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
             setIsSubmitting(false);
             return;
           }
+        } else {
+          // Encryption is disabled - block saving plain text passwords
+          toast({
+            title: 'Cannot save plain text passwords',
+            description: 'Enable "password generator & encryption" in Settings to save password entries.',
+            variant: 'destructive',
+          });
+          setIsSubmitting(false);
+          return;
         }
       }
 
@@ -211,7 +226,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   </Button>
                 )}
               </div>
-              <PasswordGenerator onGenerate={handlePasswordGenerated} />
+              {encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
             </div>
           </div>
 
