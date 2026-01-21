@@ -12,7 +12,9 @@ export const RSA_TRANSFORMATIONS: Record<number, { idx: number; name: string; al
 
 // AES Transformations - matching Java AesTransformation enum
 export const AES_TRANSFORMATIONS = [
-  { idx: 0, name: 'AES/CBC/PKCS5Padding', algorithm: 'AES-CBC' },
+  { idx: 0, name: 'AES/CBC/PKCS5Padding', algorithm: 'AES-CBC', ivSize: 16 },
+  { idx: 1, name: 'AES/CBC/PKCS7Padding', algorithm: 'AES-CBC', ivSize: 16 },
+  { idx: 2, name: 'AES/GCM/NoPadding', algorithm: 'AES-GCM', ivSize: 12 },
 ] as const;
 
 // AES Key Lengths
@@ -71,21 +73,31 @@ export async function parsePublicKey(base64Key: string, rsaTransformationIdx: nu
 /**
  * Generate a random AES key
  */
-async function generateAesKey(keyLength: number): Promise<CryptoKey> {
+async function generateAesKey(keyLength: number, algorithm: string): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
-    { name: 'AES-CBC', length: keyLength },
+    { name: algorithm, length: keyLength },
     true,
     ['encrypt', 'decrypt']
   );
 }
 
 /**
- * Generate a random IV (16 bytes for AES-CBC)
+ * Generate a random IV
  */
-function generateIv(): Uint8Array {
-  const iv = new Uint8Array(16);
+function generateIv(size: number): Uint8Array {
+  const iv = new Uint8Array(size);
   crypto.getRandomValues(iv);
   return iv;
+}
+
+/**
+ * Convert Uint8Array to ArrayBuffer (for WebCrypto compatibility)
+ */
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  // Create a fresh ArrayBuffer to avoid SharedArrayBuffer issues
+  const buffer = new ArrayBuffer(bytes.length);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 }
 
 /**
@@ -215,12 +227,15 @@ export async function createEncryptedMessage(
 ): Promise<string> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
   
+  // Get AES transformation details
+  const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx] ?? AES_TRANSFORMATIONS[0];
+  
   // Parse the public key
   const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
   
   // Generate AES key and IV
-  const aesKey = await generateAesKey(aesKeyLength);
-  const iv = generateIv();
+  const aesKey = await generateAesKey(aesKeyLength, aesTransformation.algorithm);
+  const iv = generateIv(aesTransformation.ivSize);
   
   // Get the raw AES key bytes
   const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
@@ -242,18 +257,29 @@ export async function createEncryptedMessage(
   const messageBytes = new TextEncoder().encode(message);
   const payload = createPayload(APPLICATION_IDS.ENCRYPTED_MESSAGE, messageBytes);
 
-  // WebCrypto AES-CBC does not define padding, but OMS expects PKCS5/7 padding.
-  // Pad manually to be compatible with the Android implementation.
-  const paddedPayload = addPkcs7Padding(payload, 16);
-
-  // Encrypt the payload with AES-CBC
-  const encryptedPayload = new Uint8Array(
-    await crypto.subtle.encrypt(
-      { name: 'AES-CBC', iv } as AesCbcParams,
-      aesKey,
-      paddedPayload as unknown as BufferSource
-    )
-  );
+  // Encrypt based on algorithm
+  const ivBuffer = toArrayBuffer(iv);
+  let encryptedPayload: Uint8Array;
+  if (aesTransformation.algorithm === 'AES-GCM') {
+    // AES-GCM handles its own padding (NoPadding)
+    encryptedPayload = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: ivBuffer },
+        aesKey,
+        toArrayBuffer(payload)
+      )
+    );
+  } else {
+    // AES-CBC requires PKCS7 padding
+    const paddedPayload = addPkcs7Padding(payload, 16);
+    encryptedPayload = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: 'AES-CBC', iv: ivBuffer },
+        aesKey,
+        toArrayBuffer(paddedPayload)
+      )
+    );
+  }
   
   // Build the final message
   // Use APPLICATION_RSA_AES_GENERIC as the outer envelope (like in Java implementation)
