@@ -1,0 +1,251 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { PasswordEntry } from '@/types/password';
+import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS, validatePublicKey } from '@/lib/crypto';
+import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
+
+const STORAGE_KEY = 'vault_data';
+
+export interface VaultData {
+  entries: PasswordEntry[];
+  publicKey: string;
+  encryptionSettings: EncryptionSettings;
+  encryptionEnabled: boolean;
+}
+
+const EMPTY_VAULT: VaultData = {
+  entries: [],
+  publicKey: '',
+  encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
+  encryptionEnabled: true,
+};
+
+export type VaultState = 
+  | { status: 'loading' }
+  | { status: 'encrypted'; encryptedData: string }
+  | { status: 'ready'; data: VaultData }
+  | { status: 'empty' };
+
+export function useEncryptedVault() {
+  const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
+  const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
+  const isInitialized = useRef(false);
+  const skipEncryption = useRef(false);
+
+  // Load vault on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    
+    if (!stored) {
+      setVaultState({ status: 'empty' });
+      setVaultData(EMPTY_VAULT);
+      isInitialized.current = true;
+      return;
+    }
+
+    // Check if data is encrypted
+    if (isEncryptedData(stored)) {
+      setVaultState({ status: 'encrypted', encryptedData: stored });
+      return;
+    }
+
+    // Try to parse as plain JSON (legacy format)
+    try {
+      const parsed = JSON.parse(stored);
+      const data = parseVaultData(parsed);
+      setVaultData(data);
+      setVaultState({ status: 'ready', data });
+      isInitialized.current = true;
+    } catch (e) {
+      console.error('Failed to parse stored data', e);
+      setVaultState({ status: 'empty' });
+      setVaultData(EMPTY_VAULT);
+      isInitialized.current = true;
+    }
+  }, []);
+
+  // Save vault when data changes (with encryption if enabled)
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    if (vaultState.status !== 'ready') return;
+
+    const saveVault = async () => {
+      const jsonData = JSON.stringify(vaultData);
+      
+      // Encrypt if we have a public key and encryption is enabled
+      if (vaultData.publicKey && vaultData.encryptionEnabled && !skipEncryption.current) {
+        try {
+          const isValid = await validatePublicKey(
+            vaultData.publicKey, 
+            vaultData.encryptionSettings.rsaTransformationIdx
+          );
+          
+          if (isValid) {
+            const encrypted = await encryptVaultData(
+              jsonData,
+              vaultData.publicKey,
+              vaultData.encryptionSettings
+            );
+            localStorage.setItem(STORAGE_KEY, encrypted);
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to encrypt vault, saving as plain JSON', e);
+        }
+      }
+      
+      // Fallback to plain JSON
+      localStorage.setItem(STORAGE_KEY, jsonData);
+    };
+
+    saveVault();
+  }, [vaultData, vaultState.status]);
+
+  const loadDecryptedData = useCallback((jsonData: string) => {
+    try {
+      const parsed = JSON.parse(jsonData);
+      const data = parseVaultData(parsed);
+      setVaultData(data);
+      setVaultState({ status: 'ready', data });
+      isInitialized.current = true;
+    } catch (e) {
+      console.error('Failed to parse decrypted data', e);
+      throw new Error('Invalid decrypted data format');
+    }
+  }, []);
+
+  const skipDecryption = useCallback(() => {
+    setVaultData(EMPTY_VAULT);
+    setVaultState({ status: 'ready', data: EMPTY_VAULT });
+    isInitialized.current = true;
+    skipEncryption.current = true;
+    // Save empty vault
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
+  }, []);
+
+  const setEntries = useCallback((entries: PasswordEntry[] | ((prev: PasswordEntry[]) => PasswordEntry[])) => {
+    setVaultData(prev => ({
+      ...prev,
+      entries: typeof entries === 'function' ? entries(prev.entries) : entries
+    }));
+  }, []);
+
+  const setPublicKey = useCallback((publicKey: string) => {
+    setVaultData(prev => ({ ...prev, publicKey }));
+  }, []);
+
+  const setEncryptionSettings = useCallback((encryptionSettings: EncryptionSettings) => {
+    setVaultData(prev => ({ ...prev, encryptionSettings }));
+  }, []);
+
+  const setEncryptionEnabled = useCallback((encryptionEnabled: boolean) => {
+    setVaultData(prev => ({ ...prev, encryptionEnabled }));
+  }, []);
+
+  const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newEntry: PasswordEntry = {
+      ...entry,
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setEntries(prev => [newEntry, ...prev]);
+    return newEntry;
+  }, [setEntries]);
+
+  const updateEntry = useCallback((id: string, updates: Partial<Omit<PasswordEntry, 'id' | 'createdAt'>>) => {
+    setEntries(prev => prev.map(entry => 
+      entry.id === id 
+        ? { ...entry, ...updates, updatedAt: new Date() }
+        : entry
+    ));
+  }, [setEntries]);
+
+  const deleteEntry = useCallback((id: string) => {
+    setEntries(prev => prev.filter(entry => entry.id !== id));
+  }, [setEntries]);
+
+  const getAllHashtags = useCallback(() => {
+    const tags = new Set<string>();
+    vaultData.entries.forEach(entry => entry.hashtags.forEach(tag => tags.add(tag)));
+    return Array.from(tags).sort();
+  }, [vaultData.entries]);
+
+  const importEntries = useCallback((
+    newEntries: PasswordEntry[], 
+    newPublicKey?: string, 
+    newEncryptionSettings?: EncryptionSettings
+  ) => {
+    const processedEntries = newEntries.map(e => ({
+      ...e,
+      createdAt: new Date(e.createdAt),
+      updatedAt: new Date(e.updatedAt),
+    }));
+    
+    setVaultData(prev => ({
+      ...prev,
+      entries: processedEntries,
+      ...(newPublicKey !== undefined && { publicKey: newPublicKey }),
+      ...(newEncryptionSettings !== undefined && { encryptionSettings: newEncryptionSettings }),
+    }));
+  }, []);
+
+  const exportData = useCallback(() => {
+    return vaultData;
+  }, [vaultData]);
+
+  return {
+    vaultState,
+    entries: vaultData.entries,
+    publicKey: vaultData.publicKey,
+    encryptionSettings: vaultData.encryptionSettings,
+    encryptionEnabled: vaultData.encryptionEnabled,
+    isLoaded: vaultState.status === 'ready',
+    loadDecryptedData,
+    skipDecryption,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    getAllHashtags,
+    importEntries,
+    exportData,
+    updatePublicKey: setPublicKey,
+    updateEncryptionSettings: setEncryptionSettings,
+    updateEncryptionEnabled: setEncryptionEnabled,
+  };
+}
+
+function parseVaultData(parsed: unknown): VaultData {
+  // Handle both old format (array) and new format (object with entries)
+  if (Array.isArray(parsed)) {
+    return {
+      entries: parsed.map((e: PasswordEntry) => ({
+        ...e,
+        createdAt: new Date(e.createdAt),
+        updatedAt: new Date(e.updatedAt),
+      })),
+      publicKey: '',
+      encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
+      encryptionEnabled: true,
+    };
+  }
+  
+  const data = parsed as VaultData;
+  const entries = (data.entries || []).map((e: PasswordEntry) => ({
+    ...e,
+    createdAt: new Date(e.createdAt),
+    updatedAt: new Date(e.updatedAt),
+  }));
+  
+  // Normalize encryption settings
+  const loadedSettings = data.encryptionSettings || DEFAULT_ENCRYPTION_SETTINGS;
+  if (loadedSettings.rsaTransformationIdx !== 1 && loadedSettings.rsaTransformationIdx !== 2) {
+    loadedSettings.rsaTransformationIdx = DEFAULT_ENCRYPTION_SETTINGS.rsaTransformationIdx;
+  }
+  
+  return {
+    entries,
+    publicKey: data.publicKey || '',
+    encryptionSettings: loadedSettings,
+    encryptionEnabled: data.encryptionEnabled !== false,
+  };
+}
