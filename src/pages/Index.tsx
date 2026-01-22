@@ -1,17 +1,36 @@
 import { useState, useMemo, useRef } from 'react';
-import { Plus, Lock, Download, Upload } from 'lucide-react';
+import { Plus, Lock, Download, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { usePasswords } from '@/hooks/usePasswords';
+import { useEncryptedVault } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
 import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
+import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { entries, publicKey, encryptionSettings, encryptionEnabled, addEntry, updateEntry, deleteEntry, getAllHashtags, importEntries, exportData, updatePublicKey, updateEncryptionSettings, updateEncryptionEnabled } = usePasswords();
+  const { 
+    vaultState,
+    entries, 
+    publicKey, 
+    encryptionSettings, 
+    encryptionEnabled, 
+    addEntry, 
+    updateEntry, 
+    deleteEntry, 
+    getAllHashtags, 
+    importEntries, 
+    exportData, 
+    updatePublicKey, 
+    updateEncryptionSettings, 
+    updateEncryptionEnabled,
+    loadDecryptedData,
+    skipDecryption,
+  } = useEncryptedVault();
+  
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
@@ -111,6 +130,33 @@ const Index = () => {
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  // Show loading state
+  if (vaultState.status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading vault...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show decrypt dialog if vault is encrypted
+  if (vaultState.status === 'encrypted') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <DecryptQrDialog
+          open={true}
+          onOpenChange={() => {}}
+          encryptedData={vaultState.encryptedData}
+          onDecrypted={loadDecryptedData}
+          onSkip={skipDecryption}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
