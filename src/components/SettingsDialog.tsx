@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import {
   Select,
@@ -31,18 +32,22 @@ interface SettingsDialogProps {
   publicKey: string;
   encryptionSettings: EncryptionSettings;
   encryptionEnabled: boolean;
+  vaultName: string;
   onSavePublicKey: (key: string) => void;
   onSaveEncryptionSettings: (settings: EncryptionSettings) => void;
   onSaveEncryptionEnabled: (enabled: boolean) => void;
+  onSaveVaultName: (name: string) => void;
 }
 
 export function SettingsDialog({
   publicKey,
   encryptionSettings,
   encryptionEnabled,
+  vaultName,
   onSavePublicKey,
   onSaveEncryptionSettings,
   onSaveEncryptionEnabled,
+  onSaveVaultName,
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [keyValue, setKeyValue] = useState(publicKey);
@@ -50,6 +55,7 @@ export function SettingsDialog({
   const [aesKeyLen, setAesKeyLen] = useState(encryptionSettings.aesKeyLength);
   const [aesIdx, setAesIdx] = useState(encryptionSettings.aesTransformationIdx);
   const [encEnabled, setEncEnabled] = useState(encryptionEnabled);
+  const [nameValue, setNameValue] = useState(vaultName);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -58,7 +64,8 @@ export function SettingsDialog({
     setAesKeyLen(encryptionSettings.aesKeyLength);
     setAesIdx(encryptionSettings.aesTransformationIdx);
     setEncEnabled(encryptionEnabled);
-  }, [publicKey, encryptionSettings, encryptionEnabled]);
+    setNameValue(vaultName);
+  }, [publicKey, encryptionSettings, encryptionEnabled, vaultName]);
 
   const handleSave = () => {
     // Basic validation: check if it looks like base64 (only if encryption is enabled and key is provided)
@@ -85,7 +92,8 @@ export function SettingsDialog({
       aesTransformationIdx: aesIdx,
     });
     onSaveEncryptionEnabled(encEnabled);
-    toast({ title: 'Settings saved', description: 'Encryption settings have been updated.' });
+    onSaveVaultName(nameValue.trim());
+    toast({ title: 'Settings saved', description: 'Settings have been updated.' });
     setOpen(false);
   };
 
@@ -101,6 +109,19 @@ export function SettingsDialog({
         <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="vaultName">Vault Name</Label>
+            <Input
+              id="vaultName"
+              placeholder="Enter vault name..."
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Displayed in the header and used as export filename
+            </p>
+          </div>
+
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
             <div className="space-y-0.5">
               <Label htmlFor="encryptionEnabled" className="font-medium">
