@@ -10,6 +10,7 @@ export interface VaultData {
   publicKey: string;
   encryptionSettings: EncryptionSettings;
   encryptionEnabled: boolean;
+  vaultName: string;
 }
 
 const EMPTY_VAULT: VaultData = {
@@ -17,6 +18,7 @@ const EMPTY_VAULT: VaultData = {
   publicKey: '',
   encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
   encryptionEnabled: true,
+  vaultName: '',
 };
 
 export type VaultState = 
@@ -141,6 +143,10 @@ export function useEncryptedVault() {
     setVaultData(prev => ({ ...prev, encryptionEnabled }));
   }, []);
 
+  const setVaultName = useCallback((vaultName: string) => {
+    setVaultData(prev => ({ ...prev, vaultName }));
+  }, []);
+
   const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newEntry: PasswordEntry = {
       ...entry,
@@ -199,6 +205,7 @@ export function useEncryptedVault() {
     publicKey: vaultData.publicKey,
     encryptionSettings: vaultData.encryptionSettings,
     encryptionEnabled: vaultData.encryptionEnabled,
+    vaultName: vaultData.vaultName,
     isLoaded: vaultState.status === 'ready',
     loadDecryptedData,
     skipDecryption,
@@ -211,6 +218,7 @@ export function useEncryptedVault() {
     updatePublicKey: setPublicKey,
     updateEncryptionSettings: setEncryptionSettings,
     updateEncryptionEnabled: setEncryptionEnabled,
+    updateVaultName: setVaultName,
   };
 }
 
@@ -226,6 +234,7 @@ function parseVaultData(parsed: unknown): VaultData {
       publicKey: '',
       encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
       encryptionEnabled: true,
+      vaultName: '',
     };
   }
   
@@ -247,5 +256,6 @@ function parseVaultData(parsed: unknown): VaultData {
     publicKey: data.publicKey || '',
     encryptionSettings: loadedSettings,
     encryptionEnabled: data.encryptionEnabled !== false,
+    vaultName: data.vaultName || '',
   };
 }

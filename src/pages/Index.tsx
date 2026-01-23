@@ -10,6 +10,7 @@ import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
+import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
 
 const Index = () => {
   const { 
@@ -17,7 +18,8 @@ const Index = () => {
     entries, 
     publicKey, 
     encryptionSettings, 
-    encryptionEnabled, 
+    encryptionEnabled,
+    vaultName,
     addEntry, 
     updateEntry, 
     deleteEntry, 
@@ -27,6 +29,7 @@ const Index = () => {
     updatePublicKey, 
     updateEncryptionSettings, 
     updateEncryptionEnabled,
+    updateVaultName,
     loadDecryptedData,
     skipDecryption,
   } = useEncryptedVault();
@@ -37,7 +40,7 @@ const Index = () => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
-
+  const [importDecryptData, setImportDecryptData] = useState<string | null>(null);
   const allTags = getAllHashtags();
 
   const DELETED_TAG = 'deleted';
@@ -91,13 +94,41 @@ const Index = () => {
     }
   };
 
-  const handleExport = () => {
-    const data = JSON.stringify(exportData(), null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+  const handleExport = async () => {
+    const data = exportData();
+    const jsonData = JSON.stringify(data, null, 2);
+    
+    // Generate filename: vaultName + timestamp
+    const name = vaultName.trim() || 'Untitled';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    
+    // If encryption is enabled and public key exists, export encrypted
+    if (encryptionEnabled && publicKey) {
+      try {
+        const encrypted = await encryptVaultData(jsonData, publicKey, encryptionSettings);
+        const blob = new Blob([encrypted], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${name}_${timestamp}.oms00`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast({ title: 'Exported (encrypted)', description: `${entries.length} entries saved to encrypted file.` });
+        return;
+      } catch (err) {
+        console.error('Failed to encrypt export:', err);
+        toast({ title: 'Encryption failed', description: 'Falling back to JSON export.', variant: 'destructive' });
+      }
+    }
+    
+    // Fallback to plain JSON
+    const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `vault-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `${name}_${timestamp}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -111,8 +142,17 @@ const Index = () => {
 
     const reader = new FileReader();
     reader.onload = (e) => {
+      const content = e.target?.result as string;
+      
+      // Check if it's an encrypted .oms00 file
+      if (file.name.endsWith('.oms00') || isEncryptedData(content)) {
+        setImportDecryptData(content);
+        return;
+      }
+      
+      // Handle plain JSON
       try {
-        const data = JSON.parse(e.target?.result as string);
+        const data = JSON.parse(content);
         // Support both old format (array) and new format (object with entries)
         if (Array.isArray(data)) {
           importEntries(data);
@@ -129,6 +169,24 @@ const Index = () => {
     };
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleImportDecrypted = (decryptedJson: string) => {
+    try {
+      const data = JSON.parse(decryptedJson);
+      if (Array.isArray(data)) {
+        importEntries(data);
+        toast({ title: 'Imported', description: `${data.length} entries loaded.` });
+      } else if (data.entries && Array.isArray(data.entries)) {
+        importEntries(data.entries, data.publicKey, data.encryptionSettings);
+        toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
+      } else {
+        throw new Error('Invalid format');
+      }
+    } catch (err) {
+      toast({ title: 'Import failed', description: 'Invalid decrypted data format.', variant: 'destructive' });
+    }
+    setImportDecryptData(null);
   };
 
   // Show loading state
@@ -168,7 +226,7 @@ const Index = () => {
               <img src="/favicon.png" alt="oms4web" className="h-10 w-10" />
               <div>
                 <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
-                <p className="text-xs text-muted-foreground">Password Manager</p>
+                <p className="text-xs text-muted-foreground">{vaultName.trim() || 'Untitled'}</p>
               </div>
             </div>
             <Button onClick={() => setFormOpen(true)} className="gap-2">
@@ -185,14 +243,16 @@ const Index = () => {
               publicKey={publicKey} 
               encryptionSettings={encryptionSettings}
               encryptionEnabled={encryptionEnabled}
+              vaultName={vaultName}
               onSavePublicKey={updatePublicKey} 
               onSaveEncryptionSettings={updateEncryptionSettings}
               onSaveEncryptionEnabled={updateEncryptionEnabled}
+              onSaveVaultName={updateVaultName}
             />
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json"
+              accept=".json,.oms00"
               className="hidden"
               onChange={handleImport}
             />
@@ -271,6 +331,17 @@ const Index = () => {
         encryptionSettings={encryptionSettings}
         encryptionEnabled={encryptionEnabled}
       />
+
+      {/* Decrypt dialog for importing encrypted files */}
+      {importDecryptData && (
+        <DecryptQrDialog
+          open={true}
+          onOpenChange={(open) => !open && setImportDecryptData(null)}
+          encryptedData={importDecryptData}
+          onDecrypted={handleImportDecrypted}
+          onSkip={() => setImportDecryptData(null)}
+        />
+      )}
     </div>
   );
 };
