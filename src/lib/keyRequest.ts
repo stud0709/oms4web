@@ -109,26 +109,16 @@ export interface RsaAesEnvelope {
 }
 
 /**
- * Parse RSA x AES envelope from OMS-encoded text data or raw binary
+ * Parse RSA x AES envelope from OMS-encoded data
  * Format matches EncryptedFile.java structure
- * 
- * IMPORTANT: For APPLICATION_ENCRYPTED_FILE, the encrypted data is NOT prefixed
- * with a length - it's the remainder of the file after the header.
  */
-export function parseRsaAesEnvelope(omsData: string | Uint8Array): RsaAesEnvelope {
-  let binary: Uint8Array;
-  
-  if (typeof omsData === 'string') {
-    if (omsData.startsWith(OMS_PREFIX)) {
-      const base64Data = omsData.slice(OMS_PREFIX.length);
-      binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-    } else {
-      // Try as raw base64
-      binary = Uint8Array.from(atob(omsData), c => c.charCodeAt(0));
-    }
-  } else {
-    binary = omsData;
+export function parseRsaAesEnvelope(omsData: string): RsaAesEnvelope {
+  if (!omsData.startsWith(OMS_PREFIX)) {
+    throw new Error('Invalid OMS data format');
   }
+
+  const base64Data = omsData.slice(OMS_PREFIX.length);
+  const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
   let offset = 0;
 
@@ -157,17 +147,7 @@ export function parseRsaAesEnvelope(omsData: string | Uint8Array): RsaAesEnvelop
   offset = offset6;
 
   // (7) AES-encrypted data
-  // For APPLICATION_ENCRYPTED_FILE: NO length prefix, rest of file is encrypted data
-  // For other types (like RSA_AES_GENERIC): HAS length prefix
-  let encryptedData: Uint8Array;
-  if (applicationId === APPLICATION_IDS.ENCRYPTED_FILE) {
-    // No length prefix - rest of binary is encrypted data
-    encryptedData = binary.slice(offset);
-  } else {
-    // Has length prefix
-    const [data] = readByteArray(binary, offset);
-    encryptedData = data;
-  }
+  const [encryptedData] = readByteArray(binary, offset);
 
   return {
     applicationId,

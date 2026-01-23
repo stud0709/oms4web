@@ -10,7 +10,7 @@ import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
-import { encryptVaultDataBinary, isEncryptedData } from '@/lib/fileEncryption';
+import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
 
 const Index = () => {
   const { 
@@ -105,9 +105,8 @@ const Index = () => {
     // If encryption is enabled and public key exists, export encrypted
     if (encryptionEnabled && publicKey) {
       try {
-        // Export as raw binary .oms00 file (compatible with Android OMS)
-        const binaryData = await encryptVaultDataBinary(jsonData, publicKey, encryptionSettings);
-        const blob = new Blob([new Uint8Array(binaryData)], { type: 'application/octet-stream' });
+        const encrypted = await encryptVaultData(jsonData, publicKey, encryptionSettings);
+        const blob = new Blob([encrypted], { type: 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -141,28 +140,12 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // For .oms00 files, read as binary
-    if (file.name.endsWith('.oms00')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const binaryData = new Uint8Array(arrayBuffer);
-        // Convert to base64 with OMS prefix for decrypt dialog
-        const base64 = btoa(String.fromCharCode(...binaryData));
-        setImportDecryptData('oms00_' + base64);
-      };
-      reader.readAsArrayBuffer(file);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    // For text files
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
       
-      // Check if it's encrypted OMS text format
-      if (isEncryptedData(content)) {
+      // Check if it's an encrypted .oms00 file
+      if (file.name.endsWith('.oms00') || isEncryptedData(content)) {
         setImportDecryptData(content);
         return;
       }
