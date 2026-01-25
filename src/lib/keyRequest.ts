@@ -146,8 +146,8 @@ export function parseRsaAesEnvelope(omsData: string): RsaAesEnvelope {
   const [encryptedAesKey, offset6] = readByteArray(binary, offset);
   offset = offset6;
 
-  // (7) AES-encrypted data
-  const [encryptedData] = readByteArray(binary, offset);
+  // (7) AES-encrypted data (remaining bytes, no length prefix)
+  const encryptedData = binary.slice(offset);
 
   return {
     applicationId,
