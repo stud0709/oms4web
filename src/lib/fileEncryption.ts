@@ -40,7 +40,7 @@ export async function encryptVaultData(
   data: string,
   publicKeyBase64: string,
   settings: EncryptionSettings
-): Promise<string> {
+): Promise<Uint8Array> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
   
   // Get AES transformation details
@@ -107,17 +107,7 @@ export async function encryptVaultData(
     writeByteArray(encryptedData)                         // (7) AES-encrypted data
   );
 
-  console.log(`Application-ID: ${APPLICATION_IDS.ENCRYPTED_FILE}`);
-  console.log(`RSA transformation: ${rsaTransformationIdx}`);
-  console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
-  console.log(`AES transformation: ${aesTransformationIdx}`);
-  console.log(`IV: ${toFormattedHex(iv)}`);
-  console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
-
-  console.log(`Final message: ${toFormattedHex(finalMessage)}`);
-  
-  // Encode as OMS text format
-  return OMS_PREFIX + btoa(String.fromCharCode(...finalMessage));
+  return finalMessage;
 }
 
 /**

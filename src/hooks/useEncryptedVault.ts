@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PasswordEntry } from '@/types/password';
-import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS, validatePublicKey } from '@/lib/crypto';
+import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS, validatePublicKey, OMS_PREFIX } from '@/lib/crypto';
 import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
 
 const STORAGE_KEY = 'vault_data';
@@ -82,12 +82,14 @@ export function useEncryptedVault() {
           );
           
           if (isValid) {
-            const encrypted = await encryptVaultData(
+            const encryptedBytes = await encryptVaultData(
               jsonData,
               vaultData.publicKey,
               vaultData.encryptionSettings
             );
-            localStorage.setItem(STORAGE_KEY, encrypted);
+            // Encode as OMS text format for localStorage
+            const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
+            localStorage.setItem(STORAGE_KEY, encoded);
             return;
           }
         } catch (e) {
