@@ -105,8 +105,8 @@ const Index = () => {
     // If encryption is enabled and public key exists, export encrypted
     if (encryptionEnabled && publicKey) {
       try {
-        const encrypted = await encryptVaultData(jsonData, publicKey, encryptionSettings);
-        const blob = new Blob([encrypted], { type: 'application/octet-stream' });
+        const encryptedBytes = await encryptVaultData(jsonData, publicKey, encryptionSettings);
+        const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
