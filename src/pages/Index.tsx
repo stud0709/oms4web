@@ -98,9 +98,10 @@ const Index = () => {
     const data = exportData();
     const jsonData = JSON.stringify(data, null, 2);
     
-    // Generate filename: vaultName + timestamp
+    // Generate filename: vaultName + local timestamp
     const name = vaultName.trim() || 'Untitled';
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
     
     // If encryption is enabled and public key exists, export encrypted
     if (encryptionEnabled && publicKey) {
@@ -110,7 +111,7 @@ const Index = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${name}_${timestamp}.oms00`;
+        a.download = `${name}_${timestamp}.json.oms00`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
