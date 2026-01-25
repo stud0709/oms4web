@@ -57,10 +57,10 @@ export async function parsePublicKey(base64Key: string, rsaTransformationIdx: nu
   // Remove whitespace and decode base64
   const cleanKey = base64Key.replace(/\s+/g, '');
   const binaryDer = Uint8Array.from(atob(cleanKey), c => c.charCodeAt(0));
-  
+
   // Fall back to default (idx 2) if invalid index
   const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2];
-  
+
   return await crypto.subtle.importKey(
     'spki',
     binaryDer,
@@ -73,7 +73,7 @@ export async function parsePublicKey(base64Key: string, rsaTransformationIdx: nu
 /**
  * Generate a random AES key
  */
-async function generateAesKey(keyLength: number, algorithm: string): Promise<CryptoKey> {
+export async function generateAesKey(keyLength: number, algorithm: string): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
     { name: algorithm, length: keyLength },
     true,
@@ -84,7 +84,7 @@ async function generateAesKey(keyLength: number, algorithm: string): Promise<Cry
 /**
  * Generate a random IV
  */
-function generateIv(size: number): Uint8Array {
+export function generateIv(size: number): Uint8Array {
   const iv = new Uint8Array(size);
   crypto.getRandomValues(iv);
   return iv;
@@ -93,7 +93,7 @@ function generateIv(size: number): Uint8Array {
 /**
  * Convert Uint8Array to ArrayBuffer (for WebCrypto compatibility)
  */
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   // Create a fresh ArrayBuffer to avoid SharedArrayBuffer issues
   const buffer = new ArrayBuffer(bytes.length);
   new Uint8Array(buffer).set(bytes);
@@ -130,22 +130,22 @@ function toBigIntegerBytes(bytes: Uint8Array): Uint8Array {
  * Matches Java implementation: RSAUtils.getFingerprint()
  * Uses BigInteger byte array format (with sign byte handling)
  */
-async function getFingerprint(publicKey: CryptoKey): Promise<Uint8Array> {
+export async function getFingerprint(publicKey: CryptoKey): Promise<Uint8Array> {
   const exported = await crypto.subtle.exportKey('jwk', publicKey);
-  
+
   // Decode the modulus (n) and exponent (e) from base64url
   const modulusRaw = base64UrlToBytes(exported.n!);
   const exponentRaw = base64UrlToBytes(exported.e!);
-  
+
   // Convert to Java BigInteger byte array format (add leading zero if high bit set)
   const modulus = toBigIntegerBytes(modulusRaw);
   const exponent = toBigIntegerBytes(exponentRaw);
-  
+
   // Hash: sha256.update(modulus); sha256.digest(publicExp);
   const combined = new Uint8Array(modulus.length + exponent.length);
   combined.set(modulus, 0);
   combined.set(exponent, modulus.length);
-  
+
   const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
   return new Uint8Array(hashBuffer);
 }
@@ -153,7 +153,7 @@ async function getFingerprint(publicKey: CryptoKey): Promise<Uint8Array> {
 /**
  * Write unsigned short (2 bytes, big-endian)
  */
-function writeUnsignedShort(value: number): Uint8Array {
+export function writeUnsignedShort(value: number): Uint8Array {
   const arr = new Uint8Array(2);
   arr[0] = (value >> 8) & 0xff;
   arr[1] = value & 0xff;
@@ -163,7 +163,7 @@ function writeUnsignedShort(value: number): Uint8Array {
 /**
  * Write byte array with length prefix (unsigned short)
  */
-function writeByteArray(data: Uint8Array): Uint8Array {
+export function writeByteArray(data: Uint8Array): Uint8Array {
   const length = writeUnsignedShort(data.length);
   const result = new Uint8Array(2 + data.length);
   result.set(length, 0);
@@ -174,7 +174,7 @@ function writeByteArray(data: Uint8Array): Uint8Array {
 /**
  * Concatenate multiple Uint8Arrays
  */
-function concatArrays(...arrays: Uint8Array[]): Uint8Array {
+export function concatArrays(...arrays: Uint8Array[]): Uint8Array {
   const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
   const result = new Uint8Array(totalLength);
   let offset = 0;
@@ -188,7 +188,7 @@ function concatArrays(...arrays: Uint8Array[]): Uint8Array {
 /**
  * Add PKCS7 padding
  */
-function addPkcs7Padding(data: Uint8Array, blockSize: number = 16): Uint8Array {
+export function addPkcs7Padding(data: Uint8Array, blockSize: number = 16): Uint8Array {
   const paddingLength = blockSize - (data.length % blockSize);
   const padded = new Uint8Array(data.length + paddingLength);
   padded.set(data, 0);
@@ -226,20 +226,20 @@ export async function createEncryptedMessage(
   settings: EncryptionSettings
 ): Promise<string> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
-  
+
   // Get AES transformation details
   const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx] ?? AES_TRANSFORMATIONS[0];
-  
+
   // Parse the public key
   const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
-  
+
   // Generate AES key and IV
   const aesKey = await generateAesKey(aesKeyLength, aesTransformation.algorithm);
   const iv = generateIv(aesTransformation.ivSize);
-  
+
   // Get the raw AES key bytes
   const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
-  
+
   // Encrypt the AES key with RSA (fall back to idx 2 if invalid)
   const rsaAlgorithm = (RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2]).algorithm;
   const encryptedAesKey = new Uint8Array(
@@ -249,10 +249,10 @@ export async function createEncryptedMessage(
       aesKeyRaw
     )
   );
-  
+
   // Get fingerprint
   const fingerprint = await getFingerprint(publicKey);
-  
+
   // Create the inner payload: APPLICATION_ENCRYPTED_MESSAGE + message bytes
   const messageBytes = new TextEncoder().encode(message);
   const payload = createPayload(APPLICATION_IDS.ENCRYPTED_MESSAGE, messageBytes);
@@ -280,11 +280,11 @@ export async function createEncryptedMessage(
       )
     );
   }
-  
+
   // Build the final message
   // Use APPLICATION_RSA_AES_GENERIC as the outer envelope (like in Java implementation)
   const finalMessage = concatArrays(
-    writeUnsignedShort(APPLICATION_IDS.RSA_AES_GENERIC), // (1) Application ID
+    writeUnsignedShort(APPLICATION_IDS.RSA_AES_GENERIC),  // (1) Application ID
     writeUnsignedShort(rsaTransformationIdx),             // (2) RSA transformation index
     writeByteArray(fingerprint),                          // (3) Fingerprint
     writeUnsignedShort(aesTransformationIdx),             // (4) AES transformation index
@@ -292,7 +292,14 @@ export async function createEncryptedMessage(
     writeByteArray(encryptedAesKey),                      // (6) RSA-encrypted AES key
     writeByteArray(encryptedPayload)                      // (7) AES-encrypted message
   );
-  
+
+  console.log(`Application-ID: ${APPLICATION_IDS.RSA_AES_GENERIC}`);
+  console.log(`RSA transformation: ${rsaTransformationIdx}`);
+  console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
+  console.log(`AES transformation: ${aesTransformationIdx}`);
+  console.log(`IV: ${toFormattedHex(iv)}`);
+  console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
+
   // Encode as OMS text format
   return OMS_PREFIX + btoa(String.fromCharCode(...finalMessage));
 }
@@ -307,4 +314,12 @@ export async function validatePublicKey(base64Key: string, rsaTransformationIdx:
   } catch {
     return false;
   }
+}
+
+export function toFormattedHex(byteArray: Uint8Array) {
+  // 1. Convert to raw hex string
+  const rawHex = Array.from(byteArray, b => b.toString(16).padStart(2, '0')).join('');
+
+  // 2. Insert space every 4 characters
+  return rawHex.replace(/(.{4})/g, '$1 ').trim();
 }
