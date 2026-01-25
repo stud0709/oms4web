@@ -141,12 +141,29 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Handle .oms00 files as binary
+    if (file.name.endsWith('.oms00')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        const bytes = new Uint8Array(arrayBuffer);
+        // Convert raw binary to OMS format (oms00_ prefix + base64)
+        const base64 = btoa(String.fromCharCode(...bytes));
+        const omsData = `oms00_${base64}`;
+        setImportDecryptData(omsData);
+      };
+      reader.readAsArrayBuffer(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Handle text files (JSON or OMS text format)
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
       
-      // Check if it's an encrypted .oms00 file
-      if (file.name.endsWith('.oms00') || isEncryptedData(content)) {
+      // Check if it's encrypted data in text format
+      if (isEncryptedData(content)) {
         setImportDecryptData(content);
         return;
       }
