@@ -19,6 +19,7 @@ interface DecryptQrDialogProps {
   encryptedData: string;
   onDecrypted: (data: string) => void;
   onSkip?: () => void;
+  hideCloseButton?: boolean;
 }
 
 type Step = 'loading' | 'display' | 'input' | 'processing' | 'success' | 'error';
@@ -28,7 +29,8 @@ export function DecryptQrDialog({
   onOpenChange, 
   encryptedData,
   onDecrypted,
-  onSkip
+  onSkip,
+  hideCloseButton = false
 }: DecryptQrDialogProps) {
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -126,7 +128,7 @@ export function DecryptQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className={`sm:max-w-lg ${hideCloseButton ? '[&>button]:hidden' : ''}`} onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <QrCode className="h-5 w-5" />
