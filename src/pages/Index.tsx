@@ -212,6 +212,7 @@ const Index = () => {
           encryptedData={vaultState.encryptedData}
           onDecrypted={loadDecryptedData}
           onSkip={skipDecryption}
+          hideCloseButton
         />
       </div>
     );
