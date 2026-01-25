@@ -104,7 +104,7 @@ export async function encryptVaultData(
     writeUnsignedShort(aesTransformationIdx),             // (4) AES transformation index
     writeByteArray(iv),                                   // (5) IV
     writeByteArray(encryptedAesKey),                      // (6) RSA-encrypted AES key
-    writeByteArray(encryptedData)                         // (7) AES-encrypted data
+    encryptedData                                         // (7) AES-encrypted data (no length prefix)
   );
 
   return finalMessage;
