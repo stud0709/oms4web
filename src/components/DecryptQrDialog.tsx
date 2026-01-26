@@ -103,6 +103,17 @@ export function DecryptQrDialog({
       // Validate JSON
       JSON.parse(decryptedData);
       
+      // DEBUG: Download decrypted data for troubleshooting
+      const blob = new Blob([decryptedData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `decrypted_debug_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
       setStep('success');
       setTimeout(() => {
         onDecrypted(decryptedData);
