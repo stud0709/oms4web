@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PasswordEntry } from '@/types/password';
-import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS, validatePublicKey, OMS_PREFIX } from '@/lib/crypto';
+import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS, validatePublicKey, OMS_PREFIX, RSA_TRANSFORMATIONS, AES_TRANSFORMATIONS, AES_KEY_LENGTHS } from '@/lib/crypto';
 import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
 
 const STORAGE_KEY = 'vault_data';
@@ -21,7 +21,7 @@ const EMPTY_VAULT: VaultData = {
   vaultName: '',
 };
 
-export type VaultState = 
+export type VaultState =
   | { status: 'loading' }
   | { status: 'encrypted'; encryptedData: string }
   | { status: 'ready'; data: VaultData }
@@ -36,7 +36,7 @@ export function useEncryptedVault() {
   // Load vault on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    
+
     if (!stored) {
       setVaultState({ status: 'empty' });
       setVaultData(EMPTY_VAULT);
@@ -72,15 +72,15 @@ export function useEncryptedVault() {
 
     const saveVault = async () => {
       const jsonData = JSON.stringify(vaultData);
-      
+
       // Encrypt if we have a public key and encryption is enabled
       if (vaultData.publicKey && vaultData.encryptionEnabled && !skipEncryption.current) {
         try {
           const isValid = await validatePublicKey(
-            vaultData.publicKey, 
+            vaultData.publicKey,
             vaultData.encryptionSettings.rsaTransformationIdx
           );
-          
+
           if (isValid) {
             const encryptedBytes = await encryptVaultData(
               jsonData,
@@ -96,7 +96,7 @@ export function useEncryptedVault() {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
         }
       }
-      
+
       // Fallback to plain JSON
       localStorage.setItem(STORAGE_KEY, jsonData);
     };
@@ -186,8 +186,8 @@ export function useEncryptedVault() {
   }, [setEntries]);
 
   const updateEntry = useCallback((id: string, updates: Partial<Omit<PasswordEntry, 'id' | 'createdAt'>>) => {
-    setEntries(prev => prev.map(entry => 
-      entry.id === id 
+    setEntries(prev => prev.map(entry =>
+      entry.id === id
         ? { ...entry, ...updates, updatedAt: new Date() }
         : entry
     ));
@@ -204,8 +204,8 @@ export function useEncryptedVault() {
   }, [vaultData.entries]);
 
   const importEntries = useCallback((
-    newEntries: PasswordEntry[], 
-    newPublicKey?: string, 
+    newEntries: PasswordEntry[],
+    newPublicKey?: string,
     newEncryptionSettings?: EncryptionSettings
   ) => {
     const processedEntries = newEntries.map(e => ({
@@ -213,7 +213,7 @@ export function useEncryptedVault() {
       createdAt: new Date(e.createdAt),
       updatedAt: new Date(e.updatedAt),
     }));
-    
+
     setVaultData(prev => ({
       ...prev,
       entries: processedEntries,
@@ -265,20 +265,26 @@ function parseVaultData(parsed: unknown): VaultData {
       vaultName: '',
     };
   }
-  
+
   const data = parsed as VaultData;
   const entries = (data.entries || []).map((e: PasswordEntry) => ({
     ...e,
     createdAt: new Date(e.createdAt),
     updatedAt: new Date(e.updatedAt),
   }));
-  
+
   // Normalize encryption settings
   const loadedSettings = data.encryptionSettings || DEFAULT_ENCRYPTION_SETTINGS;
-  if (loadedSettings.rsaTransformationIdx !== 1 && loadedSettings.rsaTransformationIdx !== 2) {
+
+  if (!RSA_TRANSFORMATIONS[loadedSettings.rsaTransformationIdx])
     loadedSettings.rsaTransformationIdx = DEFAULT_ENCRYPTION_SETTINGS.rsaTransformationIdx;
-  }
-  
+
+  if (!AES_TRANSFORMATIONS[loadedSettings.aesTransformationIdx])
+    loadedSettings.aesTransformationIdx = DEFAULT_ENCRYPTION_SETTINGS.aesTransformationIdx;
+
+  if (!AES_KEY_LENGTHS[loadedSettings.aesKeyLength])
+    loadedSettings.aesKeyLength = DEFAULT_ENCRYPTION_SETTINGS.aesKeyLength;
+
   return {
     entries,
     publicKey: data.publicKey || '',

@@ -21,7 +21,8 @@ import {
   parseRsaAesEnvelope,
   aesDecryptData,
   writeString,
-  toFormattedHex
+  toFormattedHex,
+  EncryptionSettings,
 } from './crypto';
 
 
@@ -43,9 +44,10 @@ export interface KeyRequestContext {
  * (3) RSA public key (SPKI encoded)
  * (4) Fingerprint of the requested RSA key (from file header)
  * (5) RSA transformation index for decryption
- * (6) Encrypted AES key from the file header
+ * (6) RSA transformation index for the KeyResponse compatible with this system
+ * (7) Encrypted AES key from the file header
  */
-export async function createKeyRequest(fileName: string, encryptedData: string): Promise<KeyRequestContext> {
+export async function createKeyRequest(fileName: string, encryptedData: string, settings: EncryptionSettings): Promise<KeyRequestContext> {
   // Parse the encrypted envelope
   const envelope = parseRsaAesEnvelope(encryptedData);
 
@@ -66,6 +68,8 @@ export async function createKeyRequest(fileName: string, encryptedData: string):
     await crypto.subtle.exportKey('spki', keyPair.publicKey)
   );
 
+  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
+
   // Build the KEY_REQUEST message
   const messageBytes = concatArrays(
     writeUnsignedShort(APPLICATION_IDS.KEY_REQUEST),    // (1) Application ID
@@ -73,7 +77,8 @@ export async function createKeyRequest(fileName: string, encryptedData: string):
     writeByteArray(publicKeySpki),                       // (3) RSA public key
     writeByteArray(envelope.fingerprint),                // (4) Fingerprint from envelope
     writeUnsignedShort(envelope.rsaTransformation.idx),   // (5) RSA transformation index
-    writeByteArray(envelope.encryptedAesKey),            // (6) Encrypted AES key
+    writeUnsignedShort(rsaTransformationKeyResponse.idx),   // (6) RSA transformation index for the KeyResponse compatible with this system
+    writeByteArray(envelope.encryptedAesKey),            // (7) Encrypted AES key
   );
 
   console.log("Created Key Request:");
@@ -81,7 +86,8 @@ export async function createKeyRequest(fileName: string, encryptedData: string):
   console.log(`Reference: ${fileName}`)
   console.log(`RSA public key: ${toFormattedHex(publicKeySpki)}`)
   console.log(`fingerprint (encrypted file): ${toFormattedHex(envelope.fingerprint)}`);
-  console.log(`RSA transformation (encrypted file): ${envelope.rsaTransformation.idx} = ${envelope.rsaTransformation.algorithm}`);
+  console.log(`RSA transformation (encrypted file): ${envelope.rsaTransformation.idx} = ${envelope.rsaTransformation.algorithm.name}`);
+  console.log(`RSA transformation (key response): ${rsaTransformationKeyResponse.idx} = ${rsaTransformationKeyResponse.algorithm.name}`);
   console.log(`encrypted AES key (encrypted file): ${toFormattedHex(envelope.encryptedAesKey)}`);
 
   // Encode as OMS text format
@@ -99,12 +105,12 @@ export async function createKeyRequest(fileName: string, encryptedData: string):
  * 
  * KEY_RESPONSE format:
  * (1) Application ID = APPLICATION_KEY_RESPONSE
- * (2) RSA transformation index
  * (3) RSA-encrypted AES key (encrypted with our temporary public key)
  */
 export async function processKeyResponse(
   keyResponse: string,
-  context: KeyRequestContext
+  context: KeyRequestContext,
+  settings: EncryptionSettings
 ): Promise<string> {
   // Decode the response
   const responseBytes = Uint8Array.from(atob(keyResponse), c => c.charCodeAt(0));
@@ -119,23 +125,19 @@ export async function processKeyResponse(
     throw new Error(`Invalid application ID: expected ${APPLICATION_IDS.KEY_RESPONSE}, got ${applicationId}`);
   }
 
-  // (2) RSA transformation index
-  const rsaTransformation = RSA_TRANSFORMATIONS[readUnsignedShort(responseBytes, offset)];
-  offset += 2;
-
   // (3) RSA-encrypted AES key
   const [rsaEncryptedAesKey] = readByteArray(responseBytes, offset);
 
   console.log("Parsed Key Response:");
   console.log(`Application-ID: ${applicationId}`);
-  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm}`);  
   console.log(`encrypted AES key: ${toFormattedHex(rsaEncryptedAesKey)}`);
 
   // Decrypt the AES key using our temporary private key
   console.log(`Decrypting AES key protecting the file`);
+  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
   const aesKeyBytes = new Uint8Array(
     await crypto.subtle.decrypt(
-      rsaTransformation.algorithm,
+      rsaTransformationKeyResponse,
       context.keyPair.privateKey,
       toArrayBuffer(rsaEncryptedAesKey)
     )
@@ -143,7 +145,7 @@ export async function processKeyResponse(
 
   // Import the AES key
   const aesTransformation = context.envelope.aesTransformation;
-  console.log(`Setting up AES key for ${aesTransformation.algorithm}`) ;
+  console.log(`Setting up AES key for ${aesTransformation.algorithm}`);
   const aesKey = await crypto.subtle.importKey(
     'raw',
     toArrayBuffer(aesKeyBytes),

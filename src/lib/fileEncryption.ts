@@ -44,7 +44,7 @@ export async function encryptVaultData(
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
 
   // Get AES transformation details
-  const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx] ?? AES_TRANSFORMATIONS[0];
+  const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx];
 
   // Parse the public key
   const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
@@ -57,7 +57,7 @@ export async function encryptVaultData(
   const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
 
   // Encrypt the AES key with RSA
-  const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2]
+  const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx];
   const encryptedAesKey = new Uint8Array(
     await crypto.subtle.encrypt(
       rsaTransformation.algorithm,
@@ -89,7 +89,7 @@ export async function encryptVaultData(
 
   console.log("Created Encrypted File:");
   console.log(`Application-ID: ${APPLICATION_IDS.ENCRYPTED_FILE}`);
-  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm}`);
+  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm.name}`);
   console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
   console.log(`AES transformation: ${aesTransformation.idx} = ${aesTransformation.algorithm}`);
   console.log(`IV: ${toFormattedHex(iv)}`);

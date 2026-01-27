@@ -70,9 +70,7 @@ export async function parsePublicKey(base64Key: string, rsaTransformationIdx: nu
   // Remove whitespace and decode base64
   const cleanKey = base64Key.replace(/\s+/g, '');
   const binaryDer = Uint8Array.from(atob(cleanKey), c => c.charCodeAt(0));
-
-  // Fall back to default (idx 2) if invalid index
-  const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2];
+  const rsaTransformation = RSA_TRANSFORMATIONS[rsaTransformationIdx];
 
   return await crypto.subtle.importKey(
     'spki',
@@ -323,7 +321,7 @@ export async function createEncryptedMessage(
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
 
   // Get AES transformation details
-  const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx] ?? AES_TRANSFORMATIONS[0];
+  const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx];
 
   // Parse the public key
   const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
@@ -336,7 +334,7 @@ export async function createEncryptedMessage(
   const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
 
   // Encrypt the AES key with RSA (fall back to idx 2 if invalid)
-  const rsaTransformation = (RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2])
+  const rsaTransformation = (RSA_TRANSFORMATIONS[rsaTransformationIdx])
   const encryptedAesKey = new Uint8Array(
     await crypto.subtle.encrypt(
       rsaTransformation.algorithm,
@@ -370,7 +368,7 @@ export async function createEncryptedMessage(
 
   console.log("Created RSA envelope:");
   console.log(`Application-ID: ${APPLICATION_IDS.RSA_AES_GENERIC}`);
-  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm}`);
+  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm.name}`);
   console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
   console.log(`AES transformation: ${aesTransformation.idx} = ${aesTransformation.algorithm}`);
   console.log(`IV: ${toFormattedHex(iv)}`);
@@ -465,7 +463,7 @@ export function parseRsaAesEnvelope(omsData: string): RsaAesEnvelope {
 
   console.log("Parsed RSA envelope:");
   console.log(`Application-ID: ${applicationId}`);
-  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm}`);
+  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm.name}`);
   console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
   console.log(`AES transformation: ${aesTransformation.idx} = ${aesTransformation.algorithm}`);
   console.log(`IV: ${toFormattedHex(iv)}`);
