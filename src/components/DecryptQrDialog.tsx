@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getQrSequence, QrChunk } from '@/lib/qrUtil';
 import { createKeyRequest, processKeyResponse, KeyRequestContext } from '@/lib/keyRequest';
+import { EncryptionSettings } from '@/lib/crypto';
 
 interface DecryptQrDialogProps {
   open: boolean;
@@ -20,6 +21,7 @@ interface DecryptQrDialogProps {
   onDecrypted: (data: string) => void;
   onSkip?: () => void;
   hideCloseButton?: boolean;
+  settings: EncryptionSettings;
 }
 
 type Step = 'loading' | 'display' | 'input' | 'processing' | 'success' | 'error';
@@ -30,7 +32,8 @@ export function DecryptQrDialog({
   encryptedData,
   onDecrypted,
   onSkip,
-  hideCloseButton = false
+  hideCloseButton = false,
+  settings
 }: DecryptQrDialogProps) {
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -47,7 +50,7 @@ export function DecryptQrDialog({
       setError(null);
 
       // Create KEY_REQUEST message
-      createKeyRequest('vault', encryptedData)
+      createKeyRequest('vault', encryptedData, settings)
         .then((context) => {
           keyRequestContext.current = context;
           // Split the KEY_REQUEST message into QR chunks
@@ -97,7 +100,8 @@ export function DecryptQrDialog({
       // Process the KEY_RESPONSE to decrypt the vault
       const decryptedData = await processKeyResponse(
         inputValue.trim(),
-        keyRequestContext.current
+        keyRequestContext.current,
+        settings
       );
 
       // Validate JSON

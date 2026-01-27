@@ -233,6 +233,7 @@ const Index = () => {
           onDecrypted={loadDecryptedData}
           onSkip={skipDecryption}
           hideCloseButton
+          settings={encryptionSettings}
         />
       </div>
     );
@@ -365,6 +366,7 @@ const Index = () => {
           encryptedData={importDecryptData}
           onDecrypted={handleImportDecrypted}
           onSkip={() => setImportDecryptData(null)}
+          settings={encryptionSettings}
         />
       )}
     </div>
