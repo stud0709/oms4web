@@ -47,7 +47,7 @@ export function DecryptQrDialog({
       setError(null);
 
       // Create KEY_REQUEST message
-      createKeyRequest(encryptedData)
+      createKeyRequest('vault', encryptedData)
         .then((context) => {
           keyRequestContext.current = context;
           // Split the KEY_REQUEST message into QR chunks
