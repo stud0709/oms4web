@@ -12,153 +12,18 @@ import {
   AES_TRANSFORMATIONS,
   APPLICATION_IDS,
   OMS_PREFIX,
+  writeUnsignedShort,
+  writeByteArray, 
+  toArrayBuffer, 
+  concatArrays,
+  readByteArray,
+  readUnsignedShort,
+  RsaAesEnvelope,
+  parseRsaAesEnvelope,
+  aesDecryptData,
+  writeString,
 } from './crypto';
 
-/**
- * Read unsigned short (2 bytes, big-endian) from Uint8Array at offset
- */
-function readUnsignedShort(data: Uint8Array, offset: number): number {
-  return (data[offset] << 8) | data[offset + 1];
-}
-
-/**
- * Read byte array with length prefix (unsigned short) at offset
- * Returns [data, newOffset]
- */
-function readByteArray(data: Uint8Array, offset: number): [Uint8Array, number] {
-  const length = readUnsignedShort(data, offset);
-  const arr = data.slice(offset + 2, offset + 2 + length);
-  return [arr, offset + 2 + length];
-}
-
-/**
- * Write unsigned short (2 bytes, big-endian)
- */
-function writeUnsignedShort(value: number): Uint8Array {
-  const arr = new Uint8Array(2);
-  arr[0] = (value >> 8) & 0xff;
-  arr[1] = value & 0xff;
-  return arr;
-}
-
-/**
- * Write byte array with length prefix (unsigned short)
- */
-function writeByteArray(data: Uint8Array): Uint8Array {
-  const length = writeUnsignedShort(data.length);
-  const result = new Uint8Array(2 + data.length);
-  result.set(length, 0);
-  result.set(data, 2);
-  return result;
-}
-
-/**
- * Write a string as a byte array with length prefix
- */
-function writeString(str: string): Uint8Array {
-  const bytes = new TextEncoder().encode(str);
-  return writeByteArray(bytes);
-}
-
-/**
- * Concatenate multiple Uint8Arrays
- */
-function concatArrays(...arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
-
-/**
- * Convert Uint8Array to ArrayBuffer (for WebCrypto compatibility)
- */
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(bytes.length);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
-}
-
-/**
- * Remove PKCS7 padding
- */
-function removePkcs7Padding(data: Uint8Array): Uint8Array {
-  if (data.length === 0) return data;
-  const paddingLength = data[data.length - 1];
-  if (paddingLength > 16 || paddingLength > data.length) {
-    throw new Error('Invalid PKCS7 padding');
-  }
-  return data.slice(0, data.length - paddingLength);
-}
-
-/**
- * Parsed RSA x AES envelope from encrypted data
- */
-export interface RsaAesEnvelope {
-  applicationId: number;
-  rsaTransformationIdx: number;
-  fingerprint: Uint8Array;
-  aesTransformationIdx: number;
-  iv: Uint8Array;
-  encryptedAesKey: Uint8Array;
-  encryptedData: Uint8Array;
-}
-
-/**
- * Parse RSA x AES envelope from OMS-encoded data
- * Format matches EncryptedFile.java structure
- */
-export function parseRsaAesEnvelope(omsData: string): RsaAesEnvelope {
-  if (!omsData.startsWith(OMS_PREFIX)) {
-    throw new Error('Invalid OMS data format');
-  }
-
-  const base64Data = omsData.slice(OMS_PREFIX.length);
-  const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-  let offset = 0;
-
-  // (1) Application ID
-  const applicationId = readUnsignedShort(binary, offset);
-  offset += 2;
-
-  // (2) RSA transformation index
-  const rsaTransformationIdx = readUnsignedShort(binary, offset);
-  offset += 2;
-
-  // (3) Fingerprint
-  const [fingerprint, offset3] = readByteArray(binary, offset);
-  offset = offset3;
-
-  // (4) AES transformation index
-  const aesTransformationIdx = readUnsignedShort(binary, offset);
-  offset += 2;
-
-  // (5) IV
-  const [iv, offset5] = readByteArray(binary, offset);
-  offset = offset5;
-
-  // (6) RSA-encrypted AES key
-  const [encryptedAesKey, offset6] = readByteArray(binary, offset);
-  offset = offset6;
-
-  // (7) AES-encrypted data (remaining bytes, no length prefix)
-  const encryptedData = binary.slice(offset);
-
-  return {
-    applicationId,
-    rsaTransformationIdx,
-    fingerprint,
-    aesTransformationIdx,
-    iv,
-    encryptedAesKey,
-    encryptedData,
-  };
-}
 
 /**
  * Key Request context - holds the temporary RSA key pair and envelope data
@@ -283,27 +148,7 @@ export async function processKeyResponse(
 
   // Decrypt the vault data
   const ivBuffer = toArrayBuffer(context.envelope.iv);
-  let decryptedBytes: Uint8Array;
-
-  if (aesTransformation.algorithm === 'AES-GCM') {
-    decryptedBytes = new Uint8Array(
-      await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: ivBuffer },
-        aesKey,
-        toArrayBuffer(context.envelope.encryptedData)
-      )
-    );
-  } else {
-    // AES-CBC: need to remove PKCS7 padding
-    const decryptedWithPadding = new Uint8Array(
-      await crypto.subtle.decrypt(
-        { name: 'AES-CBC', iv: ivBuffer },
-        aesKey,
-        toArrayBuffer(context.envelope.encryptedData)
-      )
-    );
-    decryptedBytes = removePkcs7Padding(decryptedWithPadding);
-  }
+  const decryptedBytes = await aesDecryptData(aesTransformation,ivBuffer,aesKey,context.envelope.encryptedData);
 
   // Convert to string
   return new TextDecoder().decode(decryptedBytes);

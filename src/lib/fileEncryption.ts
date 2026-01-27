@@ -17,10 +17,10 @@ import {
   getFingerprint,
   writeUnsignedShort,
   writeByteArray,
-  addPkcs7Padding,
   toArrayBuffer,
   generateIv,
   generateAesKey,
+  aesEncryptData,
 } from './crypto';
 
 /**
@@ -42,20 +42,20 @@ export async function encryptVaultData(
   settings: EncryptionSettings
 ): Promise<Uint8Array> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
-  
+
   // Get AES transformation details
   const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx] ?? AES_TRANSFORMATIONS[0];
-  
+
   // Parse the public key
   const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
-  
+
   // Generate AES key and IV
   const aesKey = await generateAesKey(aesKeyLength, aesTransformation.algorithm);
   const iv = generateIv(aesTransformation.ivSize);
-  
+
   // Get the raw AES key bytes
   const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
-  
+
   // Encrypt the AES key with RSA
   const rsaAlgorithm = (RSA_TRANSFORMATIONS[rsaTransformationIdx] ?? RSA_TRANSFORMATIONS[2]).algorithm;
   const encryptedAesKey = new Uint8Array(
@@ -65,37 +65,17 @@ export async function encryptVaultData(
       aesKeyRaw
     )
   );
-  
+
   // Get fingerprint
   const fingerprint = await getFingerprint(publicKey);
-  
+
   // Convert data to bytes
   const dataBytes = new TextEncoder().encode(data);
-  
+
   // Encrypt based on algorithm
   const ivBuffer = toArrayBuffer(iv);
-  let encryptedData: Uint8Array;
-  
-  if (aesTransformation.algorithm === 'AES-GCM') {
-    encryptedData = new Uint8Array(
-      await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: ivBuffer },
-        aesKey,
-        toArrayBuffer(dataBytes)
-      )
-    );
-  } else {
-    // AES-CBC requires PKCS7 padding
-    const paddedData = addPkcs7Padding(dataBytes, 16);
-    encryptedData = new Uint8Array(
-      await crypto.subtle.encrypt(
-        { name: 'AES-CBC', iv: ivBuffer },
-        aesKey,
-        toArrayBuffer(paddedData)
-      )
-    );
-  }
-  
+  const encryptedData = await aesEncryptData(aesTransformation, ivBuffer, aesKey, dataBytes);
+
   // Build the final message with APPLICATION_ENCRYPTED_FILE
   const finalMessage = concatArrays(
     writeUnsignedShort(APPLICATION_IDS.ENCRYPTED_FILE),   // (1) Application ID
@@ -106,6 +86,14 @@ export async function encryptVaultData(
     writeByteArray(encryptedAesKey),                      // (6) RSA-encrypted AES key
     encryptedData                                         // (7) AES-encrypted data (no length prefix)
   );
+
+  console.log("Created Encrypted File:");
+  console.log(`Application-ID: ${APPLICATION_IDS.ENCRYPTED_FILE}`);
+  console.log(`RSA transformation: ${rsaTransformationIdx}`);
+  console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
+  console.log(`AES transformation: ${aesTransformationIdx}`);
+  console.log(`IV: ${toFormattedHex(iv)}`);
+  console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
 
   return finalMessage;
 }

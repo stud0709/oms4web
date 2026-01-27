@@ -4,14 +4,21 @@
  */
 
 // RSA Transformations - matching Java RsaTransformation enum
-// Note: idx 0 (PKCS1Padding) not supported by WebCrypto, removed
 export const RSA_TRANSFORMATIONS: Record<number, { idx: number; name: string; algorithm: { name: string; hash: string } }> = {
-  //1: { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
+// Note: idx 0 (PKCS1Padding) not supported by WebCrypto, removed
+  1: { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
   2: { idx: 2, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-256' } },
 };
 
 // AES Transformations - matching Java AesTransformation enum
-export const AES_TRANSFORMATIONS = [
+export interface AesTransformation {
+  idx:number,
+  name: string,
+  algorithm: string, 
+  ivSize: number
+}
+
+export const AES_TRANSFORMATIONS: AesTransformation[] = [
   { idx: 0, name: 'AES/CBC/PKCS5Padding', algorithm: 'AES-CBC', ivSize: 16 },
   { idx: 1, name: 'AES/CBC/PKCS7Padding', algorithm: 'AES-CBC', ivSize: 16 },
   { idx: 2, name: 'AES/GCM/NoPadding', algorithm: 'AES-GCM', ivSize: 12 },
@@ -198,6 +205,36 @@ export function addPkcs7Padding(data: Uint8Array, blockSize: number = 16): Uint8
   return padded;
 }
 
+
+/**
+ * Remove PKCS7 padding
+ */
+export function removePkcs7Padding(data: Uint8Array): Uint8Array {
+  if (data.length === 0) return data;
+  const paddingLength = data[data.length - 1];
+  if (paddingLength > 16 || paddingLength > data.length) {
+    throw new Error('Invalid PKCS7 padding');
+  }
+  return data.slice(0, data.length - paddingLength);
+}
+
+/**
+ * Read unsigned short (2 bytes, big-endian) from Uint8Array at offset
+ */
+export function readUnsignedShort(data: Uint8Array, offset: number): number {
+  return (data[offset] << 8) | data[offset + 1];
+}
+
+/**
+ * Read byte array with length prefix (unsigned short) at offset
+ * Returns [data, newOffset]
+ */
+export function readByteArray(data: Uint8Array, offset: number): [Uint8Array, number] {
+  const length = readUnsignedShort(data, offset);
+  const arr = data.slice(offset + 2, offset + 2 + length);
+  return [arr, offset + 2 + length];
+}
+
 /**
  * Create the payload for EncryptedMessage
  * Format: (1) application ID (unsigned short) + (2) message as byte array
@@ -206,6 +243,58 @@ function createPayload(applicationId: number, message: Uint8Array): Uint8Array {
   const appIdBytes = writeUnsignedShort(applicationId);
   const messageBytes = writeByteArray(message);
   return concatArrays(appIdBytes, messageBytes);
+}
+
+export async function aesEncryptData(aesTransformation: AesTransformation, ivBuffer: ArrayBuffer, aesKey: CryptoKey, dataBytes: Uint8Array): Promise<Uint8Array> {
+  let encryptedData: Uint8Array;
+
+  if (aesTransformation.algorithm === 'AES-GCM') {
+    encryptedData = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: ivBuffer },
+        aesKey,
+        toArrayBuffer(dataBytes)
+      )
+    );
+  } else {
+    // AES-CBC requires PKCS7 padding
+    const paddedData = addPkcs7Padding(dataBytes, 16);
+    encryptedData = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: 'AES-CBC', iv: ivBuffer },
+        aesKey,
+        toArrayBuffer(paddedData)
+      )
+    );
+  }
+
+  return encryptedData;
+}
+
+export async function aesDecryptData(aesTransformation: AesTransformation, ivBuffer: ArrayBuffer, aesKey: CryptoKey, encryptedData: Uint8Array): Promise<Uint8Array> {
+  let decryptedBytes: Uint8Array;
+
+  if (aesTransformation.algorithm === 'AES-GCM') {
+    decryptedBytes = new Uint8Array(
+      await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: ivBuffer },
+        aesKey,
+        toArrayBuffer(encryptedData)
+      )
+    );
+  } else {
+    // AES-CBC: need to remove PKCS7 padding
+    const decryptedWithPadding = new Uint8Array(
+      await crypto.subtle.decrypt(
+        { name: 'AES-CBC', iv: ivBuffer },
+        aesKey,
+        toArrayBuffer(encryptedData)
+      )
+    );
+    decryptedBytes = removePkcs7Padding(decryptedWithPadding);
+  }
+
+  return decryptedBytes;
 }
 
 /**
@@ -259,27 +348,7 @@ export async function createEncryptedMessage(
 
   // Encrypt based on algorithm
   const ivBuffer = toArrayBuffer(iv);
-  let encryptedPayload: Uint8Array;
-  if (aesTransformation.algorithm === 'AES-GCM') {
-    // AES-GCM handles its own padding (NoPadding)
-    encryptedPayload = new Uint8Array(
-      await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: ivBuffer },
-        aesKey,
-        toArrayBuffer(payload)
-      )
-    );
-  } else {
-    // AES-CBC requires PKCS7 padding
-    const paddedPayload = addPkcs7Padding(payload, 16);
-    encryptedPayload = new Uint8Array(
-      await crypto.subtle.encrypt(
-        { name: 'AES-CBC', iv: ivBuffer },
-        aesKey,
-        toArrayBuffer(paddedPayload)
-      )
-    );
-  }
+  const encryptedPayload = await aesEncryptData(aesTransformation, ivBuffer, aesKey, payload);
 
   // Build the final message
   // Use APPLICATION_RSA_AES_GENERIC as the outer envelope (like in Java implementation)
@@ -293,6 +362,7 @@ export async function createEncryptedMessage(
     writeByteArray(encryptedPayload)                      // (7) AES-encrypted message
   );
 
+  console.log("Created RSA envelope:");
   console.log(`Application-ID: ${APPLICATION_IDS.RSA_AES_GENERIC}`);
   console.log(`RSA transformation: ${rsaTransformationIdx}`);
   console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
@@ -302,6 +372,14 @@ export async function createEncryptedMessage(
 
   // Encode as OMS text format
   return OMS_PREFIX + btoa(String.fromCharCode(...finalMessage));
+}
+
+/**
+ * Write a string as a byte array with length prefix
+ */
+export function writeString(str: string): Uint8Array {
+  const bytes = new TextEncoder().encode(str);
+  return writeByteArray(bytes);
 }
 
 /**
@@ -322,4 +400,78 @@ export function toFormattedHex(byteArray: Uint8Array) {
 
   // 2. Insert space every 4 characters
   return rawHex.replace(/(.{4})/g, '$1 ').trim();
+}
+
+
+/**
+ * Parsed RSA x AES envelope from encrypted data
+ */
+export interface RsaAesEnvelope {
+  applicationId: number;
+  rsaTransformationIdx: number;
+  fingerprint: Uint8Array;
+  aesTransformationIdx: number;
+  iv: Uint8Array;
+  encryptedAesKey: Uint8Array;
+  encryptedData: Uint8Array;
+}
+
+/**
+ * Parse RSA x AES envelope from OMS-encoded data
+ * Format matches EncryptedFile.java structure
+ */
+export function parseRsaAesEnvelope(omsData: string): RsaAesEnvelope {
+  if (!omsData.startsWith(OMS_PREFIX)) {
+    throw new Error('Invalid OMS data format');
+  }
+
+  const base64Data = omsData.slice(OMS_PREFIX.length);
+  const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+  let offset = 0;
+
+  // (1) Application ID
+  const applicationId = readUnsignedShort(binary, offset);
+  offset += 2;
+
+  // (2) RSA transformation index
+  const rsaTransformationIdx = readUnsignedShort(binary, offset);
+  offset += 2;
+
+  // (3) Fingerprint
+  const [fingerprint, offset3] = readByteArray(binary, offset);
+  offset = offset3;
+
+  // (4) AES transformation index
+  const aesTransformationIdx = readUnsignedShort(binary, offset);
+  offset += 2;
+
+  // (5) IV
+  const [iv, offset5] = readByteArray(binary, offset);
+  offset = offset5;
+
+  // (6) RSA-encrypted AES key
+  const [encryptedAesKey, offset6] = readByteArray(binary, offset);
+  offset = offset6;
+
+  // (7) AES-encrypted data (remaining bytes, no length prefix)
+  const encryptedData = binary.slice(offset);
+
+  console.log("Parsed RSA envelope:");
+  console.log(`Application-ID: ${applicationId}`);
+  console.log(`RSA transformation: ${rsaTransformationIdx}`);
+  console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
+  console.log(`AES transformation: ${aesTransformationIdx}`);
+  console.log(`IV: ${toFormattedHex(iv)}`);
+  console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
+
+  return {
+    applicationId,
+    rsaTransformationIdx,
+    fingerprint,
+    aesTransformationIdx,
+    iv,
+    encryptedAesKey,
+    encryptedData,
+  };
 }
