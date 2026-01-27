@@ -52,12 +52,13 @@ export async function createKeyRequest(fileName: string, encryptedData: string, 
   const envelope = parseRsaAesEnvelope(encryptedData);
 
   // Generate temporary RSA key pair for secure key transport
+  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
   const keyPair = await crypto.subtle.generateKey(
     {
-      name: 'RSA-OAEP',
+      name: rsaTransformationKeyResponse.algorithm.name,
       modulusLength: 2048,
       publicExponent: new Uint8Array([0x01, 0x00, 0x01]), // 65537
-      hash: 'SHA-256',
+      hash: rsaTransformationKeyResponse.algorithm.hash,
     },
     true,
     ['encrypt', 'decrypt']
@@ -67,8 +68,6 @@ export async function createKeyRequest(fileName: string, encryptedData: string, 
   const publicKeySpki = new Uint8Array(
     await crypto.subtle.exportKey('spki', keyPair.publicKey)
   );
-
-  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
 
   // Build the KEY_REQUEST message
   const messageBytes = concatArrays(
@@ -137,7 +136,7 @@ export async function processKeyResponse(
   const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
   const aesKeyBytes = new Uint8Array(
     await crypto.subtle.decrypt(
-      rsaTransformationKeyResponse,
+      rsaTransformationKeyResponse.algorithm,
       context.keyPair.privateKey,
       toArrayBuffer(rsaEncryptedAesKey)
     )
