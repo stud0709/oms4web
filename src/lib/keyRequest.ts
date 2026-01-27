@@ -133,11 +133,11 @@ export async function processKeyResponse(
   console.log(`encrypted AES key: ${toFormattedHex(rsaEncryptedAesKey)}`);
 
   // Decrypt the AES key using our temporary private key
+  // The temporary key pair was generated with RSA-OAEP SHA-256, so we must use that algorithm
   console.log(`Decrypting AES key protecting the file`);
-  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
   const aesKeyBytes = new Uint8Array(
     await crypto.subtle.decrypt(
-      rsaTransformationKeyResponse.algorithm,
+      { name: 'RSA-OAEP' },
       context.keyPair.privateKey,
       toArrayBuffer(rsaEncryptedAesKey)
     )
