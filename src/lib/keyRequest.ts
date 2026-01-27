@@ -137,7 +137,7 @@ export async function processKeyResponse(
   const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
   const aesKeyBytes = new Uint8Array(
     await crypto.subtle.decrypt(
-      rsaTransformationKeyResponse,
+      rsaTransformationKeyResponse.algorithm,
       context.keyPair.privateKey,
       toArrayBuffer(rsaEncryptedAesKey)
     )
