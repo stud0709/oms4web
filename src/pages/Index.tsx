@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Plus, Lock, Download, Upload, Loader2 } from 'lucide-react';
+import { Plus, Lock, Download, Upload, Loader2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEncryptedVault } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
@@ -11,6 +11,8 @@ import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
+
+const STORAGE_KEY = 'vault_data';
 
 const Index = () => {
   const { 
@@ -32,6 +34,7 @@ const Index = () => {
     updateVaultName,
     loadDecryptedData,
     skipDecryption,
+    lockVault,
   } = useEncryptedVault();
   
   const { toast } = useToast();
@@ -257,6 +260,9 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
               <Upload className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
+              <LockKeyhole className="h-4 w-4" />
             </Button>
             <SettingsDialog 
               publicKey={publicKey} 

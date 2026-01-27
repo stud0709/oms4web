@@ -126,6 +126,31 @@ export function useEncryptedVault() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
   }, []);
 
+  const lockVault = useCallback(() => {
+    // Re-read from storage and reset state to trigger unlock flow
+    const stored = localStorage.getItem(STORAGE_KEY);
+    
+    if (!stored) {
+      setVaultState({ status: 'empty' });
+      setVaultData(EMPTY_VAULT);
+      isInitialized.current = false;
+      return;
+    }
+
+    // Check if data is encrypted - if so, require decryption
+    if (isEncryptedData(stored)) {
+      setVaultState({ status: 'encrypted', encryptedData: stored });
+      setVaultData(EMPTY_VAULT);
+      isInitialized.current = false;
+      return;
+    }
+
+    // Plain JSON vault - just reset to empty state
+    setVaultState({ status: 'empty' });
+    setVaultData(EMPTY_VAULT);
+    isInitialized.current = false;
+  }, []);
+
   const setEntries = useCallback((entries: PasswordEntry[] | ((prev: PasswordEntry[]) => PasswordEntry[])) => {
     setVaultData(prev => ({
       ...prev,
@@ -211,6 +236,7 @@ export function useEncryptedVault() {
     isLoaded: vaultState.status === 'ready',
     loadDecryptedData,
     skipDecryption,
+    lockVault,
     addEntry,
     updateEntry,
     deleteEntry,
