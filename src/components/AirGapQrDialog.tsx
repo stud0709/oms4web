@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getQrSequence, QrChunk } from '@/lib/qrUtil';
+import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
 
 interface AirGapQrDialogProps {
   open: boolean;
@@ -32,7 +32,7 @@ export function AirGapQrDialog({ open, onOpenChange, password }: AirGapQrDialogP
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % chunks.length);
-    }, 500);
+    }, INTERVAL_QR_SEQUENCE);
 
     return () => clearInterval(interval);
   }, [open, chunks.length]);

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createEncryptedMessage, EncryptionSettings } from '@/lib/crypto';
-import { getQrSequence, QrChunk } from '@/lib/qrUtil';
+import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
 
 interface PinUnlockDialogProps {
   open: boolean;
@@ -78,7 +78,7 @@ export function PinUnlockDialog({
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % chunks.length);
-    }, 500);
+    }, INTERVAL_QR_SEQUENCE);
 
     return () => clearInterval(interval);
   }, [open, chunks.length]);

@@ -1,5 +1,11 @@
  # How to use this file
- Read through the file and implement the instructions. Create a report in Markdown format in the same folder. Filename "DONE Lovable <timestamp>.md". Comment on every feature: list of affected files, short description of what was changed. When ready, clear this file's TODO section.
+ Read through the file and implement the instructions. 
+ 
+ Create a report in Markdown format in the same folder. Filename "DONE Lovable <timestamp>.md". Comment on every topic: list of affected files, short description of what was changed. 
+
+ Commit to github after every topic.
+
+ When ready, clear this file's TODO section.
 
  # TODO
  
@@ -13,5 +19,8 @@
 
 ## "Lock workspace" button behavior
 - show warning if no public key defined in settings
+
+## DecryptQrDialog: behavior on ENTER
+- listen for ENTER when user is entering key response into DecryptQrDialog. ENTER should trigger "Decrypt vault" functionality
 
  

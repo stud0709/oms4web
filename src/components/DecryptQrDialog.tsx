@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { getQrSequence, QrChunk } from '@/lib/qrUtil';
+import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
 import { createKeyRequest, processKeyResponse, KeyRequestContext } from '@/lib/keyRequest';
 import { EncryptionSettings } from '@/lib/crypto';
 
@@ -72,7 +72,7 @@ export function DecryptQrDialog({
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % chunks.length);
-    }, 500);
+    }, INTERVAL_QR_SEQUENCE);
 
     return () => clearInterval(interval);
   }, [open, chunks.length, step]);

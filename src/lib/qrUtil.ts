@@ -12,6 +12,9 @@
 
 const DEFAULT_CHUNK_SIZE = 200;
 
+//QR sequence interval (ms)
+export const INTERVAL_QR_SEQUENCE = 250;
+
 export interface QrChunk {
   transactionId: string;
   chunkNo: number;
