@@ -17,8 +17,8 @@
 - show warning if workspace protection mode is 'pin' or 'encrypt', but no public key defined. Do not allow to save the settings
 - same if password encryption is activated
 
-## "Lock workspace" button behavior
-- show warning if no public key defined in settings
+## Enhancement to "Lock workspace" button behavior
+- show warning and return if no public key defined in settings
 
 ## DecryptQrDialog: behavior on ENTER
 - listen for ENTER when user is entering key response into DecryptQrDialog. ENTER should trigger "Decrypt vault" functionality
