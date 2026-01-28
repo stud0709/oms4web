@@ -282,10 +282,14 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
               <Upload className="h-4 w-4" />
-            </Button>
+            </Button>            
+            {//"Lock workspace" button to be shown only if workspace protection activated
+            workspaceProtection !== "none" && (<>
             <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
               <LockKeyhole className="h-4 w-4" />
             </Button>
+            </>
+            )}
             <SettingsDialog 
               publicKey={publicKey} 
               encryptionSettings={encryptionSettings}

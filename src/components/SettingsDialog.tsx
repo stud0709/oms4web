@@ -105,8 +105,6 @@ export function SettingsDialog({
     setOpen(false);
   };
 
-  const showEncryptionSettings = protection === 'encrypt' || protection === 'pin';
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -116,7 +114,7 @@ export function SettingsDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-        <DialogTitle>Settings</DialogTitle>
+          <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -175,69 +173,65 @@ export function SettingsDialog({
             />
           </div>
 
-          {showEncryptionSettings && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
-                <Textarea
-                  id="publicKey"
-                  placeholder="Paste your base64-encoded X509 public key here..."
-                  value={keyValue}
-                  onChange={(e) => setKeyValue(e.target.value)}
-                  rows={6}
-                  className="font-mono text-sm"
-                />
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
+            <Textarea
+              id="publicKey"
+              placeholder="Paste your base64-encoded X509 public key here..."
+              value={keyValue}
+              onChange={(e) => setKeyValue(e.target.value)}
+              rows={6}
+              className="font-mono text-sm"
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="rsaTransformation">RSA Transformation</Label>
-                <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))}>
-                  <SelectTrigger id="rsaTransformation">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(RSA_TRANSFORMATIONS).map((t) => (
-                      <SelectItem key={t.idx} value={String(t.idx)}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="rsaTransformation">RSA Transformation</Label>
+            <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))}>
+              <SelectTrigger id="rsaTransformation">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(RSA_TRANSFORMATIONS).map((t) => (
+                  <SelectItem key={t.idx} value={String(t.idx)}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="aesKeyLength">AES Key Length</Label>
-                <Select value={String(aesKeyLen)} onValueChange={(v) => setAesKeyLen(Number(v))}>
-                  <SelectTrigger id="aesKeyLength">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AES_KEY_LENGTHS.map((len) => (
-                      <SelectItem key={len} value={String(len)}>
-                        {len} bits
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="aesKeyLength">AES Key Length</Label>
+            <Select value={String(aesKeyLen)} onValueChange={(v) => setAesKeyLen(Number(v))}>
+              <SelectTrigger id="aesKeyLength">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AES_KEY_LENGTHS.map((len) => (
+                  <SelectItem key={len} value={String(len)}>
+                    {len} bits
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="aesTransformation">AES Transformation</Label>
-                <Select value={String(aesIdx)} onValueChange={(v) => setAesIdx(Number(v))}>
-                  <SelectTrigger id="aesTransformation">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AES_TRANSFORMATIONS.map((t) => (
-                      <SelectItem key={t.idx} value={String(t.idx)}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="aesTransformation">AES Transformation</Label>
+            <Select value={String(aesIdx)} onValueChange={(v) => setAesIdx(Number(v))}>
+              <SelectTrigger id="aesTransformation">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AES_TRANSFORMATIONS.map((t) => (
+                  <SelectItem key={t.idx} value={String(t.idx)}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
