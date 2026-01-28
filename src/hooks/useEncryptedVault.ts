@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PasswordEntry } from '@/types/password';
-import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS, validatePublicKey, OMS_PREFIX, RSA_TRANSFORMATIONS, AES_TRANSFORMATIONS, AES_KEY_LENGTHS } from '@/lib/crypto';
+import { EncryptionSettings, DEFAULT_ENCRYPTION_SETTINGS, validatePublicKey, OMS_PREFIX, RSA_TRANSFORMATIONS, AES_TRANSFORMATIONS, AES_KEY_LENGTHS, WorkspaceProtection } from '@/lib/crypto';
 import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
 
 const STORAGE_KEY = 'vault_data';
@@ -11,6 +11,7 @@ export interface VaultData {
   encryptionSettings: EncryptionSettings;
   encryptionEnabled: boolean;
   vaultName: string;
+  workspaceProtection: WorkspaceProtection;
 }
 
 const EMPTY_VAULT: VaultData = {
@@ -19,11 +20,13 @@ const EMPTY_VAULT: VaultData = {
   encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
   encryptionEnabled: true,
   vaultName: '',
+  workspaceProtection: 'encrypt',
 };
 
 export type VaultState =
   | { status: 'loading' }
   | { status: 'encrypted'; encryptedData: string }
+  | { status: 'pin-locked' }
   | { status: 'ready'; data: VaultData }
   | { status: 'empty' };
 
@@ -44,19 +47,25 @@ export function useEncryptedVault() {
       return;
     }
 
-    // Check if data is encrypted
+    // Check if data is encrypted (only for 'encrypt' protection mode)
     if (isEncryptedData(stored)) {
       setVaultState({ status: 'encrypted', encryptedData: stored });
       return;
     }
 
-    // Try to parse as plain JSON (legacy format)
+    // Try to parse as plain JSON
     try {
       const parsed = JSON.parse(stored);
       const data = parseVaultData(parsed);
       setVaultData(data);
-      setVaultState({ status: 'ready', data });
-      isInitialized.current = true;
+      
+      // If protection mode is 'pin', require PIN unlock
+      if (data.workspaceProtection === 'pin') {
+        setVaultState({ status: 'pin-locked' });
+      } else {
+        setVaultState({ status: 'ready', data });
+        isInitialized.current = true;
+      }
     } catch (e) {
       console.error('Failed to parse stored data', e);
       setVaultState({ status: 'empty' });
@@ -65,7 +74,7 @@ export function useEncryptedVault() {
     }
   }, []);
 
-  // Save vault when data changes (with encryption if enabled)
+  // Save vault when data changes (with encryption if protection mode is 'encrypt')
   useEffect(() => {
     if (!isInitialized.current) return;
     if (vaultState.status !== 'ready') return;
@@ -73,8 +82,13 @@ export function useEncryptedVault() {
     const saveVault = async () => {
       const jsonData = JSON.stringify(vaultData);
 
-      // Encrypt if we have a public key and encryption is enabled
-      if (vaultData.publicKey && vaultData.encryptionEnabled && !skipEncryption.current) {
+      // Only encrypt if protection mode is 'encrypt' and we have a valid public key
+      if (
+        vaultData.workspaceProtection === 'encrypt' &&
+        vaultData.publicKey &&
+        vaultData.encryptionEnabled &&
+        !skipEncryption.current
+      ) {
         try {
           const isValid = await validatePublicKey(
             vaultData.publicKey,
@@ -97,7 +111,7 @@ export function useEncryptedVault() {
         }
       }
 
-      // Fallback to plain JSON
+      // Save as plain JSON for 'none' and 'pin' modes, or as fallback
       localStorage.setItem(STORAGE_KEY, jsonData);
     };
 
@@ -145,11 +159,33 @@ export function useEncryptedVault() {
       return;
     }
 
-    // Plain JSON vault - just reset to empty state
-    setVaultState({ status: 'empty' });
-    setVaultData(EMPTY_VAULT);
-    isInitialized.current = false;
+    // Parse the stored data to check protection mode
+    try {
+      const parsed = JSON.parse(stored);
+      const data = parseVaultData(parsed);
+      setVaultData(data);
+      
+      if (data.workspaceProtection === 'pin') {
+        setVaultState({ status: 'pin-locked' });
+        isInitialized.current = false;
+      } else {
+        // 'none' mode - just reset to empty state (no unlock required)
+        setVaultState({ status: 'empty' });
+        setVaultData(EMPTY_VAULT);
+        isInitialized.current = false;
+      }
+    } catch (e) {
+      setVaultState({ status: 'empty' });
+      setVaultData(EMPTY_VAULT);
+      isInitialized.current = false;
+    }
   }, []);
+
+  const unlockPin = useCallback(() => {
+    // PIN was verified, transition to ready state
+    setVaultState({ status: 'ready', data: vaultData });
+    isInitialized.current = true;
+  }, [vaultData]);
 
   const setEntries = useCallback((entries: PasswordEntry[] | ((prev: PasswordEntry[]) => PasswordEntry[])) => {
     setVaultData(prev => ({
@@ -172,6 +208,10 @@ export function useEncryptedVault() {
 
   const setVaultName = useCallback((vaultName: string) => {
     setVaultData(prev => ({ ...prev, vaultName }));
+  }, []);
+
+  const setWorkspaceProtection = useCallback((workspaceProtection: WorkspaceProtection) => {
+    setVaultData(prev => ({ ...prev, workspaceProtection }));
   }, []);
 
   const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -233,10 +273,12 @@ export function useEncryptedVault() {
     encryptionSettings: vaultData.encryptionSettings,
     encryptionEnabled: vaultData.encryptionEnabled,
     vaultName: vaultData.vaultName,
+    workspaceProtection: vaultData.workspaceProtection,
     isLoaded: vaultState.status === 'ready',
     loadDecryptedData,
     skipDecryption,
     lockVault,
+    unlockPin,
     addEntry,
     updateEntry,
     deleteEntry,
@@ -247,6 +289,7 @@ export function useEncryptedVault() {
     updateEncryptionSettings: setEncryptionSettings,
     updateEncryptionEnabled: setEncryptionEnabled,
     updateVaultName: setVaultName,
+    updateWorkspaceProtection: setWorkspaceProtection,
   };
 }
 
@@ -263,6 +306,7 @@ function parseVaultData(parsed: unknown): VaultData {
       encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
       encryptionEnabled: true,
       vaultName: '',
+      workspaceProtection: 'encrypt',
     };
   }
 
@@ -285,11 +329,18 @@ function parseVaultData(parsed: unknown): VaultData {
   if (!AES_KEY_LENGTHS[loadedSettings.aesKeyLength])
     loadedSettings.aesKeyLength = DEFAULT_ENCRYPTION_SETTINGS.aesKeyLength;
 
+  // Normalize workspace protection (default to 'encrypt' for backwards compatibility)
+  let workspaceProtection = data.workspaceProtection;
+  if (!workspaceProtection || !['none', 'encrypt', 'pin'].includes(workspaceProtection)) {
+    workspaceProtection = 'encrypt';
+  }
+
   return {
     entries,
     publicKey: data.publicKey || '',
     encryptionSettings: loadedSettings,
     encryptionEnabled: data.encryptionEnabled !== false,
     vaultName: data.vaultName || '',
+    workspaceProtection,
   };
 }

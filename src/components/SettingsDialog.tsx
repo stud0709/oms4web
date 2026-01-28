@@ -25,18 +25,21 @@ import {
   AES_TRANSFORMATIONS,
   AES_KEY_LENGTHS,
   EncryptionSettings,
-  DEFAULT_ENCRYPTION_SETTINGS,
+  WorkspaceProtection,
 } from '@/lib/crypto';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface SettingsDialogProps {
   publicKey: string;
   encryptionSettings: EncryptionSettings;
   encryptionEnabled: boolean;
   vaultName: string;
+  workspaceProtection: WorkspaceProtection;
   onSavePublicKey: (key: string) => void;
   onSaveEncryptionSettings: (settings: EncryptionSettings) => void;
   onSaveEncryptionEnabled: (enabled: boolean) => void;
   onSaveVaultName: (name: string) => void;
+  onSaveWorkspaceProtection: (protection: WorkspaceProtection) => void;
 }
 
 export function SettingsDialog({
@@ -44,10 +47,12 @@ export function SettingsDialog({
   encryptionSettings,
   encryptionEnabled,
   vaultName,
+  workspaceProtection,
   onSavePublicKey,
   onSaveEncryptionSettings,
   onSaveEncryptionEnabled,
   onSaveVaultName,
+  onSaveWorkspaceProtection,
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [keyValue, setKeyValue] = useState(publicKey);
@@ -56,6 +61,7 @@ export function SettingsDialog({
   const [aesIdx, setAesIdx] = useState(encryptionSettings.aesTransformationIdx);
   const [encEnabled, setEncEnabled] = useState(encryptionEnabled);
   const [nameValue, setNameValue] = useState(vaultName);
+  const [protection, setProtection] = useState<WorkspaceProtection>(workspaceProtection);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -65,11 +71,12 @@ export function SettingsDialog({
     setAesIdx(encryptionSettings.aesTransformationIdx);
     setEncEnabled(encryptionEnabled);
     setNameValue(vaultName);
-  }, [publicKey, encryptionSettings, encryptionEnabled, vaultName]);
+    setProtection(workspaceProtection);
+  }, [publicKey, encryptionSettings, encryptionEnabled, vaultName, workspaceProtection]);
 
   const handleSave = () => {
-    // Basic validation: check if it looks like base64 (only if encryption is enabled and key is provided)
-    if (encEnabled && keyValue.trim() && !/^[A-Za-z0-9+/=\s]+$/.test(keyValue.trim())) {
+    // Validate public key format for encrypt and pin modes
+    if ((protection === 'encrypt' || protection === 'pin') && keyValue.trim() && !/^[A-Za-z0-9+/=\s]+$/.test(keyValue.trim())) {
       toast({
         title: 'Invalid format',
         description: 'Public key must be base64 encoded.',
@@ -77,11 +84,11 @@ export function SettingsDialog({
       });
       return;
     }
-    // Warn if encryption is enabled but no key is set
-    if (encEnabled && !keyValue.trim()) {
+    // Warn if encrypt/pin mode but no key
+    if ((protection === 'encrypt' || protection === 'pin') && !keyValue.trim()) {
       toast({
         title: 'Warning',
-        description: 'Encryption is enabled but no public key is set. You won\'t be able to save password entries.',
+        description: 'No public key set. Encryption features will not work properly.',
         variant: 'destructive',
       });
     }
@@ -93,9 +100,12 @@ export function SettingsDialog({
     });
     onSaveEncryptionEnabled(encEnabled);
     onSaveVaultName(nameValue.trim());
+    onSaveWorkspaceProtection(protection);
     toast({ title: 'Settings saved', description: 'Settings have been updated.' });
     setOpen(false);
   };
+
+  const showEncryptionSettings = protection === 'encrypt' || protection === 'pin';
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -104,7 +114,7 @@ export function SettingsDialog({
           <Settings className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
         <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
@@ -120,6 +130,33 @@ export function SettingsDialog({
             <p className="text-xs text-muted-foreground">
               Displayed in the header and used as export filename
             </p>
+          </div>
+
+          <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+            <Label className="font-medium">Workspace Protection</Label>
+            <RadioGroup value={protection} onValueChange={(v) => setProtection(v as WorkspaceProtection)}>
+              <div className="flex items-start space-x-3">
+                <RadioGroupItem value="none" id="protection-none" className="mt-1" />
+                <div>
+                  <Label htmlFor="protection-none" className="font-normal cursor-pointer">None</Label>
+                  <p className="text-xs text-muted-foreground">Local storage file not encrypted</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
+                <div>
+                  <Label htmlFor="protection-encrypt" className="font-normal cursor-pointer">Encrypt Local Storage</Label>
+                  <p className="text-xs text-muted-foreground">Full encryption of local storage using your public key</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
+                <div>
+                  <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
+                  <p className="text-xs text-muted-foreground">Local file not encrypted, but requires PIN via QR code to access</p>
+                </div>
+              </div>
+            </RadioGroup>
           </div>
 
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
@@ -138,66 +175,69 @@ export function SettingsDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
-            <Textarea
-              id="publicKey"
-              placeholder="Paste your base64-encoded X509 public key here..."
-              value={keyValue}
-              onChange={(e) => setKeyValue(e.target.value)}
-              rows={6}
-              className="font-mono text-sm"
-              disabled={!encEnabled}
-            />
-          </div>
+          {showEncryptionSettings && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
+                <Textarea
+                  id="publicKey"
+                  placeholder="Paste your base64-encoded X509 public key here..."
+                  value={keyValue}
+                  onChange={(e) => setKeyValue(e.target.value)}
+                  rows={6}
+                  className="font-mono text-sm"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rsaTransformation">RSA Transformation</Label>
-            <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))} disabled={!encEnabled}>
-              <SelectTrigger id="rsaTransformation">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.values(RSA_TRANSFORMATIONS).map((t) => (
-                  <SelectItem key={t.idx} value={String(t.idx)}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="rsaTransformation">RSA Transformation</Label>
+                <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))}>
+                  <SelectTrigger id="rsaTransformation">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(RSA_TRANSFORMATIONS).map((t) => (
+                      <SelectItem key={t.idx} value={String(t.idx)}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="aesKeyLength">AES Key Length</Label>
-            <Select value={String(aesKeyLen)} onValueChange={(v) => setAesKeyLen(Number(v))} disabled={!encEnabled}>
-              <SelectTrigger id="aesKeyLength">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AES_KEY_LENGTHS.map((len) => (
-                  <SelectItem key={len} value={String(len)}>
-                    {len} bits
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="aesKeyLength">AES Key Length</Label>
+                <Select value={String(aesKeyLen)} onValueChange={(v) => setAesKeyLen(Number(v))}>
+                  <SelectTrigger id="aesKeyLength">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AES_KEY_LENGTHS.map((len) => (
+                      <SelectItem key={len} value={String(len)}>
+                        {len} bits
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="aesTransformation">AES Transformation</Label>
-            <Select value={String(aesIdx)} onValueChange={(v) => setAesIdx(Number(v))} disabled={!encEnabled}>
-              <SelectTrigger id="aesTransformation">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AES_TRANSFORMATIONS.map((t) => (
-                  <SelectItem key={t.idx} value={String(t.idx)}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="aesTransformation">AES Transformation</Label>
+                <Select value={String(aesIdx)} onValueChange={(v) => setAesIdx(Number(v))}>
+                  <SelectTrigger id="aesTransformation">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AES_TRANSFORMATIONS.map((t) => (
+                      <SelectItem key={t.idx} value={String(t.idx)}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
