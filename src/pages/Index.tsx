@@ -8,6 +8,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
+import { PinUnlockDialog } from '@/components/PinUnlockDialog';
 import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
@@ -22,6 +23,7 @@ const Index = () => {
     encryptionSettings, 
     encryptionEnabled,
     vaultName,
+    workspaceProtection,
     addEntry, 
     updateEntry, 
     deleteEntry, 
@@ -32,9 +34,11 @@ const Index = () => {
     updateEncryptionSettings, 
     updateEncryptionEnabled,
     updateVaultName,
+    updateWorkspaceProtection,
     loadDecryptedData,
     skipDecryption,
     lockVault,
+    unlockPin,
   } = useEncryptedVault();
   
   const { toast } = useToast();
@@ -239,6 +243,23 @@ const Index = () => {
     );
   }
 
+  // Show PIN unlock dialog if vault is pin-locked
+  if (vaultState.status === 'pin-locked') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <PinUnlockDialog
+          open={true}
+          onOpenChange={() => {}}
+          publicKey={publicKey}
+          encryptionSettings={encryptionSettings}
+          onUnlock={unlockPin}
+          onSkip={skipDecryption}
+          hideCloseButton
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -270,10 +291,12 @@ const Index = () => {
               encryptionSettings={encryptionSettings}
               encryptionEnabled={encryptionEnabled}
               vaultName={vaultName}
+              workspaceProtection={workspaceProtection}
               onSavePublicKey={updatePublicKey} 
               onSaveEncryptionSettings={updateEncryptionSettings}
               onSaveEncryptionEnabled={updateEncryptionEnabled}
               onSaveVaultName={updateVaultName}
+              onSaveWorkspaceProtection={updateWorkspaceProtection}
             />
             <input
               ref={fileInputRef}
