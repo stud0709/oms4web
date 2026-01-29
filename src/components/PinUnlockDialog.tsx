@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createEncryptedMessage, EncryptionSettings } from '@/lib/crypto';
 import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
+import crypto from "crypto"
 
 interface PinUnlockDialogProps {
   open: boolean;
@@ -37,7 +38,7 @@ export function PinUnlockDialog({
   onSkip,
   hideCloseButton,
 }: PinUnlockDialogProps) {
-  const [pin, setPin] = useState<string>('');
+  const [hashedPin, setHashedPin] = useState<string>('');
   const [encryptedPin, setEncryptedPin] = useState<string>('');
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -52,7 +53,9 @@ export function PinUnlockDialog({
     const initPin = async () => {
       setIsLoading(true);
       const newPin = generatePin();
-      setPin(newPin);
+      //save pin's hash to compare later
+      const hashedPin = crypto.createHash('sha256').update(newPin).digest('hex')
+      setHashedPin(hashedPin);
       
       try {
         const encrypted = await createEncryptedMessage(newPin, publicKey, encryptionSettings);
@@ -84,13 +87,14 @@ export function PinUnlockDialog({
   }, [open, chunks.length]);
 
   const handleVerify = useCallback(() => {
-    if (inputValue === pin) {
+    const hashedInput = crypto.createHash('sha256').update(inputValue).digest('hex')
+    if (hashedInput === hashedPin) {
       onUnlock();
     } else {
       setError('Incorrect PIN. Please try again.');
       setInputValue('');
     }
-  }, [inputValue, pin, onUnlock]);
+  }, [inputValue, hashedPin, onUnlock]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
