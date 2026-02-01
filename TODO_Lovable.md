@@ -13,10 +13,9 @@ Create comments on every processed topic appending the [report file](DONE_Lovabl
 When ready, clear this file's TODO section.
 
 # TODO
- 
-## Correct behavior of workspace protection settings.
-- when switching from 'encrypt' to a different mode, save local storage as an unprotected json file as soon as user saves the settings
-- when switching to 'encrypt' from another mode, save local storage as an encrypted file as soon as user saves the settings
+
+## Default settings
+- workspace protection: None
 
 ## Introduce checks when saving the settings
 - show warning if workspace protection mode is 'pin' or 'encrypt', but no public key defined. Do not allow to save the settings
