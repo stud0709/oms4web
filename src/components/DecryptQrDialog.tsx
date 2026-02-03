@@ -123,6 +123,13 @@ export function DecryptQrDialog({
     }
   }, [inputValue, onDecrypted, onOpenChange]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmitDecrypted();
+    }
+  },[handleSubmitDecrypted]);
+
   const handleSkip = useCallback(() => {
     onSkip?.();
     onOpenChange(false);
@@ -208,6 +215,7 @@ export function DecryptQrDialog({
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}
+                  onKeyDown={handleKeyDown}
                   onChange={(e) => {
                     setInputValue(e.target.value);
                     setError(null);

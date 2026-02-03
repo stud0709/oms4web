@@ -13,8 +13,6 @@ import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
 
-const STORAGE_KEY = 'vault_data';
-
 const Index = () => {
   const { 
     vaultState,
@@ -36,7 +34,7 @@ const Index = () => {
     updateVaultName,
     updateWorkspaceProtection,
     loadDecryptedData,
-    skipDecryption,
+    startWithEmptyVault,
     lockVault,
     unlockPin,
   } = useEncryptedVault();
@@ -110,8 +108,8 @@ const Index = () => {
     const now = new Date();
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
     
-    // If encryption is enabled and public key exists, export encrypted
-    if (encryptionEnabled && publicKey) {
+    // If workspace protection is activated and public key exists, export encrypted
+    if (publicKey) {
       try {
         const encryptedBytes = await encryptVaultData(jsonData, publicKey, encryptionSettings);
         const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
@@ -235,7 +233,7 @@ const Index = () => {
           onOpenChange={() => {}}
           encryptedData={vaultState.encryptedData}
           onDecrypted={loadDecryptedData}
-          onSkip={skipDecryption}
+          onSkip={startWithEmptyVault}
           hideCloseButton
           settings={encryptionSettings}
         />
@@ -253,7 +251,7 @@ const Index = () => {
           publicKey={publicKey}
           encryptionSettings={encryptionSettings}
           onUnlock={unlockPin}
-          onSkip={skipDecryption}
+          onSkip={startWithEmptyVault}
           hideCloseButton
         />
       </div>
@@ -284,7 +282,7 @@ const Index = () => {
               <Upload className="h-4 w-4" />
             </Button>            
             {//"Lock workspace" button to be shown only if workspace protection activated
-            workspaceProtection !== "none" && (<>
+            publicKey && (<>
             <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
               <LockKeyhole className="h-4 w-4" />
             </Button>

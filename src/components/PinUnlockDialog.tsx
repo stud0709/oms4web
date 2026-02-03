@@ -29,13 +29,19 @@ function generatePin(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+async function digest(message) {
+  const msgUint8 = new TextEncoder().encode(message);                           
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);           
+  const hashArray = Array.from(new Uint8Array(hashBuffer));                     
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export function PinUnlockDialog({
   open,
   onOpenChange,
   publicKey,
   encryptionSettings,
   onUnlock,
-  onSkip,
   hideCloseButton,
 }: PinUnlockDialogProps) {
   const [hashedPin, setHashedPin] = useState<string>('');
@@ -54,11 +60,11 @@ export function PinUnlockDialog({
       setIsLoading(true);
       const newPin = generatePin();
       //save pin's hash to compare later
-      const hashedPin = crypto.createHash('sha256').update(newPin).digest('hex')
+      const hashedPin = await digest(newPin)
       setHashedPin(hashedPin);
       
       try {
-        const encrypted = await createEncryptedMessage(newPin, publicKey, encryptionSettings);
+        const encrypted = await createEncryptedMessage(`${newPin}\n`, publicKey, encryptionSettings);
         setEncryptedPin(encrypted);
         const qrChunks = getQrSequence(encrypted);
         setChunks(qrChunks);
@@ -86,8 +92,8 @@ export function PinUnlockDialog({
     return () => clearInterval(interval);
   }, [open, chunks.length]);
 
-  const handleVerify = useCallback(() => {
-    const hashedInput = crypto.createHash('sha256').update(inputValue).digest('hex')
+  const handleVerify = useCallback(async () => {
+    const hashedInput = await digest(inputValue)
     if (hashedInput === hashedPin) {
       onUnlock();
     } else {
@@ -181,13 +187,6 @@ export function PinUnlockDialog({
             </div>
 
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                className="flex-1"
-                onClick={onSkip}
-              >
-                Skip (start with empty vault)
-              </Button>
               <Button 
                 className="flex-1"
                 onClick={handleVerify}
