@@ -18,7 +18,8 @@ import {
   generateIv,
   toArrayBuffer,
   generateKeyFromPassword,
-  createEncryptedMessage
+  createEncryptedMessage,
+  APPLICATION_IDS
 } from '@/lib/crypto';
 
 import {
@@ -62,7 +63,8 @@ export function useEncryptedVault() {
     createEncryptedMessage(
       `${pin}\n`,
       vaultData.publicKey,
-      vaultData.encryptionSettings
+      vaultData.encryptionSettings,
+      APPLICATION_IDS.ENCRYPTED_OTP
     ).then(omsMessage => {
       generateKeyFromPassword(pin)
         .then(({ aesKey, salt }) => {

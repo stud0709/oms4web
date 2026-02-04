@@ -37,7 +37,7 @@ export const AES_KEY_LENGTHS = [128, 192, 256] as const;
 export const APPLICATION_IDS = {
   AES_ENCRYPTED_PRIVATE_KEY_TRANSFER: 0,
   ENCRYPTED_MESSAGE_DEPRECATED: 1,
-  TOTP_URI_TRANSFER: 2,
+  TOTP_URI_DEPRECATED: 2,
   ENCRYPTED_FILE: 3,
   KEY_REQUEST: 4,
   KEY_RESPONSE: 5,
@@ -47,6 +47,7 @@ export const APPLICATION_IDS = {
   TOTP_URI: 9,
   WIFI_PAIRING: 10,
   KEY_REQUEST_PAIRING: 11,
+  ENCRYPTED_OTP: 12,
 } as const;
 
 export const OMS_PREFIX = 'oms00_';
@@ -351,7 +352,8 @@ export async function aesDecryptData(aesTransformation: AesTransformation, ivBuf
 export async function createEncryptedMessage(
   message: string,
   publicKeyBase64: string,
-  settings: EncryptionSettings
+  settings: EncryptionSettings,
+  payloadApplicationId: number = APPLICATION_IDS.ENCRYPTED_MESSAGE
 ): Promise<string> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
 
@@ -383,7 +385,7 @@ export async function createEncryptedMessage(
 
   // Create the inner payload: APPLICATION_ENCRYPTED_MESSAGE + message bytes
   const messageBytes = new TextEncoder().encode(message);
-  const payload = createPayload(APPLICATION_IDS.ENCRYPTED_MESSAGE, messageBytes);
+  const payload = createPayload(payloadApplicationId, messageBytes);
 
   // Encrypt based on algorithm
   const ivBuffer = toArrayBuffer(iv);
