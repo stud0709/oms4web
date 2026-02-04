@@ -11,16 +11,16 @@ export interface RsaTransformation {
 
 // RSA Transformations - matching Java RsaTransformation enum
 export const RSA_TRANSFORMATIONS: Record<number, RsaTransformation> = {
-// Note: idx 0 (PKCS1Padding) not supported by WebCrypto, removed
+  // Note: idx 0 (PKCS1Padding) not supported by WebCrypto, removed
   1: { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
   2: { idx: 2, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-256' } },
 };
 
 // AES Transformations - matching Java AesTransformation enum
 export interface AesTransformation {
-  idx:number,
+  idx: number,
   name: string,
-  algorithm: string, 
+  algorithm: string,
   ivSize: number
 }
 
@@ -111,6 +111,39 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.length);
   new Uint8Array(buffer).set(bytes);
   return buffer;
+}
+
+export async function generateKeyFromPassword(password: string, salt?: Uint8Array<ArrayBuffer>) {
+  const encoder = new TextEncoder();
+
+  //"Import" the password string as a raw key material
+  const passwordKey = await window.crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+
+  if (salt === undefined) {
+    salt = new Uint8Array(16);
+    window.crypto.getRandomValues(salt);
+  }
+
+  const aesKey = await window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 65535,
+      hash: "SHA-256"
+    },
+    passwordKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+
+  return { aesKey, salt };
 }
 
 /**

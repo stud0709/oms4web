@@ -1,8 +1,7 @@
 import {
   useState,
   useEffect,
-  useCallback,
-  useRef
+  useCallback
 } from 'react';
 
 import { PasswordEntry } from '@/types/password';
@@ -15,7 +14,11 @@ import {
   RSA_TRANSFORMATIONS,
   AES_TRANSFORMATIONS,
   AES_KEY_LENGTHS,
-  WorkspaceProtection
+  WorkspaceProtection,
+  generateIv,
+  toArrayBuffer,
+  generateKeyFromPassword,
+  createEncryptedMessage
 } from '@/lib/crypto';
 
 import {
@@ -46,12 +49,45 @@ const EMPTY_VAULT: VaultData = {
 export type VaultState =
   | { status: 'loading' }
   | { status: 'encrypted'; encryptedData: string }
-  | { status: 'pin-locked' }
+  | { status: 'pin-locked', aesKey: CryptoKey, salt: Uint8Array<ArrayBuffer>, iv: Uint8Array, encrypted: ArrayBuffer, omsMessage: string }
   | { status: 'ready' };
 
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
+
+  const encryptAndLock = useCallback(() => {
+    const encoded = new TextEncoder().encode(JSON.stringify(vaultData));
+    const pin = String(Math.floor(100000 + Math.random() * 900000));
+    createEncryptedMessage(
+      `${pin}\n`,
+      vaultData.publicKey,
+      vaultData.encryptionSettings
+    ).then(omsMessage => {
+      generateKeyFromPassword(pin)
+        .then(({ aesKey, salt }) => {
+          const iv = generateIv(12);
+          crypto.subtle.encrypt(
+            {
+              name: "AES-GCM",
+              iv: toArrayBuffer(iv)
+            },
+            aesKey,
+            encoded
+          ).then(cipherText => {
+            setVaultState({
+              status: 'pin-locked',
+              aesKey: aesKey,
+              salt: salt,
+              iv: iv,
+              encrypted: cipherText,
+              omsMessage: omsMessage
+            });
+            setVaultData(EMPTY_VAULT);
+          });
+        });
+    });
+  }, [vaultData]);
 
   // Load vault on mount
   useEffect(() => {
@@ -77,7 +113,7 @@ export function useEncryptedVault() {
 
       // If protection mode is 'pin', require PIN unlock
       if (data.publicKey && data.workspaceProtection === 'pin') {
-        setVaultState({ status: 'pin-locked' });
+        encryptAndLock();
       } else {
         setVaultState({ status: 'ready' });
       }
@@ -159,13 +195,34 @@ export function useEncryptedVault() {
     }
 
     // Parse the stored data to check protection mode
-    setVaultState({ status: 'pin-locked' });
+    encryptAndLock();
   }, [vaultData]);
 
-  const unlockPin = useCallback(() => {
-    // PIN was verified, transition to ready state
-    setVaultState({ status: 'ready' });
-  }, []);
+  const unlockPin = useCallback(async (inputValue: string) => {
+    if (vaultState.status !== 'pin-locked') return false;
+
+    try {
+      const { aesKey } = await generateKeyFromPassword(inputValue, vaultState.salt);
+      const decrypted = await crypto.subtle.decrypt(
+        {
+          name: "AES-GCM",
+          iv: toArrayBuffer(vaultState.iv)
+        },
+        aesKey,
+        vaultState.encrypted
+      );
+      const decoded = new TextDecoder().decode(decrypted);
+      const data = JSON.parse(decoded);
+
+      // PIN was verified, transition to ready state
+      setVaultData(data);
+      setVaultState({ status: 'ready' });
+      return true;
+    } catch (err) {
+      console.log(err);
+      return false;
+    }
+  }, [vaultState]);
 
   const setEntries = useCallback((entries: PasswordEntry[] | ((prev: PasswordEntry[]) => PasswordEntry[])) => {
     setVaultData(prev => ({

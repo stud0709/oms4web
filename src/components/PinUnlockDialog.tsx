@@ -11,41 +11,25 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createEncryptedMessage, EncryptionSettings } from '@/lib/crypto';
 import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
-import crypto from "crypto"
+import { VaultState } from '@/hooks/useEncryptedVault';
 
 interface PinUnlockDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  publicKey: string;
-  encryptionSettings: EncryptionSettings;
-  onUnlock: () => void;
+  vaultState: VaultState;
+  onUnlock: (inputValue: string) => Promise<boolean>;
   onSkip: () => void;
   hideCloseButton?: boolean;
-}
-
-function generatePin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-async function digest(message) {
-  const msgUint8 = new TextEncoder().encode(message);                           
-  const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);           
-  const hashArray = Array.from(new Uint8Array(hashBuffer));                     
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export function PinUnlockDialog({
   open,
   onOpenChange,
-  publicKey,
-  encryptionSettings,
+  vaultState,
   onUnlock,
   hideCloseButton,
 }: PinUnlockDialogProps) {
-  const [hashedPin, setHashedPin] = useState<string>('');
-  const [encryptedPin, setEncryptedPin] = useState<string>('');
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [inputValue, setInputValue] = useState('');
@@ -54,19 +38,13 @@ export function PinUnlockDialog({
 
   // Generate and encrypt PIN when dialog opens
   useEffect(() => {
-    if (!open || !publicKey) return;
+    if (!open || vaultState.status !== 'pin-locked') return;
 
     const initPin = async () => {
       setIsLoading(true);
-      const newPin = generatePin();
-      //save pin's hash to compare later
-      const hashedPin = await digest(newPin)
-      setHashedPin(hashedPin);
-      
+
       try {
-        const encrypted = await createEncryptedMessage(`${newPin}\n`, publicKey, encryptionSettings);
-        setEncryptedPin(encrypted);
-        const qrChunks = getQrSequence(encrypted);
+        const qrChunks = getQrSequence(vaultState.omsMessage);
         setChunks(qrChunks);
         setCurrentIndex(0);
       } catch (err) {
@@ -79,7 +57,7 @@ export function PinUnlockDialog({
     initPin();
     setInputValue('');
     setError('');
-  }, [open, publicKey, encryptionSettings]);
+  }, [open, vaultState]);
 
   // Cycle through QR chunks
   useEffect(() => {
@@ -93,14 +71,11 @@ export function PinUnlockDialog({
   }, [open, chunks.length]);
 
   const handleVerify = useCallback(async () => {
-    const hashedInput = await digest(inputValue)
-    if (hashedInput === hashedPin) {
-      onUnlock();
-    } else {
+    if (await onUnlock(inputValue) === false) {
       setError('Incorrect PIN. Please try again.');
       setInputValue('');
     }
-  }, [inputValue, hashedPin, onUnlock]);
+  }, [inputValue, onUnlock]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -112,7 +87,7 @@ export function PinUnlockDialog({
 
   return (
     <Dialog open={open} onOpenChange={hideCloseButton ? undefined : onOpenChange}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-md"
         onPointerDownOutside={(e) => hideCloseButton && e.preventDefault()}
         onEscapeKeyDown={(e) => hideCloseButton && e.preventDefault()}
@@ -148,9 +123,8 @@ export function PinUnlockDialog({
                     {chunks.map((_, idx) => (
                       <div
                         key={idx}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                          idx === currentIndex ? 'bg-primary' : 'bg-muted'
-                        }`}
+                        className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-primary' : 'bg-muted'
+                          }`}
                       />
                     ))}
                   </div>
@@ -170,6 +144,7 @@ export function PinUnlockDialog({
               <Input
                 id="pin"
                 type="text"
+                autoComplete="one-time-code"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={6}
@@ -187,7 +162,7 @@ export function PinUnlockDialog({
             </div>
 
             <div className="flex gap-2">
-              <Button 
+              <Button
                 className="flex-1"
                 onClick={handleVerify}
                 disabled={inputValue.length !== 6}

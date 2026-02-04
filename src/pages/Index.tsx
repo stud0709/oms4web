@@ -248,8 +248,7 @@ const Index = () => {
         <PinUnlockDialog
           open={true}
           onOpenChange={() => {}}
-          publicKey={publicKey}
-          encryptionSettings={encryptionSettings}
+          vaultState={vaultState}
           onUnlock={unlockPin}
           onSkip={startWithEmptyVault}
           hideCloseButton
