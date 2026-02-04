@@ -147,7 +147,7 @@ export function DecryptQrDialog({
           </DialogTitle>
           <DialogDescription>
             {step === 'loading' && 'Preparing decryption request...'}
-            {step === 'display' && 'Scan the QR code(s) with OMS Companion to get the decryption key'}
+            {step === 'display' && 'Scan the QR code(s) with OneMoreSecret to get the decryption key'}
             {step === 'input' && 'Paste the key response from your device'}
             {step === 'processing' && 'Decrypting vault data...'}
             {step === 'success' && 'Decryption successful!'}
@@ -184,13 +184,7 @@ export function DecryptQrDialog({
                     ))}
                   </div>
                 </div>
-              )}
-              <p className="text-sm text-muted-foreground text-center max-w-sm">
-                {chunks.length > 1 
-                  ? 'Scan all QR codes in sequence with OMS Companion. The app will decrypt the AES key and provide a response.'
-                  : 'Scan this QR code with OMS Companion. The app will decrypt the AES key and provide a response.'
-                }
-              </p>
+              )}              
               <div className="flex gap-2 w-full">
                 <Button onClick={handleProceedToInput} className="flex-1 gap-2">
                   <Upload className="h-4 w-4" />
@@ -207,11 +201,7 @@ export function DecryptQrDialog({
 
           {step === 'input' && (
             <>
-              <div className="w-full space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Camera className="h-4 w-4" />
-                  Paste the key response (base64) from OMS Companion
-                </div>
+              <div className="w-full space-y-3">                
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}

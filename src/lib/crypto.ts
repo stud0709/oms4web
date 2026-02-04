@@ -52,7 +52,7 @@ export const APPLICATION_IDS = {
 
 export const OMS_PREFIX = 'oms00_';
 
-export type WorkspaceProtection = 'encrypt' | 'pin';
+export type WorkspaceProtection = 'none'|'encrypt' | 'pin';
 
 export interface EncryptionSettings {
   rsaTransformationIdx: number;

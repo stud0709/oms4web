@@ -44,7 +44,7 @@ const EMPTY_VAULT: VaultData = {
   encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
   encryptionEnabled: false,
   vaultName: '',
-  workspaceProtection: 'pin',
+  workspaceProtection: 'none',
 };
 
 export type VaultState =
@@ -112,13 +112,7 @@ export function useEncryptedVault() {
       const parsed = JSON.parse(stored);
       const data = parseVaultData(parsed);
       setVaultData(data);
-
-      // If protection mode is 'pin', require PIN unlock
-      if (data.publicKey && data.workspaceProtection === 'pin') {
-        encryptAndLock();
-      } else {
-        setVaultState({ status: 'ready' });
-      }
+      setVaultState({ status: 'ready' });
     } catch (e) {
       console.error('Failed to parse stored data, starting with empty vault', e);
       setVaultState({ status: 'ready' });
@@ -131,28 +125,21 @@ export function useEncryptedVault() {
   useEffect(() => {
     if (vaultState.status !== 'ready') return;
 
-    const saveVault = async () => {
+    (async () => {
       const jsonData = JSON.stringify(vaultData);
 
       // Only encrypt if we have a valid public key
       if (vaultData.publicKey) {
         try {
-          const isValid = await validatePublicKey(
+          const encryptedBytes = await encryptVaultData(
+            jsonData,
             vaultData.publicKey,
-            vaultData.encryptionSettings.rsaTransformationIdx
+            vaultData.encryptionSettings
           );
-
-          if (isValid) {
-            const encryptedBytes = await encryptVaultData(
-              jsonData,
-              vaultData.publicKey,
-              vaultData.encryptionSettings
-            );
-            // Encode as OMS text format for localStorage
-            const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
-            localStorage.setItem(STORAGE_KEY, encoded);
-            return;
-          }
+          // Encode as OMS text format for localStorage
+          const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
+          localStorage.setItem(STORAGE_KEY, encoded);
+          return;
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
           throw new Error('Failed to encrypt vault, saving as plain JSON');
@@ -161,9 +148,7 @@ export function useEncryptedVault() {
 
       // Save as plain JSON for 'none' and 'pin' modes, or as fallback
       localStorage.setItem(STORAGE_KEY, jsonData);
-    };
-
-    saveVault();
+    })();
   }, [vaultData, vaultState.status]);
 
   const loadDecryptedData = useCallback((jsonData: string) => {
@@ -353,8 +338,8 @@ function parseVaultData(parsed: unknown): VaultData {
     loadedSettings.aesKeyLength = DEFAULT_ENCRYPTION_SETTINGS.aesKeyLength;
 
   let workspaceProtection = data.workspaceProtection;
-  if (!workspaceProtection || !['encrypt', 'pin'].includes(workspaceProtection)) {
-    workspaceProtection = 'pin';
+  if (!workspaceProtection || !['none', 'encrypt', 'pin'].includes(workspaceProtection)) {
+    workspaceProtection = 'none';
   }
 
   return {

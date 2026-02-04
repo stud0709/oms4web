@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +26,7 @@ import {
   AES_KEY_LENGTHS,
   EncryptionSettings,
   WorkspaceProtection,
+  validatePublicKey,
 } from '@/lib/crypto';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
@@ -63,6 +64,7 @@ export function SettingsDialog({
   const [nameValue, setNameValue] = useState(vaultName);
   const [protection, setProtection] = useState<WorkspaceProtection>(workspaceProtection);
   const { toast } = useToast();
+  const [keyValid, setKeyValid] = useState(false);
 
   useEffect(() => {
     setKeyValue(publicKey);
@@ -74,23 +76,24 @@ export function SettingsDialog({
     setProtection(workspaceProtection);
   }, [publicKey, encryptionSettings, encryptionEnabled, vaultName, workspaceProtection]);
 
+  //validating the key
+  useEffect(() => {
+    (async () => {
+      const valid = await validatePublicKey(keyValue, rsaIdx);
+      setKeyValid(valid);
+      if(!valid) setProtection('none');
+    })();
+  }, [keyValue, rsaIdx]);
+
   const handleSave = () => {
     // Validate public key format for encrypt and pin modes
-    if ((protection === 'encrypt' || protection === 'pin') && keyValue.trim() && !/^[A-Za-z0-9+/=\s]+$/.test(keyValue.trim())) {
+    if (keyValue && !keyValid) {
       toast({
-        title: 'Invalid format',
-        description: 'Public key must be base64 encoded.',
+        title: 'Invalid public key',
+        description: 'This requires a base64-encoded X509 public key',
         variant: 'destructive',
       });
       return;
-    }
-    // Warn if encrypt/pin mode but no key
-    if ((protection === 'encrypt' || protection === 'pin') && !keyValue.trim()) {
-      toast({
-        title: 'Warning',
-        description: 'No public key set. Encryption features will not work properly.',
-        variant: 'destructive',
-      });
     }
     onSavePublicKey(keyValue.trim());
     onSaveEncryptionSettings({
@@ -129,55 +132,61 @@ export function SettingsDialog({
               Displayed in the header and used as export filename
             </p>
           </div>
-
-          <div className="space-y-3 p-3 rounded-lg bg-muted/50">
-            <Label className="font-medium">Workspace Protection</Label>
-            <RadioGroup value={protection} onValueChange={(v) => setProtection(v as WorkspaceProtection)}>
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
-                <div>
-                  <Label htmlFor="protection-encrypt" className="font-normal cursor-pointer">Encrypt Local Storage</Label>
-                  <p className="text-xs text-muted-foreground">Clears memory, displays encryption dialog</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
-                <div>
-                  <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
-                  <p className="text-xs text-muted-foreground">Data stays in memory, but requires PIN via QR code to access</p>
-                </div>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-            <div className="space-y-0.5">
-              <Label htmlFor="encryptionEnabled" className="font-medium">
-                Enable password generator & encryption
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                When enabled, passwords will be encrypted and the generator will be available
-              </p>
-            </div>
-            <Switch
-              id="encryptionEnabled"
-              checked={encEnabled}
-              onCheckedChange={setEncEnabled}
-            />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
             <Textarea
               id="publicKey"
-              placeholder="Paste your base64-encoded X509 public key here..."
+              placeholder="Go to OneMoreSecret Settings - Private Keys, select the key, press TYPE"
               value={keyValue}
               onChange={(e) => setKeyValue(e.target.value)}
               rows={6}
               className="font-mono text-sm"
             />
           </div>
+          {keyValid && (<>
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+              <Label className="font-medium">Workspace Protection</Label>
+              <RadioGroup value={protection} onValueChange={(v) => setProtection(v as WorkspaceProtection)}>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="none" id="protection-none" className="mt-1" />
+                  <div>
+                    <Label htmlFor="protection-none" className="font-normal cursor-pointer">None</Label>
+                    <p className="text-xs text-muted-foreground">Local storage file not encrypted</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
+                  <div>
+                    <Label htmlFor="protection-encrypt" className="font-normal cursor-pointer">Encrypt Local Storage</Label>
+                    <p className="text-xs text-muted-foreground">Clears memory, displays encryption dialog</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
+                  <div>
+                    <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
+                    <p className="text-xs text-muted-foreground">Data stays in memory, but requires PIN via QR code to access</p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
 
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="encryptionEnabled" className="font-medium">
+                  Enable password generator & encryption
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, passwords will be encrypted and the generator will be available
+                </p>
+              </div>
+              <Switch
+                id="encryptionEnabled"
+                checked={encEnabled}
+                onCheckedChange={setEncEnabled}
+              />
+            </div>
+          </>)}
           <div className="space-y-2">
             <Label htmlFor="rsaTransformation">RSA Transformation</Label>
             <Select value={String(rsaIdx)} onValueChange={(v) => setRsaIdx(Number(v))}>

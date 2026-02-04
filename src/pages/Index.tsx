@@ -281,7 +281,7 @@ const Index = () => {
               <Upload className="h-4 w-4" />
             </Button>            
             {//"Lock workspace" button to be shown only if workspace protection activated
-            publicKey && (<>
+            workspaceProtection !== 'none' && (<>
             <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
               <LockKeyhole className="h-4 w-4" />
             </Button>

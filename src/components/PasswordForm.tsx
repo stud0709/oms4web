@@ -305,17 +305,20 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     placeholder="Value"
                     type={field.isSecret ? 'password' : 'text'}
                     className="h-8 font-mono"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={field.isSecret}
-                      onCheckedChange={checked => updateCustomField(field.id, { isSecret: checked })}
-                      id={`secret-${field.id}`}
-                    />
-                    <Label htmlFor={`secret-${field.id}`} className="text-xs text-muted-foreground">
-                      Secret field
-                    </Label>
-                  </div>
+                  />{publicKey
+                    && encryptionEnabled &&
+                    (<>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={field.isSecret}
+                          onCheckedChange={checked => updateCustomField(field.id, { isSecret: checked })}
+                          id={`secret-${field.id}`}
+                        />
+                        <Label htmlFor={`secret-${field.id}`} className="text-xs text-muted-foreground">
+                          Secret field
+                        </Label>
+                      </div>
+                    </>)}
                 </div>
                 <Button
                   type="button"
