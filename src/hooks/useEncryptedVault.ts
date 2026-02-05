@@ -9,7 +9,6 @@ import { PasswordEntry } from '@/types/password';
 import {
   EncryptionSettings,
   DEFAULT_ENCRYPTION_SETTINGS,
-  validatePublicKey,
   OMS_PREFIX,
   RSA_TRANSFORMATIONS,
   AES_TRANSFORMATIONS,
@@ -22,10 +21,7 @@ import {
   APPLICATION_IDS
 } from '@/lib/crypto';
 
-import {
-  encryptVaultData,
-  isEncryptedData
-} from '@/lib/fileEncryption';
+import {encryptVaultData} from '@/lib/fileEncryption';
 
 const STORAGE_KEY = 'vault_data';
 
@@ -102,7 +98,7 @@ export function useEncryptedVault() {
     }
 
     // Check if data is encrypted (only for 'encrypt' protection mode)
-    if (isEncryptedData(stored)) {
+    if (stored.startsWith(OMS_PREFIX)) {
       setVaultState({ status: 'encrypted', encryptedData: stored });
       return;
     }

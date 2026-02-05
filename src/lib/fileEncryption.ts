@@ -97,10 +97,3 @@ export async function encryptVaultData(
 
   return finalMessage;
 }
-
-/**
- * Check if data is encrypted (starts with oms00_ prefix)
- */
-export function isEncryptedData(data: string): boolean {
-  return data.startsWith(OMS_PREFIX);
-}

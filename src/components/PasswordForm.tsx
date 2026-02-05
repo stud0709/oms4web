@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { PasswordEntry, CustomField } from '@/types/password';
-import { Plus, Trash2, Eye, EyeOff, X } from 'lucide-react';
+import { PasswordEntry, CustomField, CustomFieldProtection } from '@/types/password';
+import { Plus, Trash2, Eye, EyeOff, X, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { PasswordGenerator } from '@/components/PasswordGenerator';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +16,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 interface PasswordFormProps {
   open: boolean;
@@ -27,6 +27,11 @@ interface PasswordFormProps {
   publicKey: string;
   encryptionSettings: EncryptionSettings;
   encryptionEnabled: boolean;
+}
+
+interface ProtectionOption {
+  id: CustomFieldProtection;
+  Icon: React.ComponentType<{ className?: string }>;
 }
 
 export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, publicKey, encryptionSettings, encryptionEnabled }: PasswordFormProps) {
@@ -88,7 +93,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
   const addCustomField = () => {
     setCustomFields([
       ...customFields,
-      { id: crypto.randomUUID(), label: '', value: '', isSecret: false },
+      { id: crypto.randomUUID(), label: '', value: '', protection: 'none', readonly: false },
     ]);
   };
 
@@ -143,14 +148,30 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
         }
       }
 
+      //check if custom fields need encryption
+      const finalCustomFields = await Promise.all(
+        customFields
+          .filter(f => f.label.trim())
+          .map(async field => {
+            if (!field.value) return field; //empty
+            if (field.protection !== 'encrypted') return field; //plain text
+            if (field.value.startsWith(OMS_PREFIX)) return field; //already encrypted
+
+            // Encryption is required
+            field.value = await createEncryptedMessage(field.value, publicKey, encryptionSettings);
+            field.readonly = true; //encrypted value cannot be changed manually
+            return field;
+          }));
+
       onSave({
         title: title.trim() || 'Untitled',
         username,
         password: finalPassword,
+        passwordReadonly: finalPassword.startsWith(OMS_PREFIX),
         url,
         notes,
         hashtags,
-        customFields: customFields.filter(f => f.label.trim()),
+        customFields: finalCustomFields,
       });
       onOpenChange(false);
       resetForm();
@@ -213,6 +234,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   className="pr-10 font-mono"
+                  disabled = {entry?.passwordReadonly}
                 />
                 {!password.startsWith(OMS_PREFIX) && (
                   <Button
@@ -303,22 +325,50 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     value={field.value}
                     onChange={e => updateCustomField(field.id, { value: e.target.value })}
                     placeholder="Value"
-                    type={field.isSecret ? 'password' : 'text'}
+                    type={field.protection !== 'none' ? 'password' : 'text'}
                     className="h-8 font-mono"
-                  />{publicKey
-                    && encryptionEnabled &&
-                    (<>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={field.isSecret}
-                          onCheckedChange={checked => updateCustomField(field.id, { isSecret: checked })}
-                          id={`secret-${field.id}`}
-                        />
-                        <Label htmlFor={`secret-${field.id}`} className="text-xs text-muted-foreground">
-                          Secret field
-                        </Label>
-                      </div>
-                    </>)}
+                    disabled={field.readonly}
+                  />                  
+                  <div className="flex items-center gap-3">
+                    {/* The "Label" is now just a subtle text prefix or you can remove it entirely */}
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Mode:
+                    </span>
+
+                    <RadioGroup
+                      className="flex flex-row gap-1"
+                      value={field.protection}
+                      onValueChange={v => updateCustomField(field.id, {protection: v as CustomFieldProtection})}
+                      disabled = {field.readonly}
+                    >
+                      {([
+                        { id: 'none', Icon: Eye },
+                        { id: 'secret', Icon: EyeOff },
+                        { id: 'encrypted', Icon: QrCode },
+                      ] as ProtectionOption[])
+                      .filter(option => (publicKey && encryptionEnabled) || option.id !== 'encrypted')
+                      .map(({ id, Icon }) => (
+                        <div key={id} className="relative">
+                          <RadioGroupItem
+                            value={id}
+                            id={`${id}-${field.id}`}
+                            className="peer sr-only"
+                          />
+                          <Label
+                            htmlFor={`${id}-${field.id}`}
+                            className="flex h-8 w-8 items-center justify-center rounded-sm cursor-pointer transition-all 
+                     text-muted-foreground 
+                     hover:bg-background/50 hover:text-foreground
+                     peer-data-[state=checked]:bg-background 
+                     peer-data-[state=checked]:text-primary 
+                     peer-data-[state=checked]:shadow-sm"
+                          >
+                            <Icon className="h-4 w-4" />
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </div>
                 </div>
                 <Button
                   type="button"

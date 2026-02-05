@@ -11,7 +11,8 @@ import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
 import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
-import { encryptVaultData, isEncryptedData } from '@/lib/fileEncryption';
+import { encryptVaultData } from '@/lib/fileEncryption';
+import { OMS_PREFIX } from '@/lib/crypto';
 
 const Index = () => {
   const { 
@@ -168,7 +169,7 @@ const Index = () => {
       const content = e.target?.result as string;
       
       // Check if it's encrypted data in text format
-      if (isEncryptedData(content)) {
+      if (content.startsWith(OMS_PREFIX)) {
         setImportDecryptData(content);
         return;
       }

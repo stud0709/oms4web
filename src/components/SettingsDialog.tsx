@@ -81,7 +81,7 @@ export function SettingsDialog({
     (async () => {
       const valid = await validatePublicKey(keyValue, rsaIdx);
       setKeyValid(valid);
-      if(!valid) setProtection('none');
+      if (!valid) setProtection('none');
     })();
   }, [keyValue, rsaIdx]);
 
@@ -171,15 +171,10 @@ export function SettingsDialog({
               </RadioGroup>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="space-y-0.5">
-                <Label htmlFor="encryptionEnabled" className="font-medium">
-                  Enable password generator & encryption
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  When enabled, passwords will be encrypted and the generator will be available
-                </p>
-              </div>
+            <div className="flex items-center justify-between p-3">
+              <Label htmlFor="encryptionEnabled" className="font-medium">
+                Enable password generator & encryption
+              </Label>
               <Switch
                 id="encryptionEnabled"
                 checked={encEnabled}

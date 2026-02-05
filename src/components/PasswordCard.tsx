@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { OMS_PREFIX } from '@/lib/crypto';
 
 const DELETED_TAG = 'deleted';
 
@@ -33,7 +34,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
 
-  const isAirGapPassword = entry.password?.startsWith('oms00_');
+  const isAirGapPassword = entry.password?.startsWith(OMS_PREFIX);
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
 
   const handleDelete = () => {
@@ -43,7 +44,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
       onSoftDelete(entry);
     }
   };
-  const isAirGapField = (value: string) => value?.startsWith('oms00_');
+  const isAirGapField = (value: string) => value?.startsWith(OMS_PREFIX);
 
   const copyToClipboard = async (text: string, label: string) => {
     await navigator.clipboard.writeText(text);
@@ -164,7 +165,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">{field.label}</p>
               <p className="text-sm font-mono truncate">
-                {field.isSecret && !visibleFields.has(field.id) 
+                {field.protection !== 'none' && !visibleFields.has(field.id) 
                   ? maskValue(field.value) 
                   : field.value}
               </p>
@@ -180,7 +181,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                   <QrCode className="h-4 w-4" />
                 </Button>
               )}
-              {field.isSecret && (
+              {field.protection === 'secret' && (
                 <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
                   {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
