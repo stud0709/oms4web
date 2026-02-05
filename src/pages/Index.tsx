@@ -15,22 +15,22 @@ import { encryptVaultData } from '@/lib/fileEncryption';
 import { OMS_PREFIX } from '@/lib/crypto';
 
 const Index = () => {
-  const { 
+  const {
     vaultState,
-    entries, 
-    publicKey, 
-    encryptionSettings, 
+    entries,
+    publicKey,
+    encryptionSettings,
     encryptionEnabled,
     vaultName,
     workspaceProtection,
-    addEntry, 
-    updateEntry, 
-    deleteEntry, 
-    getAllHashtags, 
-    importEntries, 
-    exportData, 
-    updatePublicKey, 
-    updateEncryptionSettings, 
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    getAllHashtags,
+    importEntries,
+    exportData,
+    updatePublicKey,
+    updateEncryptionSettings,
     updateEncryptionEnabled,
     updateVaultName,
     updateWorkspaceProtection,
@@ -39,7 +39,7 @@ const Index = () => {
     lockVault,
     unlockPin,
   } = useEncryptedVault();
-  
+
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
@@ -53,18 +53,18 @@ const Index = () => {
 
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
-      const matchesSearch = !search || 
+      const matchesSearch = !search ||
         entry.title.toLowerCase().includes(search.toLowerCase()) ||
         entry.username.toLowerCase().includes(search.toLowerCase()) ||
         entry.url.toLowerCase().includes(search.toLowerCase()) ||
         entry.hashtags.some(tag => tag.includes(search.toLowerCase()));
-      
+
       const matchesTag = !selectedTag || entry.hashtags.includes(selectedTag);
-      
+
       // Hide deleted entries unless #deleted tag is explicitly selected
       const isDeleted = entry.hashtags.includes(DELETED_TAG);
       const showDeleted = selectedTag === DELETED_TAG;
-      
+
       return matchesSearch && matchesTag && (!isDeleted || showDeleted);
     });
   }, [entries, search, selectedTag]);
@@ -87,8 +87,8 @@ const Index = () => {
   };
 
   const handleSoftDelete = (entry: PasswordEntry) => {
-    const newHashtags = entry.hashtags.includes(DELETED_TAG) 
-      ? entry.hashtags 
+    const newHashtags = entry.hashtags.includes(DELETED_TAG)
+      ? entry.hashtags
       : [...entry.hashtags, DELETED_TAG];
     updateEntry(entry.id, { hashtags: newHashtags });
   };
@@ -103,12 +103,12 @@ const Index = () => {
   const handleExport = async () => {
     const data = exportData();
     const jsonData = JSON.stringify(data, null, 2);
-    
+
     // Generate filename: vaultName + local timestamp
     const name = vaultName.trim() || 'Untitled';
     const now = new Date();
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
-    
+
     // If workspace protection is activated and public key exists, export encrypted
     if (publicKey) {
       try {
@@ -129,7 +129,7 @@ const Index = () => {
         toast({ title: 'Encryption failed', description: 'Falling back to JSON export.', variant: 'destructive' });
       }
     }
-    
+
     // Fallback to plain JSON
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -167,13 +167,13 @@ const Index = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      
+
       // Check if it's encrypted data in text format
       if (content.startsWith(OMS_PREFIX)) {
         setImportDecryptData(content);
         return;
       }
-      
+
       // Handle plain JSON
       try {
         const data = JSON.parse(content);
@@ -231,7 +231,7 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center">
         <DecryptQrDialog
           open={true}
-          onOpenChange={() => {}}
+          onOpenChange={() => { }}
           encryptedData={vaultState.encryptedData}
           onDecrypted={loadDecryptedData}
           onSkip={startWithEmptyVault}
@@ -248,7 +248,7 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center">
         <PinUnlockDialog
           open={true}
-          onOpenChange={() => {}}
+          onOpenChange={() => { }}
           vaultState={vaultState}
           onUnlock={unlockPin}
           onSkip={startWithEmptyVault}
@@ -265,7 +265,9 @@ const Index = () => {
         <div className="container max-w-4xl py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <img src="/favicon.png" alt="oms4web" className="h-10 w-10" />
+              <a href="https://github.com/stud0709/oms4web">
+              <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="oms4web" className="h-10 w-10" />
+              </a>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
                 <p className="text-xs text-muted-foreground">{vaultName.trim() || 'Untitled'}</p>
@@ -280,21 +282,21 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
               <Upload className="h-4 w-4" />
-            </Button>            
-            {//"Lock workspace" button to be shown only if workspace protection activated
-            workspaceProtection !== 'none' && (<>
-            <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
-              <LockKeyhole className="h-4 w-4" />
             </Button>
-            </>
-            )}
-            <SettingsDialog 
-              publicKey={publicKey} 
+            {//"Lock workspace" button to be shown only if workspace protection activated
+              workspaceProtection !== 'none' && (<>
+                <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
+                  <LockKeyhole className="h-4 w-4" />
+                </Button>
+              </>
+              )}
+            <SettingsDialog
+              publicKey={publicKey}
               encryptionSettings={encryptionSettings}
               encryptionEnabled={encryptionEnabled}
               vaultName={vaultName}
               workspaceProtection={workspaceProtection}
-              onSavePublicKey={updatePublicKey} 
+              onSavePublicKey={updatePublicKey}
               onSaveEncryptionSettings={updateEncryptionSettings}
               onSaveEncryptionEnabled={updateEncryptionEnabled}
               onSaveVaultName={updateVaultName}
@@ -316,10 +318,10 @@ const Index = () => {
       <main className="container max-w-4xl py-6">
         {allTags.length > 0 && (
           <div className="mb-6">
-            <HashtagFilter 
-              tags={allTags} 
-              selectedTag={selectedTag} 
-              onSelectTag={setSelectedTag} 
+            <HashtagFilter
+              tags={allTags}
+              selectedTag={selectedTag}
+              onSelectTag={setSelectedTag}
             />
           </div>
         )}
@@ -327,8 +329,8 @@ const Index = () => {
         {filteredEntries.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredEntries.map((entry, index) => (
-              <div 
-                key={entry.id} 
+              <div
+                key={entry.id}
                 className="animate-slide-up"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
@@ -343,23 +345,34 @@ const Index = () => {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+          <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
             <div className="p-4 rounded-2xl bg-muted/50 mb-4">
               <Lock className="h-12 w-12 text-muted-foreground" />
             </div>
             <h2 className="text-xl font-semibold mb-2">
               {entries.length === 0 ? 'Your vault is empty' : 'No results found'}
             </h2>
-            <p className="text-muted-foreground mb-6 max-w-sm">
-              {entries.length === 0 
-                ? 'Add your first password entry to get started. Your data is stored securely in your browser.'
-                : 'Try adjusting your search or filters to find what you\'re looking for.'}
-            </p>
             {entries.length === 0 && (
-              <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
-                <Plus className="h-5 w-5" />
-                Create First Entry
-              </Button>
+              <>
+                <p className="text-muted-foreground mb-6 max-w-sm text-justify">
+                 ⚠️ Your data is stored locally in your browser, so export it regularly. It will be lost when clearling browser cache.
+                 Your data will be encrypted as soon as you have provided a public key. 
+                </p>
+                <p className="text-muted-foreground mb-6 max-w-sm">
+                 🚀 To start, go to Settings. 
+                </p>
+                <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
+                  <Plus className="h-5 w-5" />
+                  Create First Entry
+                </Button>
+              </>
+            )}
+            {entries.length > 0 && (
+              <>
+                <p className="text-muted-foreground mb-6 max-w-sm">
+                  Try adjusting your search or filters to find what you\'re looking for.
+                </p>
+              </>
             )}
           </div>
         )}
