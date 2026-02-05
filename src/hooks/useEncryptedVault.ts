@@ -21,9 +21,18 @@ import {
   APPLICATION_IDS
 } from '@/lib/crypto';
 
-import {encryptVaultData} from '@/lib/fileEncryption';
+import { openDB, IDBPDatabase, DBSchema } from 'idb';
 
-const STORAGE_KEY = 'vault_data';
+import { encryptVaultData } from '@/lib/fileEncryption';
+
+const STORAGE_KEY = 'current', DB_NAME = 'oms4web', STORE_NAME = 'vault_data';
+
+interface OmsDbSchema extends DBSchema {
+  [STORE_NAME]: {
+    key: string;
+    value: string;
+  };
+}
 
 export interface VaultData {
   entries: PasswordEntry[];
@@ -52,6 +61,7 @@ export type VaultState =
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
+  const [db, setDb] = useState<IDBPDatabase<OmsDbSchema>>()
 
   const encryptAndLock = useCallback(() => {
     const encoded = new TextEncoder().encode(JSON.stringify(vaultData));
@@ -89,32 +99,44 @@ export function useEncryptedVault() {
 
   // Load vault on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    (async () => {
+      const db = await openDB<OmsDbSchema>(DB_NAME, 1, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        }
+      });
 
-    if (!stored) {
-      setVaultState({ status: 'ready' });
-      setVaultData(EMPTY_VAULT);
-      return;
-    }
+      setDb(db);
 
-    // Check if data is encrypted (only for 'encrypt' protection mode)
-    if (stored.startsWith(OMS_PREFIX)) {
-      setVaultState({ status: 'encrypted', encryptedData: stored });
-      return;
-    }
+      const stored = await db.get(STORE_NAME, STORAGE_KEY);
 
-    // Try to parse as plain JSON
-    try {
-      const parsed = JSON.parse(stored);
-      const data = parseVaultData(parsed);
-      setVaultData(data);
-      setVaultState({ status: 'ready' });
-    } catch (e) {
-      console.error('Failed to parse stored data, starting with empty vault', e);
-      setVaultState({ status: 'ready' });
-      setVaultData(EMPTY_VAULT);
-      throw new Error('Failed to parse stored data, starting with empty vault');
-    }
+      if (!stored) {
+        setVaultState({ status: 'ready' });
+        setVaultData(EMPTY_VAULT);
+        return;
+      }
+
+      // Check if data is encrypted (only for 'encrypt' protection mode)
+      if (stored.startsWith(OMS_PREFIX)) {
+        setVaultState({ status: 'encrypted', encryptedData: stored });
+        return;
+      }
+
+      // Try to parse as plain JSON
+      try {
+        const parsed = JSON.parse(stored);
+        const data = parseVaultData(parsed);
+        setVaultData(data);
+        setVaultState({ status: 'ready' });
+      } catch (e) {
+        console.error('Failed to parse stored data, starting with empty vault', e);
+        setVaultState({ status: 'ready' });
+        setVaultData(EMPTY_VAULT);
+        throw new Error('Failed to parse stored data, starting with empty vault');
+      }
+    })();
   }, []);
 
   // Save vault when data changes 
@@ -132,9 +154,9 @@ export function useEncryptedVault() {
             vaultData.publicKey,
             vaultData.encryptionSettings
           );
-          // Encode as OMS text format for localStorage
+          // Encode as OMS text format for indexDb
           const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
-          localStorage.setItem(STORAGE_KEY, encoded);
+          await db.put(STORE_NAME, encoded, STORAGE_KEY);
           return;
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
@@ -143,7 +165,7 @@ export function useEncryptedVault() {
       }
 
       // Save as plain JSON for 'none' and 'pin' modes, or as fallback
-      localStorage.setItem(STORAGE_KEY, jsonData);
+      await db.put(STORE_NAME, jsonData, STORAGE_KEY);
     })();
   }, [vaultData, vaultState.status]);
 
@@ -163,22 +185,24 @@ export function useEncryptedVault() {
     setVaultData(EMPTY_VAULT);
     setVaultState({ status: 'ready' });
     // Save empty vault
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
+    db.put(STORE_NAME, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
   }, []);
 
   const lockVault = useCallback(() => {
-    // Re-read from storage and reset state to trigger unlock flow
-    const stored = localStorage.getItem(STORAGE_KEY);
+    (async () => {
+      // Re-read from storage and reset state to trigger unlock flow
+      const stored = await db.get(STORE_NAME, STORAGE_KEY);
 
-    // Check if data should be encrypted - if so, require decryption
-    if (vaultData.workspaceProtection === 'encrypt') {
-      setVaultState({ status: 'encrypted', encryptedData: stored });
-      setVaultData(EMPTY_VAULT);
-      return;
-    }
+      // Check if data should be encrypted - if so, require decryption
+      if (vaultData.workspaceProtection === 'encrypt') {
+        setVaultState({ status: 'encrypted', encryptedData: stored });
+        setVaultData(EMPTY_VAULT);
+        return;
+      }
 
-    // Parse the stored data to check protection mode
-    encryptAndLock();
+      // Parse the stored data to check protection mode
+      encryptAndLock();
+    })();
   }, [vaultData]);
 
   const unlockPin = useCallback(async (inputValue: string) => {
