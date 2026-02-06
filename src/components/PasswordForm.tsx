@@ -332,7 +332,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   <div className="flex items-center gap-3">
                     {/* The "Label" is now just a subtle text prefix or you can remove it entirely */}
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Mode:
+                      Protection:
                     </span>
 
                     <RadioGroup
