@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { Plus, Lock, Download, Upload, Loader2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useEncryptedVault } from '@/hooks/useEncryptedVault';
+import { isAndroid, useEncryptedVault } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
@@ -265,17 +265,19 @@ const Index = () => {
         <div className="container max-w-4xl py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <a href="https://github.com/stud0709/oms4web">
-              <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="oms4web" className="h-10 w-10" />
-              </a>
+              { !isAndroid &&
+              (<a href="https://github.com/stud0709/oms4web">
+                <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="oms4web" className="h-10 w-10" />
+              </a>)}
               <div>
-                <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
+                <a href="https://github.com/stud0709/oms4web">
+                  <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
+                </a>
                 <p className="text-xs text-muted-foreground">{vaultName.trim() || 'Untitled'}</p>
               </div>
             </div>
-            <Button onClick={() => setFormOpen(true)} className="gap-2">
+            <Button variant="outline" size="icon" onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4" />
-              New Entry
             </Button>
             <Button variant="outline" size="icon" onClick={handleExport} title="Export">
               <Download className="h-4 w-4" />
@@ -355,11 +357,11 @@ const Index = () => {
             {entries.length === 0 && (
               <>
                 <p className="text-muted-foreground mb-6 max-w-sm text-justify">
-                 ⚠️ Your data is stored locally in your browser, so export it regularly. It will be lost when clearling browser cache.
-                 Your data will be encrypted as soon as you have provided a public key. 
+                  ⚠️ Your data is stored locally in your browser, so export it regularly. It will be lost when clearling browser cache.
+                  Your data will be encrypted as soon as you have provided a public key.
                 </p>
                 <p className="text-muted-foreground mb-6 max-w-sm">
-                 🚀 To start, go to Settings. 
+                  🚀 To start, go to Settings.
                 </p>
                 <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
                   <Plus className="h-5 w-5" />

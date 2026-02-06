@@ -1,7 +1,8 @@
 import {
   useState,
   useEffect,
-  useCallback
+  useCallback,
+  useMemo
 } from 'react';
 
 import { PasswordEntry } from '@/types/password';
@@ -57,6 +58,8 @@ export type VaultState =
   | { status: 'encrypted'; encryptedData: string }
   | { status: 'pin-locked', aesKey: CryptoKey, salt: Uint8Array<ArrayBuffer>, iv: Uint8Array, encrypted: ArrayBuffer, omsMessage: string }
   | { status: 'ready' };
+
+export const isAndroid = /Android/i.test(navigator.userAgent);
 
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });

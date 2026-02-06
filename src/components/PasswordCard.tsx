@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { PasswordEntry } from '@/types/password';
-import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2, Hash, QrCode } from 'lucide-react';
+import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2, Hash, QrCode, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { OMS_PREFIX } from '@/lib/crypto';
+import { isAndroid } from '@/hooks/useEncryptedVault';
 
 const DELETED_TAG = 'deleted';
 
@@ -36,6 +37,26 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
 
   const isAirGapPassword = entry.password?.startsWith(OMS_PREFIX);
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
+
+  const getIntentUrl = useCallback((message: string) => {
+    const packageName = "com.onemoresecret";
+    const baseUrl = "stud0709.github.io/oms_intent/";
+    const fallbackUrl = `https://${baseUrl}#data=${encodeURIComponent(message)}`;
+    return [
+      `intent://${baseUrl}#Intent`,
+      "scheme=https",
+      `package=${packageName}`,
+      `S.m=${message}`,
+      `S.browser_fallback_url=${encodeURIComponent(baseUrl)}`,
+      "end"
+    ].join(';');
+  }, []);
+
+  const handleIntent = useCallback((message: string) => {
+    const intentUrl = getIntentUrl(message);
+    console.log(`Created intentUrl: ${intentUrl}`);
+    window.location.href = intentUrl;
+  }, []);
 
   const handleDelete = () => {
     if (isDeleted) {
@@ -100,7 +121,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                 <AlertDialogHeader>
                   <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {isDeleted 
+                    {isDeleted
                       ? `Are you sure you want to permanently delete "${entry.title}"? This action cannot be undone.`
                       : `"${entry.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
                   </AlertDialogDescription>
@@ -139,14 +160,22 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
             </div>
             <div className="flex gap-1">
               {isAirGapPassword && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setQrDialogValue(entry.password)}
-                  title="Air Gap - Show QR Code"
-                >
-                  <QrCode className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setQrDialogValue(entry.password)}
+                    title="Air Gap - Show QR Code">
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                  {isAndroid && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleIntent(entry.password)}>
+                      <Webhook className="h-4 w-4" />
+                    </Button>)}
+                </>
               )}
               {!isAirGapPassword && (
                 <Button variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
@@ -165,21 +194,29 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">{field.label}</p>
               <p className="text-sm font-mono truncate">
-                {field.protection !== 'none' && !visibleFields.has(field.id) 
-                  ? maskValue(field.value) 
+                {field.protection !== 'none' && !visibleFields.has(field.id)
+                  ? maskValue(field.value)
                   : field.value}
               </p>
             </div>
             <div className="flex gap-1">
               {isAirGapField(field.value) && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setQrDialogValue(field.value)}
-                  title="Air Gap - Show QR Code"
-                >
-                  <QrCode className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setQrDialogValue(field.value)}
+                    title="Air Gap - Show QR Code">
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                  {isAndroid && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleIntent(field.value)}>
+                      <Webhook className="h-4 w-4" />
+                    </Button>)}
+                </>
               )}
               {field.protection === 'secret' && (
                 <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
@@ -206,11 +243,10 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               <Badge
                 key={tag}
                 variant={tag === DELETED_TAG ? 'destructive' : 'secondary'}
-                className={`cursor-pointer transition-colors ${
-                  tag === DELETED_TAG 
-                    ? 'hover:bg-destructive/80' 
-                    : 'hover:bg-primary hover:text-primary-foreground'
-                }`}
+                className={`cursor-pointer transition-colors ${tag === DELETED_TAG
+                  ? 'hover:bg-destructive/80'
+                  : 'hover:bg-primary hover:text-primary-foreground'
+                  }`}
                 onClick={() => onTagClick(tag)}
               >
                 <Hash className="h-3 w-3 mr-0.5" />

@@ -29,6 +29,7 @@ import {
   validatePublicKey,
 } from '@/lib/crypto';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { isAndroid } from '@/hooks/useEncryptedVault';
 
 interface SettingsDialogProps {
   publicKey: string;
@@ -136,7 +137,7 @@ export function SettingsDialog({
             <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
             <Textarea
               id="publicKey"
-              placeholder="Go to OneMoreSecret Settings - Private Keys, select the key, press TYPE"
+              placeholder={`Go to OneMoreSecret Settings - Private Keys, select the key, ${isAndroid ? 'copy your public key to the clipboard and paste it here':'press TYPE'}`}
               value={keyValue}
               onChange={(e) => setKeyValue(e.target.value)}
               rows={6}
@@ -173,7 +174,7 @@ export function SettingsDialog({
 
             <div className="flex items-center justify-between p-3">
               <Label htmlFor="encryptionEnabled" className="font-medium">
-                Enable password generator & encryption
+                Password generator & encryption
               </Label>
               <Switch
                 id="encryptionEnabled"
