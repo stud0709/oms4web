@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/oms4web/sw.js', { scope: '/oms4web/' })})}
