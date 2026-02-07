@@ -13,6 +13,7 @@ import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { OMS_PREFIX } from '@/lib/crypto';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const Index = () => {
   const {

@@ -1,4 +1,4 @@
-# oms4WEB - a password manager for OmsCompanion
+# oms4web - a password manager for OmsCompanion
 ⚠️ This is a very early version of the software compatible with [OmeMoreSecret](https://github.com/stud0709/OneMoreSecret) *beta* versions (not published yet, stay tuned)
 
 This project started on Christmas 2025 as a vibe coding experiment. [Lovable.dev](https://lovable.dev/) did a great job to get things started, but with the exceeding complexity, things under the hood became increasingly messy, and I have been taking back control over the code since then. But I remain a heavy user of LLMs when it comes to coding.

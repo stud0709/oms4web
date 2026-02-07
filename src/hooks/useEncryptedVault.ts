@@ -103,6 +103,19 @@ export function useEncryptedVault() {
   // Load vault on mount
   useEffect(() => {
     (async () => {
+      //request persistent storage             
+      const isPersisted = await navigator?.storage?.persisted();
+      if (isPersisted) {
+        console.log("Persistent storage already granted");
+      } else {
+        const isGranted = await navigator?.storage?.persist();
+        if (isGranted) {
+          console.log("Persistent storage has been granted");
+        } else {
+          console.log("Storage may be cleared under storage pressure.");
+        }
+      }
+
       const db = await openDB<OmsDbSchema>(DB_NAME, 1, {
         upgrade(db) {
           if (!db.objectStoreNames.contains(STORE_NAME)) {
