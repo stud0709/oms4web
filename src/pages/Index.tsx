@@ -263,7 +263,7 @@ const Index = () => {
     <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="container max-w-4xl py-4">
+        <div className="container max-w-4xl px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               { !isAndroid &&
@@ -318,7 +318,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container max-w-4xl py-6">
+      <main className="container max-w-4xl px-4 py-6">
         {allTags.length > 0 && (
           <div className="mb-6">
             <HashtagFilter
