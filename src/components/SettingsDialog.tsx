@@ -67,6 +67,21 @@ export function SettingsDialog({
   const { toast } = useToast();
   const [keyValid, setKeyValid] = useState(false);
 
+  const resetToOriginal = () => {
+    setKeyValue(publicKey);
+    setRsaIdx(encryptionSettings.rsaTransformationIdx);
+    setAesKeyLen(encryptionSettings.aesKeyLength);
+    setAesIdx(encryptionSettings.aesTransformationIdx);
+    setEncEnabled(encryptionEnabled);
+    setNameValue(vaultName);
+    setProtection(workspaceProtection);
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) resetToOriginal();
+    setOpen(newOpen);
+  };
+
   useEffect(() => {
     setKeyValue(publicKey);
     setRsaIdx(encryptionSettings.rsaTransformationIdx);
@@ -110,7 +125,7 @@ export function SettingsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="icon" title="Settings">
           <Settings className="h-4 w-4" />
@@ -232,7 +247,7 @@ export function SettingsDialog({
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleSave}>Save</Button>
