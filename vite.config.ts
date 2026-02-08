@@ -12,8 +12,8 @@ export default defineConfig(({ mode, command }) => {
     build: {
       rollupOptions: {
         onwarn(warning, warn) {
-          // Suppress "use client" directive warnings from Radix UI
-          if (warning.code === 'MODULE_LEVEL_DIRECTIVE' && warning.message.includes('"use client"')) {
+          // Suppress "use client" / "use server" directive warnings (not relevant for client-side bundling)
+          if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
             return;
           }
           warn(warning);
