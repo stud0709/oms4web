@@ -10,7 +10,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const url = new URL(event.request.url);
 
   // Match the callback URL you're opening from Kotlin
-  if (url.pathname.endsWith('/callback')) {
+  if (url.pathname.endsWith('/callback') && url.searchParams.has('data')) {
     event.respondWith(
       (async () => {
         const clientList = await self.clients.matchAll({ type: 'window' });

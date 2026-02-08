@@ -5,6 +5,8 @@ This project started on Christmas 2025 as a vibe coding experiment. [Lovable.dev
 
 The webapp is online at https://stud0709.github.io/oms4web/
 
+The Getting Started manual is [here](./getting_started.md)
+
 For the roadmap, see [issues](https://github.com/stud0709/oms4web/issues)
 
 ## Features
