@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PasswordEntry, CustomField, CustomFieldProtection } from '@/types/password';
-import { Plus, Trash2, Eye, EyeOff, X, QrCode } from 'lucide-react';
+import { Plus, Trash2, Eye, EyeOff, X, QrCode, Eraser } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,6 +46,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [passwordReadonly, setPasswordReadonly] = useState(false);
 
   useEffect(() => {
     if (entry) {
@@ -56,6 +57,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
       setNotes(entry.notes);
       setHashtags(entry.hashtags);
       setCustomFields(entry.customFields);
+      setPasswordReadonly(entry.passwordReadonly);
     } else {
       resetForm();
     }
@@ -76,7 +78,15 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
   const handlePasswordGenerated = (generatedPassword: string) => {
     setPassword(generatedPassword);
     setShowPassword(true);
+    setPasswordReadonly(false);
   };
+
+  const erasePassword = useCallback(() => {
+    setPassword('');
+    if (entry) {
+      setPasswordReadonly(false);
+    }
+  }, [entry]);
 
   const addTag = (tag: string) => {
     const cleanTag = tag.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -234,9 +244,20 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   className="pr-10 font-mono"
-                  disabled = {entry?.passwordReadonly}
+                  disabled={passwordReadonly}
                 />
-                {!password.startsWith(OMS_PREFIX) && (
+                {passwordReadonly && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full"
+                    onClick={() => erasePassword()}
+                  >
+                    <Eraser className="h-4 w-4" />
+                  </Button>
+                )}
+                {!passwordReadonly && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -328,45 +349,45 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     type={field.protection !== 'none' ? 'password' : 'text'}
                     className="h-8 font-mono"
                     disabled={field.readonly}
-                  />                  
+                  />
                   <div className="flex items-center gap-3">
                     {/* The "Label" is now just a subtle text prefix or you can remove it entirely */}
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <span className="text-xs font-semibold text-muted-foreground tracking-wider">
                       Protection:
                     </span>
 
                     <RadioGroup
                       className="flex flex-row gap-1"
                       value={field.protection}
-                      onValueChange={v => updateCustomField(field.id, {protection: v as CustomFieldProtection})}
-                      disabled = {field.readonly}
+                      onValueChange={v => updateCustomField(field.id, { protection: v as CustomFieldProtection })}
+                      disabled={field.readonly}
                     >
                       {([
                         { id: 'none', Icon: Eye },
                         { id: 'secret', Icon: EyeOff },
                         { id: 'encrypted', Icon: QrCode },
                       ] as ProtectionOption[])
-                      .filter(option => (publicKey && encryptionEnabled) || option.id !== 'encrypted')
-                      .map(({ id, Icon }) => (
-                        <div key={id} className="relative">
-                          <RadioGroupItem
-                            value={id}
-                            id={`${id}-${field.id}`}
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor={`${id}-${field.id}`}
-                            className="flex h-8 w-8 items-center justify-center rounded-sm cursor-pointer transition-all 
+                        .filter(option => (publicKey && encryptionEnabled) || option.id !== 'encrypted')
+                        .map(({ id, Icon }) => (
+                          <div key={id} className="relative">
+                            <RadioGroupItem
+                              value={id}
+                              id={`${id}-${field.id}`}
+                              className="peer sr-only"
+                            />
+                            <Label
+                              htmlFor={`${id}-${field.id}`}
+                              className="flex h-8 w-8 items-center justify-center rounded-sm cursor-pointer transition-all 
                      text-muted-foreground 
                      hover:bg-background/50 hover:text-foreground
                      peer-data-[state=checked]:bg-background 
                      peer-data-[state=checked]:text-primary 
                      peer-data-[state=checked]:shadow-sm"
-                          >
-                            <Icon className="h-4 w-4" />
-                          </Label>
-                        </div>
-                      ))}
+                            >
+                              <Icon className="h-4 w-4" />
+                            </Label>
+                          </div>
+                        ))}
                     </RadioGroup>
                   </div>
                 </div>

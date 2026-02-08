@@ -21,6 +21,12 @@ export default defineConfig(({ mode, command }) => {
         registerType: 'autoUpdate',
         injectRegister: 'script', // This injects the SW registration automatically
         includeAssets: ['favicon.png', 'favicon_192.png', 'favicon_512.png'],
+        strategies: 'injectManifest',
+        filename: 'sw.ts',
+        srcDir: 'src',
+        injectManifest: {
+          injectionPoint: undefined
+        },
         manifest: {
           name: 'oms4web',
           short_name: 'oms4web',
@@ -29,6 +35,7 @@ export default defineConfig(({ mode, command }) => {
           start_url: base, // Ensures the app starts at your subfolder
           scope: base,     // Limits the PWA to your subfolder
           display: 'standalone',
+          launch_handler: { client_mode: "focus-existing" },
           icons: [
             {
               src: 'favicon_192.png',

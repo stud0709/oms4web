@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Lock, Download, Upload, Loader2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isAndroid, useEncryptedVault } from '@/hooks/useEncryptedVault';
@@ -13,7 +13,8 @@ import { PasswordEntry } from '@/types/password';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { OMS_PREFIX } from '@/lib/crypto';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+
+export const OMS_RESPONSE = 'OMS_RESPONSE';
 
 const Index = () => {
   const {
@@ -213,6 +214,38 @@ const Index = () => {
     }
     setImportDecryptData(null);
   };
+
+  //callback message handling
+  useEffect(() => {
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === OMS_RESPONSE) {
+        const receivedData = event.data.data;
+        
+        if (!receivedData) return;
+  
+        if (vaultState.status === 'pin-locked') {
+          unlockPin(receivedData);
+          toast({ title: "Unlocked", description: "Vault unlocked via system intent." });
+        } else if (vaultState.status === 'encrypted') {
+          loadDecryptedData(receivedData);
+          toast({ title: "Decrypted", description: "Vault data decrypted successfully." });
+        } else {
+          console.log("Received unexpected callback data: %s", receivedData);
+        }
+      }
+    };
+  
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+    }
+  
+    return () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+      }
+    };
+  }, [vaultState.status, unlockPin, loadDecryptedData, toast]);
+  
 
   // Show loading state
   if (vaultState.status === 'loading') {
