@@ -165,7 +165,11 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
           .map(async field => {
             if (!field.value) return field; //empty
             if (field.protection !== 'encrypted') return field; //plain text
-            if (field.value.startsWith(OMS_PREFIX)) return field; //already encrypted
+            if (field.value.startsWith(OMS_PREFIX)) {
+              field.protection = 'encrypted';
+              field.readonly = true;
+              return field; //already encrypted
+            }
 
             // Encryption is required
             field.value = await createEncryptedMessage(field.value, publicKey, encryptionSettings);
@@ -357,7 +361,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                         variant="ghost"
                         size="icon"
                         className="absolute right-0 top-0 h-full w-8"
-                        onClick={() => updateCustomField(field.id, { value: '', readonly: false })}
+                        onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}
                       >
                         <Eraser className="h-4 w-4" />
                       </Button>
