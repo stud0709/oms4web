@@ -342,14 +342,27 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     placeholder="Field name"
                     className="h-8"
                   />
-                  <Input
-                    value={field.value}
-                    onChange={e => updateCustomField(field.id, { value: e.target.value })}
-                    placeholder="Value"
-                    type={field.protection !== 'none' ? 'password' : 'text'}
-                    className="h-8 font-mono"
-                    disabled={field.readonly}
-                  />
+                  <div className="relative">
+                    <Input
+                      value={field.value}
+                      onChange={e => updateCustomField(field.id, { value: e.target.value })}
+                      placeholder="Value"
+                      type={field.protection !== 'none' ? 'password' : 'text'}
+                      className="h-8 font-mono pr-10"
+                      disabled={field.readonly}
+                    />
+                    {field.readonly && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full w-8"
+                        onClick={() => updateCustomField(field.id, { value: '', readonly: false })}
+                      >
+                        <Eraser className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3">
                     {/* The "Label" is now just a subtle text prefix or you can remove it entirely */}
                     <span className="text-xs font-semibold text-muted-foreground tracking-wider">
