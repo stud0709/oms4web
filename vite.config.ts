@@ -9,17 +9,6 @@ export default defineConfig(({ mode, command }) => {
   const base = command === 'serve' ? '/' : '/oms4web/';
   return {
     base: base,
-    build: {
-      rollupOptions: {
-        onwarn(warning, warn) {
-          // Suppress "use client" / "use server" directive warnings (not relevant for client-side bundling)
-          if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
-            return;
-          }
-          warn(warning);
-        },
-      },
-    },
     server: {
       host: "::",
       port: 8080,
