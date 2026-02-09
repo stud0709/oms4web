@@ -159,7 +159,7 @@ export function DecryptQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`sm:max-w-lg ${hideCloseButton ? '[&>button]:hidden' : ''}`} onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className={`max-w-[calc(100vw-2rem)] sm:max-w-lg ${hideCloseButton ? '[&>button]:hidden' : ''}`} onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isAndroid() && (<KeyRound className="h-5 w-5" />)}
