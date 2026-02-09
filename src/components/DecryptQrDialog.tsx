@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { QrCode, Upload, CheckCircle, AlertCircle, Loader2, Webhook, Copy } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
 import { createKeyRequest, processKeyResponse, KeyRequestContext } from '@/lib/keyRequest';
 import { EncryptionSettings, OMS_PREFIX } from '@/lib/crypto';
 import { toast } from '@/hooks/use-toast';
-import { downloadVault, getTimestamp } from '@/hooks/useEncryptedVault';
+import { downloadVault, getTimestamp, isAndroid, handleIntent } from '@/hooks/useEncryptedVault';
 
 interface DecryptQrDialogProps {
   open: boolean;
@@ -181,31 +181,68 @@ export function DecryptQrDialog({
 
           {step === 'display' && currentChunk && (
             <>
-              <div className="p-4 bg-white rounded-lg">
-                <QRCodeSVG value={currentChunk.encoded} size={220} />
-              </div>
-              {chunks.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono text-muted-foreground">
-                    {currentIndex + 1} / {chunks.length}
-                  </span>
-                  <div className="flex gap-1">
-                    {chunks.map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-primary' : 'bg-muted'
-                          }`}
-                      />
-                    ))}
-                  </div>
+              {isAndroid ? (
+                <div className="flex flex-col items-center gap-3 w-full">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Send the key request to OneMoreSecret, then paste the key response below.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      if (keyRequestContext.current) {
+                        handleIntent(keyRequestContext.current.message);
+                      }
+                    }}
+                    className="w-full gap-2"
+                  >
+                    <Webhook className="h-4 w-4" />
+                    Open in OneMoreSecret
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (keyRequestContext.current) {
+                        navigator.clipboard.writeText(keyRequestContext.current.message);
+                        toast({ title: 'Copied', description: 'Key request copied to clipboard.' });
+                      }
+                    }}
+                    className="w-full gap-2"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy to Clipboard
+                  </Button>
+                  <Button onClick={handleProceedToInput} className="w-full gap-2">
+                    <Upload className="h-4 w-4" />
+                    Enter Key Response
+                  </Button>
                 </div>
+              ) : (
+                <>
+                  <div className="p-4 bg-white rounded-lg">
+                    <QRCodeSVG value={currentChunk.encoded} size={220} />
+                  </div>
+                  {chunks.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono text-muted-foreground">
+                        {currentIndex + 1} / {chunks.length}
+                      </span>
+                      <div className="flex gap-1">
+                        {chunks.map((_, idx) => (
+                          <div
+                            key={idx}
+                            className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-primary' : 'bg-muted'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-2 w-full">
+                    <Button onClick={handleProceedToInput} className="flex-1 gap-2">
+                      <Upload className="h-4 w-4" />
+                      I've Scanned - Enter Key Response
+                    </Button>
+                  </div>
+                </>
               )}
-              <div className="flex gap-2 w-full">
-                <Button onClick={handleProceedToInput} className="flex-1 gap-2">
-                  <Upload className="h-4 w-4" />
-                  I've Scanned - Enter Key Response
-                </Button>
-              </div>
               {onSkip && (
                 <Button variant="ghost" size="sm" onClick={handleSkip}>
                   Skip (start with empty vault)
