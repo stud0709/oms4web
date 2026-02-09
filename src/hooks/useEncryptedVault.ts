@@ -1,8 +1,7 @@
 import {
   useState,
   useEffect,
-  useCallback,
-  useMemo
+  useCallback
 } from 'react';
 
 import { PasswordEntry } from '@/types/password';
@@ -61,7 +60,27 @@ export type VaultState =
 
 export const isAndroid = /Android/i.test(navigator.userAgent);
 
-export const isPWA = ['standalone', 'fullscreen', 'minimal-ui'].some( mode => window.matchMedia(`(display-mode: ${mode}`).matches);
+export const isPWA = ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia(`(display-mode: ${mode}`).matches);
+
+const getIntentUrl = (message: string) => {
+  const packageName = "com.onemoresecret";
+  const baseUrl = "stud0709.github.io/oms_intent/";
+  const fallbackUrl = `https://${baseUrl}#data=${encodeURIComponent(message)}`;
+  return [
+    `intent://${baseUrl}#Intent`,
+    "scheme=https",
+    `package=${packageName}`,
+    `S.m=${message}`,
+    `S.browser_fallback_url=${encodeURIComponent(baseUrl)}`,
+    "end"
+  ].join(';');
+}
+
+export const handleIntent = (message: string) => {
+  const intentUrl = getIntentUrl(message);
+  console.log(`Created intentUrl: ${intentUrl}`);
+  window.location.href = intentUrl;
+};
 
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });

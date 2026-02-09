@@ -18,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { OMS_PREFIX } from '@/lib/crypto';
-import { isAndroid } from '@/hooks/useEncryptedVault';
+import { handleIntent, isAndroid } from '@/hooks/useEncryptedVault';
 
 const DELETED_TAG = 'deleted';
 
@@ -37,26 +37,6 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
 
   const isAirGapPassword = entry.password?.startsWith(OMS_PREFIX);
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
-
-  const getIntentUrl = useCallback((message: string) => {
-    const packageName = "com.onemoresecret";
-    const baseUrl = "stud0709.github.io/oms_intent/";
-    const fallbackUrl = `https://${baseUrl}#data=${encodeURIComponent(message)}`;
-    return [
-      `intent://${baseUrl}#Intent`,
-      "scheme=https",
-      `package=${packageName}`,
-      `S.m=${message}`,
-      `S.browser_fallback_url=${encodeURIComponent(baseUrl)}`,
-      "end"
-    ].join(';');
-  }, []);
-
-  const handleIntent = useCallback((message: string) => {
-    const intentUrl = getIntentUrl(message);
-    console.log(`Created intentUrl: ${intentUrl}`);
-    window.location.href = intentUrl;
-  }, []);
 
   const handleDelete = () => {
     if (isDeleted) {
