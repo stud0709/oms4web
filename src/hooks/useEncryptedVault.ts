@@ -61,6 +61,8 @@ export type VaultState =
 
 export const isAndroid = /Android/i.test(navigator.userAgent);
 
+export const isPWA = ['standalone', 'fullscreen', 'minimal-ui'].some( mode => window.matchMedia(`(display-mode: ${mode}`).matches);
+
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);

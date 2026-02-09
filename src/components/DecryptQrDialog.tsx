@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Camera, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { QrCode, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
