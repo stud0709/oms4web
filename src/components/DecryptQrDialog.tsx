@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Upload, CheckCircle, AlertCircle, Loader2, Webhook, Copy } from 'lucide-react';
+import { QrCode, Upload, CheckCircle, AlertCircle, Loader2, Webhook, Copy, KeyRound } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -158,12 +158,13 @@ export function DecryptQrDialog({
       <DialogContent className={`sm:max-w-lg ${hideCloseButton ? '[&>button]:hidden' : ''}`} onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <QrCode className="h-5 w-5" />
+            {isAndroid && (<KeyRound className="h-5 w-5" />)}
+            {!isAndroid && (<QrCode className="h-5 w-5" />)}
             Decrypt Vault Data
           </DialogTitle>
           <DialogDescription>
             {step === 'loading' && 'Preparing decryption request...'}
-            {step === 'display' && 'Scan the QR code(s) with OneMoreSecret to get the decryption key'}
+            {step === 'display' && (isAndroid ? 'Send the key request to OneMoreSecret, then paste the key response below.' : 'Scan the QR code(s) with OneMoreSecret to get the decryption key')}
             {step === 'input' && 'Paste the key response from your device'}
             {step === 'processing' && 'Decrypting vault data...'}
             {step === 'success' && 'Decryption successful!'}
@@ -183,9 +184,6 @@ export function DecryptQrDialog({
             <>
               {isAndroid ? (
                 <div className="flex flex-col items-center gap-3 w-full">
-                  <p className="text-sm text-muted-foreground text-center">
-                    Send the key request to OneMoreSecret, then paste the key response below.
-                  </p>
                   <Button
                     onClick={() => {
                       if (keyRequestContext.current) {

@@ -206,10 +206,7 @@ const Index = () => {
         
         if (!receivedData) return;
   
-        if (vaultState.status === 'pin-locked') {
-          unlockPin(receivedData);
-          toast({ title: "Unlocked", description: "Vault unlocked via system intent." });
-        } else if (vaultState.status === 'encrypted') {
+        if (vaultState.status === 'encrypted') {
           loadDecryptedData(receivedData);
           toast({ title: "Decrypted", description: "Vault data decrypted successfully." });
         } else {

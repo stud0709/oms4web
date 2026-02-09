@@ -248,14 +248,17 @@ export function useEncryptedVault() {
       // Re-read from storage and reset state to trigger unlock flow
       const stored = await db.get(STORE_NAME, STORAGE_KEY);
 
-      // Check if data should be encrypted - if so, require decryption
-      if (vaultData.workspaceProtection === 'encrypt') {
+      // Encrypt on Lock
+      if (vaultData.workspaceProtection === 'encrypt' || 
+        //enforce this mode on android device if PIN has been configured
+        (vaultData.workspaceProtection === 'pin' && isAndroid)
+      ) {
         setVaultState({ status: 'encrypted', encryptedData: stored });
         setVaultData(EMPTY_VAULT);
         return;
       }
 
-      // Parse the stored data to check protection mode
+      // PIN protection (desktop only)
       encryptAndLock();
     })();
   }, [vaultData]);
