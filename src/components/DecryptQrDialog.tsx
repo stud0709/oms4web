@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
 import { createKeyRequest, processKeyResponse, KeyRequestContext } from '@/lib/keyRequest';
 import { EncryptionSettings } from '@/lib/crypto';
+import { toast } from '@/hooks/use-toast';
 
 interface DecryptQrDialogProps {
   open: boolean;
@@ -131,9 +132,24 @@ export function DecryptQrDialog({
   },[handleSubmitDecrypted]);
 
   const handleSkip = useCallback(() => {
+    // Download backup of encrypted vault data before replacing
+    if (encryptedData) {
+      try {
+        const blob = new Blob([encryptedData], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vault_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: 'Backup created', description: 'Encrypted vault data has been downloaded as a backup.' });
+      } catch (e) {
+        console.error('Failed to download backup:', e);
+      }
+    }
     onSkip?.();
     onOpenChange(false);
-  }, [onSkip, onOpenChange]);
+  }, [onSkip, onOpenChange, encryptedData]);
 
   const currentChunk = chunks[currentIndex];
 
