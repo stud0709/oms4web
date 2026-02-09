@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
 import { createKeyRequest, processKeyResponse, KeyRequestContext } from '@/lib/keyRequest';
-import { EncryptionSettings } from '@/lib/crypto';
+import { EncryptionSettings, OMS_PREFIX } from '@/lib/crypto';
 import { toast } from '@/hooks/use-toast';
+import { downloadVault, getTimestamp } from '@/hooks/useEncryptedVault';
 
 interface DecryptQrDialogProps {
   open: boolean;
@@ -27,9 +28,9 @@ interface DecryptQrDialogProps {
 
 type Step = 'loading' | 'display' | 'input' | 'processing' | 'success' | 'error';
 
-export function DecryptQrDialog({ 
-  open, 
-  onOpenChange, 
+export function DecryptQrDialog({
+  open,
+  onOpenChange,
   encryptedData,
   onDecrypted,
   onSkip,
@@ -107,7 +108,7 @@ export function DecryptQrDialog({
 
       // Validate JSON
       JSON.parse(decryptedData);
-      
+
       setStep('success');
       setTimeout(() => {
         onDecrypted(decryptedData);
@@ -116,8 +117,8 @@ export function DecryptQrDialog({
     } catch (err) {
       console.error('Decryption failed:', err);
       setError(
-        err instanceof Error 
-          ? `Decryption failed: ${err.message}` 
+        err instanceof Error
+          ? `Decryption failed: ${err.message}`
           : 'Decryption failed. Please ensure you pasted the complete key response.'
       );
       setStep('input');
@@ -129,23 +130,22 @@ export function DecryptQrDialog({
       e.preventDefault();
       handleSubmitDecrypted();
     }
-  },[handleSubmitDecrypted]);
+  }, [handleSubmitDecrypted]);
 
   const handleSkip = useCallback(() => {
     // Download backup of encrypted vault data before replacing
     if (encryptedData) {
-      try {
-        const blob = new Blob([encryptedData], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `vault_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast({ title: 'Backup created', description: 'Encrypted vault data has been downloaded as a backup.' });
-      } catch (e) {
-        console.error('Failed to download backup:', e);
-      }
+      const dataUrl = `data:application/octet-stream;base64,${encryptedData.substring(OMS_PREFIX.length)}`;
+      (async () => {
+        try {
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          downloadVault(`Vault backup_${getTimestamp()}.json.oms00`, blob);
+          toast({ title: 'Backup created', description: 'Encrypted vault data has been downloaded as a backup.' });
+        } catch (e) {
+          console.error('Failed to download backup:', e);
+        }
+      })();
     }
     onSkip?.();
     onOpenChange(false);
@@ -193,14 +193,13 @@ export function DecryptQrDialog({
                     {chunks.map((_, idx) => (
                       <div
                         key={idx}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                          idx === currentIndex ? 'bg-primary' : 'bg-muted'
-                        }`}
+                        className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-primary' : 'bg-muted'
+                          }`}
                       />
                     ))}
                   </div>
                 </div>
-              )}              
+              )}
               <div className="flex gap-2 w-full">
                 <Button onClick={handleProceedToInput} className="flex-1 gap-2">
                   <Upload className="h-4 w-4" />
@@ -217,7 +216,7 @@ export function DecryptQrDialog({
 
           {step === 'input' && (
             <>
-              <div className="w-full space-y-3">                
+              <div className="w-full space-y-3">
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}

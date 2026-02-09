@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Lock, Download, Upload, Loader2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { isAndroid, useEncryptedVault } from '@/hooks/useEncryptedVault';
+import { downloadVault, getTimestamp, isAndroid, useEncryptedVault } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
@@ -108,22 +108,12 @@ const Index = () => {
 
     // Generate filename: vaultName + local timestamp
     const name = vaultName.trim() || 'Untitled';
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
-
     // If workspace protection is activated and public key exists, export encrypted
     if (publicKey) {
       try {
         const encryptedBytes = await encryptVaultData(jsonData, publicKey, encryptionSettings);
         const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${name}_${timestamp}.json.oms00`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        downloadVault(`${name}_${getTimestamp()}.json.oms00`, blob);
         toast({ title: 'Exported (encrypted)', description: `${entries.length} entries saved to encrypted file.` });
         return;
       } catch (err) {
@@ -134,14 +124,7 @@ const Index = () => {
 
     // Fallback to plain JSON
     const blob = new Blob([jsonData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${name}_${timestamp}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadVault(`${name}_${getTimestamp()}.json`, blob);
     toast({ title: 'Exported', description: `${entries.length} entries saved to file.` });
   };
 

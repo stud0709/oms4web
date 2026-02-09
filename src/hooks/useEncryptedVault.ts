@@ -82,6 +82,24 @@ export const handleIntent = (message: string) => {
   window.location.href = intentUrl;
 };
 
+export const getTimestamp = () =>
+  new Date().toISOString()
+    .replace(/[:.]/g, '-') // Swap colons and dots for dashes
+    .replace('T', '_')     // Swap the 'T' separator for an underscore
+    .slice(0, 19);         // Remove the milliseconds and 'Z'
+
+
+export const downloadVault = (vaultName: string, blob: Blob) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = vaultName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
