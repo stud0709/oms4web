@@ -3,68 +3,8 @@
  * Based on: https://github.com/stud0709/oms_companion
  */
 
-export interface RsaTransformation {
-  idx: number,
-  name: string,
-  algorithm: { name: string, hash: string }
-}
-
-// RSA Transformations - matching Java RsaTransformation enum
-export const RSA_TRANSFORMATIONS: Record<number, RsaTransformation> = {
-  // Note: idx 0 (PKCS1Padding) not supported by WebCrypto, removed
-  1: { idx: 1, name: 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-1' } },
-  2: { idx: 2, name: 'RSA/ECB/OAEPWithSHA-256AndMGF1Padding', algorithm: { name: 'RSA-OAEP', hash: 'SHA-256' } },
-};
-
-// AES Transformations - matching Java AesTransformation enum
-export interface AesTransformation {
-  idx: number,
-  name: string,
-  algorithm: string,
-  ivSize: number
-}
-
-export const AES_TRANSFORMATIONS: AesTransformation[] = [
-  { idx: 0, name: 'AES/CBC/PKCS5Padding', algorithm: 'AES-CBC', ivSize: 16 },
-  { idx: 1, name: 'AES/CBC/PKCS7Padding', algorithm: 'AES-CBC', ivSize: 16 },
-  { idx: 2, name: 'AES/GCM/NoPadding', algorithm: 'AES-GCM', ivSize: 12 },
-] as const;
-
-// AES Key Lengths
-export const AES_KEY_LENGTHS = [128, 192, 256] as const;
-
-// Application IDs from MessageComposer
-export const APPLICATION_IDS = {
-  AES_ENCRYPTED_PRIVATE_KEY_TRANSFER: 0,
-  ENCRYPTED_MESSAGE_DEPRECATED: 1,
-  TOTP_URI_DEPRECATED: 2,
-  ENCRYPTED_FILE: 3,
-  KEY_REQUEST: 4,
-  KEY_RESPONSE: 5,
-  RSA_AES_GENERIC: 6,
-  BITCOIN_ADDRESS: 7,
-  ENCRYPTED_MESSAGE: 8,
-  TOTP_URI: 9,
-  WIFI_PAIRING: 10,
-  KEY_REQUEST_PAIRING: 11,
-  ENCRYPTED_OTP: 12,
-} as const;
-
-export const OMS_PREFIX = 'oms00_';
-
-export type WorkspaceProtection = 'none'|'encrypt' | 'pin';
-
-export interface EncryptionSettings {
-  rsaTransformationIdx: number;
-  aesKeyLength: number;
-  aesTransformationIdx: number;
-}
-
-export const DEFAULT_ENCRYPTION_SETTINGS: EncryptionSettings = {
-  rsaTransformationIdx: 2,
-  aesKeyLength: 256,
-  aesTransformationIdx: 0,
-};
+import { AesTransformation, EncryptionSettings, RsaAesEnvelope } from "@/types/types";
+import { AES_TRANSFORMATIONS, APPLICATION_IDS, OMS_PREFIX, RSA_TRANSFORMATIONS } from "./constants";
 
 /**
  * Parse a base64-encoded X509 public key
@@ -441,20 +381,6 @@ export function toFormattedHex(byteArray: Uint8Array) {
 
   // 2. Insert space every 4 characters
   return rawHex.replace(/(.{4})/g, '$1 ').trim();
-}
-
-
-/**
- * Parsed RSA x AES envelope from encrypted data
- */
-export interface RsaAesEnvelope {
-  applicationId: number;
-  rsaTransformation: RsaTransformation;
-  fingerprint: Uint8Array;
-  aesTransformation: AesTransformation;
-  iv: Uint8Array;
-  encryptedAesKey: Uint8Array;
-  encryptedData: Uint8Array;
 }
 
 /**

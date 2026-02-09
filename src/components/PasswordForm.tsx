@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PasswordEntry, CustomField, CustomFieldProtection } from '@/types/password';
+import { PasswordEntry, CustomField, CustomFieldProtection } from '@/types/types';
 import { Plus, Trash2, Eye, EyeOff, X, QrCode, Eraser } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { PasswordGenerator } from '@/components/PasswordGenerator';
 import { useToast } from '@/hooks/use-toast';
-import { OMS_PREFIX, createEncryptedMessage, EncryptionSettings } from '@/lib/crypto';
+import { createEncryptedMessage } from '@/lib/crypto';
+import { OMS_PREFIX } from "@/lib/constants";
+import { EncryptionSettings } from "@/types/types";
 import {
   Dialog,
   DialogContent,

@@ -8,32 +8,22 @@
  */
 
 import {
-  RSA_TRANSFORMATIONS,
-  APPLICATION_IDS,
-  OMS_PREFIX,
   writeUnsignedShort,
   writeByteArray,
   toArrayBuffer,
   concatArrays,
   readByteArray,
   readUnsignedShort,
-  RsaAesEnvelope,
   parseRsaAesEnvelope,
   aesDecryptData,
   writeString,
   toFormattedHex,
-  EncryptionSettings,
 } from './crypto';
+import { RSA_TRANSFORMATIONS } from "./constants";
+import { OMS_PREFIX } from "./constants";
+import { EncryptionSettings, KeyRequestContext } from "@/types/types";
+import { APPLICATION_IDS } from "./constants";
 
-
-/**
- * Key Request context - holds the temporary RSA key pair and envelope data
- */
-export interface KeyRequestContext {
-  keyPair: CryptoKeyPair;
-  envelope: RsaAesEnvelope;
-  message: string; // OMS-encoded message for QR display
-}
 
 /**
  * Create a KEY_REQUEST message from encrypted vault data

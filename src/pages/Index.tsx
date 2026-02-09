@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Lock, Download, Upload, Loader2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { downloadVault, getTimestamp, isAndroid, useEncryptedVault } from '@/hooks/useEncryptedVault';
+import { downloadVault, getTimestamp, isAndroid, isPWA, useEncryptedVault } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
@@ -9,12 +9,11 @@ import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
-import { PasswordEntry } from '@/types/password';
+import { PasswordEntry } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
-import { OMS_PREFIX } from '@/lib/crypto';
-
-export const OMS_RESPONSE = 'OMS_RESPONSE';
+import { OMS_PREFIX } from "@/lib/constants";
+import { OMS_RESPONSE } from '@/lib/constants';
 
 const Index = () => {
   const {
@@ -50,6 +49,10 @@ const Index = () => {
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<string | null>(null);
   const allTags = getAllHashtags();
+
+  useEffect(()=>{
+    console.log(`isAndroid: ${isAndroid()}, isPWA: ${isPWA()}`);
+  },[]);
 
   const DELETED_TAG = 'deleted';
 
@@ -279,10 +282,6 @@ const Index = () => {
         <div className="container max-w-4xl px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              { !isAndroid &&
-              (<a href="https://github.com/stud0709/oms4web">
-                <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="oms4web" className="h-10 w-10" />
-              </a>)}
               <div>
                 <a href="https://github.com/stud0709/oms4web">
                   <h1 className="text-xl font-bold tracking-tight">oms4web</h1>

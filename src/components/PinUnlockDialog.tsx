@@ -11,8 +11,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
-import { VaultState } from '@/hooks/useEncryptedVault';
+import { getQrSequence } from '@/lib/qrUtil';
+import { INTERVAL_QR_SEQUENCE } from "@/lib/constants";
+import { QrChunk } from "@/types/types";
+import { VaultState } from '@/types/types';
 
 interface PinUnlockDialogProps {
   open: boolean;

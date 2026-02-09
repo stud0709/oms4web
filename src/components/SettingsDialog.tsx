@@ -21,13 +21,13 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
-  RSA_TRANSFORMATIONS,
-  AES_TRANSFORMATIONS,
-  AES_KEY_LENGTHS,
-  EncryptionSettings,
-  WorkspaceProtection,
   validatePublicKey,
 } from '@/lib/crypto';
+import { RSA_TRANSFORMATIONS } from "@/lib/constants";
+import { WorkspaceProtection } from "@/types/types";
+import { EncryptionSettings } from "@/types/types";
+import { AES_KEY_LENGTHS } from "@/lib/constants";
+import { AES_TRANSFORMATIONS } from "@/lib/constants";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { isAndroid } from '@/hooks/useEncryptedVault';
 

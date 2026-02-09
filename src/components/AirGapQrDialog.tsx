@@ -7,7 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
+import { getQrSequence } from '@/lib/qrUtil';
+import { INTERVAL_QR_SEQUENCE } from "@/lib/constants";
+import { QrChunk } from "@/types/types";
 
 interface AirGapQrDialogProps {
   open: boolean;

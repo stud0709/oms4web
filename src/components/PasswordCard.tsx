@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { PasswordEntry } from '@/types/password';
+import { PasswordEntry } from '@/types/types';
 import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2, Hash, QrCode, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { OMS_PREFIX } from '@/lib/crypto';
+import { OMS_PREFIX } from "@/lib/constants";
 import { handleIntent, isAndroid } from '@/hooks/useEncryptedVault';
 
 const DELETED_TAG = 'deleted';

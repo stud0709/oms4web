@@ -10,9 +10,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { getQrSequence, QrChunk, INTERVAL_QR_SEQUENCE } from '@/lib/qrUtil';
-import { createKeyRequest, processKeyResponse, KeyRequestContext } from '@/lib/keyRequest';
-import { EncryptionSettings, OMS_PREFIX } from '@/lib/crypto';
+import { getQrSequence } from '@/lib/qrUtil';
+import { INTERVAL_QR_SEQUENCE } from "@/lib/constants";
+import { QrChunk } from "@/types/types";
+import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
+import { KeyRequestContext } from '@/types/types';
+import { OMS_PREFIX } from "@/lib/constants";
+import { EncryptionSettings } from "@/types/types";
 import { toast } from '@/hooks/use-toast';
 import { downloadVault, getTimestamp, isAndroid, handleIntent } from '@/hooks/useEncryptedVault';
 
@@ -158,13 +162,13 @@ export function DecryptQrDialog({
       <DialogContent className={`sm:max-w-lg ${hideCloseButton ? '[&>button]:hidden' : ''}`} onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isAndroid && (<KeyRound className="h-5 w-5" />)}
-            {!isAndroid && (<QrCode className="h-5 w-5" />)}
+            {isAndroid() && (<KeyRound className="h-5 w-5" />)}
+            {!isAndroid() && (<QrCode className="h-5 w-5" />)}
             Decrypt Vault Data
           </DialogTitle>
           <DialogDescription>
             {step === 'loading' && 'Preparing decryption request...'}
-            {step === 'display' && (isAndroid ? 'Send the key request to OneMoreSecret, then paste the key response below.' : 'Scan the QR code(s) with OneMoreSecret to get the decryption key')}
+            {step === 'display' && (isAndroid() ? 'Send the key request to OneMoreSecret, then paste the key response below.' : 'Scan the QR code(s) with OneMoreSecret to get the decryption key')}
             {step === 'input' && 'Paste the key response from your device'}
             {step === 'processing' && 'Decrypting vault data...'}
             {step === 'success' && 'Decryption successful!'}
@@ -182,7 +186,7 @@ export function DecryptQrDialog({
 
           {step === 'display' && currentChunk && (
             <>
-              {isAndroid ? (
+              {isAndroid() ? (
                 <div className="flex flex-col items-center gap-3 w-full">
                   <Button
                     onClick={() => {

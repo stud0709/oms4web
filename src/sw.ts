@@ -1,10 +1,12 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute } from 'workbox-precaching'
-import { OMS_RESPONSE } from './pages/Index';
+import { OMS_RESPONSE } from './lib/constants';
 
 // This line is required for Vite to inject the list of files to cache
-declare let self: ServiceWorkerGlobalScope
-precacheAndRoute(self.__WB_MANIFEST)
+declare let self: ServiceWorkerGlobalScope;
+declare const __WB_MANIFEST: any[];
+
+precacheAndRoute(__WB_MANIFEST);
 
 self.addEventListener('fetch', (event: FetchEvent) => {
   const url = new URL(event.request.url);

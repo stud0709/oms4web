@@ -4,22 +4,21 @@ import {
   useCallback
 } from 'react';
 
-import { PasswordEntry } from '@/types/password';
+import { PasswordEntry, VaultData, VaultState } from '@/types/types';
 
 import {
-  EncryptionSettings,
-  DEFAULT_ENCRYPTION_SETTINGS,
-  OMS_PREFIX,
-  RSA_TRANSFORMATIONS,
-  AES_TRANSFORMATIONS,
-  AES_KEY_LENGTHS,
-  WorkspaceProtection,
   generateIv,
   toArrayBuffer,
   generateKeyFromPassword,
-  createEncryptedMessage,
-  APPLICATION_IDS
-} from '@/lib/crypto';
+  createEncryptedMessage} from '@/lib/crypto';
+import { RSA_TRANSFORMATIONS } from "@/lib/constants";
+import { OMS_PREFIX } from "@/lib/constants";
+import { WorkspaceProtection } from "@/types/types";
+import { DEFAULT_ENCRYPTION_SETTINGS } from "@/lib/constants";
+import { EncryptionSettings } from "@/types/types";
+import { AES_KEY_LENGTHS } from "@/lib/constants";
+import { AES_TRANSFORMATIONS } from "@/lib/constants";
+import { APPLICATION_IDS } from "@/lib/constants";
 
 import { openDB, IDBPDatabase, DBSchema } from 'idb';
 
@@ -34,15 +33,6 @@ interface OmsDbSchema extends DBSchema {
   };
 }
 
-export interface VaultData {
-  entries: PasswordEntry[];
-  publicKey: string;
-  encryptionSettings: EncryptionSettings;
-  encryptionEnabled: boolean;
-  vaultName: string;
-  workspaceProtection: WorkspaceProtection;
-}
-
 const EMPTY_VAULT: VaultData = {
   entries: [],
   publicKey: '',
@@ -52,15 +42,9 @@ const EMPTY_VAULT: VaultData = {
   workspaceProtection: 'none',
 };
 
-export type VaultState =
-  | { status: 'loading' }
-  | { status: 'encrypted'; encryptedData: string }
-  | { status: 'pin-locked', aesKey: CryptoKey, salt: Uint8Array<ArrayBuffer>, iv: Uint8Array, encrypted: ArrayBuffer, omsMessage: string }
-  | { status: 'ready' };
+export const isAndroid = ()=> /Android/i.test(navigator.userAgent);
 
-export const isAndroid = /Android/i.test(navigator.userAgent);
-
-export const isPWA = ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia(`(display-mode: ${mode}`).matches);
+export const isPWA = ()=> ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia(`(display-mode: ${mode}`).matches);
 
 const getIntentUrl = (message: string) => {
   const packageName = "com.onemoresecret";
@@ -251,7 +235,7 @@ export function useEncryptedVault() {
       // Encrypt on Lock
       if (vaultData.workspaceProtection === 'encrypt' || 
         //enforce this mode on android device if PIN has been configured
-        (vaultData.workspaceProtection === 'pin' && isAndroid)
+        (vaultData.workspaceProtection === 'pin' && isAndroid())
       ) {
         setVaultState({ status: 'encrypted', encryptedData: stored });
         setVaultData(EMPTY_VAULT);

@@ -6,11 +6,6 @@
  */
 
 import {
-  RSA_TRANSFORMATIONS,
-  AES_TRANSFORMATIONS,
-  APPLICATION_IDS,
-  OMS_PREFIX,
-  EncryptionSettings,
   parsePublicKey,
   toFormattedHex,
   concatArrays,
@@ -22,6 +17,10 @@ import {
   generateAesKey,
   aesEncryptData,
 } from './crypto';
+import { RSA_TRANSFORMATIONS } from "./constants";
+import { EncryptionSettings } from "@/types/types";
+import { AES_TRANSFORMATIONS } from "./constants";
+import { APPLICATION_IDS } from "./constants";
 
 /**
  * Create an encrypted file envelope for vault data

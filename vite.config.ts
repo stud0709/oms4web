@@ -25,7 +25,7 @@ export default defineConfig(({ mode, command }) => {
         filename: 'sw.ts',
         srcDir: 'src',
         injectManifest: {
-          injectionPoint: undefined
+          injectionPoint: '__WB_MANIFEST'
         },
         manifest: {
           name: 'oms4web',
