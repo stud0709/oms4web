@@ -210,10 +210,6 @@ export function DecryptQrDialog({
                     <Copy className="h-4 w-4" />
                     Copy to Clipboard
                   </Button>
-                  <Button onClick={handleProceedToInput} className="w-full gap-2">
-                    <Upload className="h-4 w-4" />
-                    Enter Key Response
-                  </Button>
                 </div>
               ) : (
                 <>
@@ -235,14 +231,14 @@ export function DecryptQrDialog({
                       </div>
                     </div>
                   )}
-                  <div className="flex gap-2 w-full">
-                    <Button onClick={handleProceedToInput} className="flex-1 gap-2">
-                      <Upload className="h-4 w-4" />
-                      I've Scanned - Enter Key Response
-                    </Button>
-                  </div>
                 </>
               )}
+              <div className="flex gap-2 w-full">
+                <Button onClick={handleProceedToInput} className="flex-1 gap-2">
+                  <Upload className="h-4 w-4" />
+                  Enter Key Response
+                </Button>
+              </div>
               {onSkip && (
                 <Button variant="ghost" size="sm" onClick={handleSkip}>
                   Skip (start with empty vault)
