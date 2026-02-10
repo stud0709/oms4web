@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { PasswordEntry } from '@/types/types';
 import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2, Hash, QrCode, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { OMS_PREFIX } from "@/lib/constants";
-import { handleIntent, isAndroid } from '@/hooks/useEncryptedVault';
+import { handleIntent, getEnvironment } from '@/hooks/useEncryptedVault';
 
 const DELETED_TAG = 'deleted';
 
@@ -37,6 +37,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
 
   const isAirGapPassword = entry.password?.startsWith(OMS_PREFIX);
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
+  const env = useMemo(()=>getEnvironment(),[]);
 
   const handleDelete = () => {
     if (isDeleted) {
@@ -148,7 +149,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                     title="Air Gap - Show QR Code">
                     <QrCode className="h-4 w-4" />
                   </Button>
-                  {isAndroid && (
+                  {env.android && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -189,7 +190,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                     title="Air Gap - Show QR Code">
                     <QrCode className="h-4 w-4" />
                   </Button>
-                  {isAndroid && (
+                  {env.android && (
                     <Button
                       variant="ghost"
                       size="icon"

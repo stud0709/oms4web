@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { QrCode, Upload, CheckCircle, AlertCircle, Loader2, Webhook, Copy, KeyRound } from 'lucide-react';
 import {
@@ -11,14 +11,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getQrSequence } from '@/lib/qrUtil';
-import { INTERVAL_QR_SEQUENCE } from "@/lib/constants";
+import { APPLICATION_IDS, DB_NAME, DB_VERSION, INTERVAL_QR_SEQUENCE, } from "@/lib/constants";
 import { QrChunk } from "@/types/types";
 import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
 import { KeyRequestContext } from '@/types/types';
 import { OMS_PREFIX } from "@/lib/constants";
 import { EncryptionSettings } from "@/types/types";
 import { toast } from '@/hooks/use-toast';
-import { downloadVault, getTimestamp, isAndroid, handleIntent } from '@/hooks/useEncryptedVault';
+import { downloadVault, getTimestamp, getEnvironment, handleIntent } from '@/hooks/useEncryptedVault';
+import { useSearchParams } from 'react-router-dom';
+import { openDB, IDBPDatabase, DBSchema } from 'idb';
+const KEY_REQUEST_STORE = 'key_request_store', LATEST_CONTEXT = 'latest_context';
 
 interface DecryptQrDialogProps {
   open: boolean;
@@ -30,7 +33,22 @@ interface DecryptQrDialogProps {
   settings: EncryptionSettings;
 }
 
+interface KeyRequestDB extends DBSchema {
+  [KEY_REQUEST_STORE]: {
+    key: string;
+    value: { id: string; keyRequestContext: KeyRequestContext };
+  };
+}
+
 type Step = 'loading' | 'display' | 'input' | 'processing' | 'success' | 'error';
+
+const dbPromise = openDB<KeyRequestDB>(DB_NAME, DB_VERSION, {
+  upgrade(db) {
+    if (!db.objectStoreNames.contains(KEY_REQUEST_STORE)) {
+      db.createObjectStore(KEY_REQUEST_STORE, { keyPath: 'id' });
+    }
+  },
+});
 
 export function DecryptQrDialog({
   open,
@@ -48,6 +66,8 @@ export function DecryptQrDialog({
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyRequestContext = useRef<KeyRequestContext | null>(null);
+  const env = useMemo(() => getEnvironment(), []);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (open && encryptedData) {
@@ -56,7 +76,11 @@ export function DecryptQrDialog({
       setError(null);
 
       // Create KEY_REQUEST message
-      createKeyRequest('vault', encryptedData, settings)
+      createKeyRequest(
+        'vault',
+        encryptedData,
+        settings,
+        (env.android && env.pwaMode) ? APPLICATION_IDS.OMS4WEB_CALLBACK_REQUEST : APPLICATION_IDS.KEY_REQUEST)
         .then((context) => {
           keyRequestContext.current = context;
           // Split the KEY_REQUEST message into QR chunks
@@ -64,14 +88,25 @@ export function DecryptQrDialog({
           setChunks(qrChunks);
           setCurrentIndex(0);
           setStep('display');
+          persistKeyPair(dbPromise, keyRequestContext.current);
         })
         .catch((err) => {
-          console.error('Failed to create key request:', err);
+          console.error('Failed to create key request: ', err);
           setError('Failed to parse encrypted data: ' + err.message);
           setStep('error');
         });
     }
   }, [open, encryptedData]);
+
+  const persistKeyPair = async (db: Promise<IDBPDatabase<KeyRequestDB>>, keyRequestContext: KeyRequestContext) => {
+    if (!env.android) return;
+    try {
+      const db = await dbPromise;
+      await db.put(KEY_REQUEST_STORE, { id: LATEST_CONTEXT, keyRequestContext });
+    } catch (err) {
+      console.error('Failed to serialize unlock key:', err);
+    }
+  }
 
   useEffect(() => {
     if (!open || chunks.length <= 1 || step !== 'display') return;
@@ -88,8 +123,8 @@ export function DecryptQrDialog({
     setTimeout(() => textareaRef.current?.focus(), 100);
   }, []);
 
-  const handleSubmitDecrypted = useCallback(async () => {
-    if (!inputValue.trim()) {
+  const handleSubmitDecrypted = useCallback(async (keyResponse?: string) => {
+    if (!keyResponse && !inputValue.trim()) {
       setError('Please paste the key response from your device');
       return;
     }
@@ -105,7 +140,7 @@ export function DecryptQrDialog({
     try {
       // Process the KEY_RESPONSE to decrypt the vault
       const decryptedData = await processKeyResponse(
-        inputValue.trim(),
+        (keyResponse ?? inputValue).trim(),
         keyRequestContext.current,
         settings
       );
@@ -128,6 +163,23 @@ export function DecryptQrDialog({
       setStep('input');
     }
   }, [inputValue, onDecrypted, onOpenChange]);
+
+  //decrypt when reloading
+  useEffect(() => {
+    if (!searchParams.has("data")) return;
+
+    (async () => {
+      const db = await dbPromise;
+      const entry = await db.get(KEY_REQUEST_STORE, LATEST_CONTEXT);
+      if (!entry) return;
+      (await dbPromise).delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
+
+      keyRequestContext.current = entry.keyRequestContext;
+      handleSubmitDecrypted(searchParams.get("data"));
+      setSearchParams({});
+    })();
+
+  }, [searchParams, setSearchParams, handleSubmitDecrypted]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
@@ -162,13 +214,15 @@ export function DecryptQrDialog({
       <DialogContent className={`sm:max-w-lg ${hideCloseButton ? '[&>button]:hidden' : ''}`} onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isAndroid() && (<KeyRound className="h-5 w-5" />)}
-            {!isAndroid() && (<QrCode className="h-5 w-5" />)}
+            {env.android && (<KeyRound className="h-5 w-5" />)}
+            {!env.android && (<QrCode className="h-5 w-5" />)}
             Decrypt Vault Data
           </DialogTitle>
           <DialogDescription>
             {step === 'loading' && 'Preparing decryption request...'}
-            {step === 'display' && (isAndroid() ? 'Send the key request to OneMoreSecret, then paste the key response below.' : 'Scan the QR code(s) with OneMoreSecret to get the decryption key')}
+            {step === 'display' && (env.android
+              ? 'Send the key request to OneMoreSecret, then press UNLOCK or paste the key response below.'
+              : 'Scan the QR code(s) with OneMoreSecret to get the decryption key')}
             {step === 'input' && 'Paste the key response from your device'}
             {step === 'processing' && 'Decrypting vault data...'}
             {step === 'success' && 'Decryption successful!'}
@@ -186,7 +240,7 @@ export function DecryptQrDialog({
 
           {step === 'display' && currentChunk && (
             <>
-              {isAndroid() ? (
+              {env.android ? (
                 <div className="flex flex-col items-center gap-3 w-full">
                   <Button
                     onClick={() => {
@@ -274,7 +328,7 @@ export function DecryptQrDialog({
                 <Button variant="outline" onClick={() => setStep('display')} className="flex-1">
                   Back
                 </Button>
-                <Button onClick={handleSubmitDecrypted} className="flex-1 gap-2">
+                <Button onClick={() => handleSubmitDecrypted()} className="flex-1 gap-2">
                   <CheckCircle className="h-4 w-4" />
                   Decrypt Vault
                 </Button>

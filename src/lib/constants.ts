@@ -2,7 +2,7 @@ import { EncryptionSettings } from "@/types/types";
 import { AesTransformation } from "@/types/types";
 import { RsaTransformation } from "@/types/types";
 
-export const OMS_RESPONSE = 'OMS_RESPONSE';// Application IDs from MessageComposer
+export const SW_BASE = '/oms4web/';
 
 export const APPLICATION_IDS = {
   AES_ENCRYPTED_PRIVATE_KEY_TRANSFER: 0,
@@ -18,6 +18,7 @@ export const APPLICATION_IDS = {
   WIFI_PAIRING: 10,
   KEY_REQUEST_PAIRING: 11,
   ENCRYPTED_OTP: 12,
+  OMS4WEB_CALLBACK_REQUEST: 13,
 } as const;
 
 export const AES_TRANSFORMATIONS: AesTransformation[] = [
@@ -45,6 +46,7 @@ export const DEFAULT_ENCRYPTION_SETTINGS: EncryptionSettings = {
   aesTransformationIdx: 0,
 };
 export const OMS_PREFIX = 'oms00_';
+export const STORAGE_KEY = 'current', DB_NAME = 'oms4web', DB_VERSION = 2;
 
 
 

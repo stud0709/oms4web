@@ -10,8 +10,9 @@ import {
   generateIv,
   toArrayBuffer,
   generateKeyFromPassword,
-  createEncryptedMessage} from '@/lib/crypto';
-import { RSA_TRANSFORMATIONS } from "@/lib/constants";
+  createEncryptedMessage
+} from '@/lib/crypto';
+import { DB_NAME, DB_VERSION, RSA_TRANSFORMATIONS, STORAGE_KEY } from "@/lib/constants";
 import { OMS_PREFIX } from "@/lib/constants";
 import { WorkspaceProtection } from "@/types/types";
 import { DEFAULT_ENCRYPTION_SETTINGS } from "@/lib/constants";
@@ -19,15 +20,13 @@ import { EncryptionSettings } from "@/types/types";
 import { AES_KEY_LENGTHS } from "@/lib/constants";
 import { AES_TRANSFORMATIONS } from "@/lib/constants";
 import { APPLICATION_IDS } from "@/lib/constants";
-
 import { openDB, IDBPDatabase, DBSchema } from 'idb';
-
 import { encryptVaultData } from '@/lib/fileEncryption';
 
-const STORAGE_KEY = 'current', DB_NAME = 'oms4web', STORE_NAME = 'vault_data';
+const VAULT_STORE = 'vault_data';
 
 interface OmsDbSchema extends DBSchema {
-  [STORE_NAME]: {
+  [VAULT_STORE]: {
     key: string;
     value: string;
   };
@@ -42,9 +41,15 @@ const EMPTY_VAULT: VaultData = {
   workspaceProtection: 'none',
 };
 
-export const isAndroid = ()=> /Android/i.test(navigator.userAgent);
-
-export const isPWA = ()=> ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia(`(display-mode: ${mode}`).matches);
+export const getEnvironment:
+  () => {
+    android: boolean,
+    pwaMode: boolean
+  } =
+  () => ({
+    android: /Android/i.test(navigator.userAgent),
+    pwaMode: ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia(`(display-mode: ${mode}`).matches)
+  });
 
 const getIntentUrl = (message: string) => {
   const packageName = "com.onemoresecret";
@@ -139,17 +144,17 @@ export function useEncryptedVault() {
         }
       }
 
-      const db = await openDB<OmsDbSchema>(DB_NAME, 1, {
+      const db = await openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
         upgrade(db) {
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME);
+          if (!db.objectStoreNames.contains(VAULT_STORE)) {
+            db.createObjectStore(VAULT_STORE);
           }
         }
       });
 
       setDb(db);
 
-      const stored = await db.get(STORE_NAME, STORAGE_KEY);
+      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
 
       if (!stored) {
         setVaultState({ status: 'ready' });
@@ -195,7 +200,7 @@ export function useEncryptedVault() {
           );
           // Encode as OMS text format for indexDb
           const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
-          await db.put(STORE_NAME, encoded, STORAGE_KEY);
+          await db.put(VAULT_STORE, encoded, STORAGE_KEY);
           return;
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
@@ -204,7 +209,7 @@ export function useEncryptedVault() {
       }
 
       // Save as plain JSON for 'none' and 'pin' modes, or as fallback
-      await db.put(STORE_NAME, jsonData, STORAGE_KEY);
+      await db.put(VAULT_STORE, jsonData, STORAGE_KEY);
     })();
   }, [vaultData, vaultState.status]);
 
@@ -224,18 +229,18 @@ export function useEncryptedVault() {
     setVaultData(EMPTY_VAULT);
     setVaultState({ status: 'ready' });
     // Save empty vault
-    db.put(STORE_NAME, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
+    db.put(VAULT_STORE, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
   }, []);
 
   const lockVault = useCallback(() => {
     (async () => {
       // Re-read from storage and reset state to trigger unlock flow
-      const stored = await db.get(STORE_NAME, STORAGE_KEY);
+      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
 
       // Encrypt on Lock
-      if (vaultData.workspaceProtection === 'encrypt' || 
+      if (vaultData.workspaceProtection === 'encrypt' ||
         //enforce this mode on android device if PIN has been configured
-        (vaultData.workspaceProtection === 'pin' && isAndroid())
+        (vaultData.workspaceProtection === 'pin' && getEnvironment().android)
       ) {
         setVaultState({ status: 'encrypted', encryptedData: stored });
         setVaultData(EMPTY_VAULT);

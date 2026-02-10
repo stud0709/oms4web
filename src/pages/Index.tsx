@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Lock, Download, Upload, Loader2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { downloadVault, getTimestamp, isAndroid, isPWA, useEncryptedVault } from '@/hooks/useEncryptedVault';
+import { downloadVault, getTimestamp, useEncryptedVault } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
@@ -13,7 +13,6 @@ import { PasswordEntry } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { OMS_PREFIX } from "@/lib/constants";
-import { OMS_RESPONSE } from '@/lib/constants';
 
 const Index = () => {
   const {
@@ -49,10 +48,6 @@ const Index = () => {
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<string | null>(null);
   const allTags = getAllHashtags();
-
-  useEffect(()=>{
-    console.log(`isAndroid: ${isAndroid()}, isPWA: ${isPWA()}`);
-  },[]);
 
   const DELETED_TAG = 'deleted';
 
@@ -200,35 +195,6 @@ const Index = () => {
     }
     setImportDecryptData(null);
   };
-
-  //callback message handling
-  useEffect(() => {
-    const handleServiceWorkerMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === OMS_RESPONSE) {
-        const receivedData = event.data.data;
-        
-        if (!receivedData) return;
-  
-        if (vaultState.status === 'encrypted') {
-          loadDecryptedData(receivedData);
-          toast({ title: "Decrypted", description: "Vault data decrypted successfully." });
-        } else {
-          console.log("Received unexpected callback data: %s", receivedData);
-        }
-      }
-    };
-  
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
-    }
-  
-    return () => {
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
-      }
-    };
-  }, [vaultState.status, unlockPin, loadDecryptedData, toast]);
-  
 
   // Show loading state
   if (vaultState.status === 'loading') {

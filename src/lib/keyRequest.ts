@@ -37,7 +37,7 @@ import { APPLICATION_IDS } from "./constants";
  * (6) RSA transformation index for the KeyResponse compatible with this system
  * (7) Encrypted AES key from the file header
  */
-export async function createKeyRequest(fileName: string, encryptedData: string, settings: EncryptionSettings): Promise<KeyRequestContext> {
+export async function createKeyRequest(fileName: string, encryptedData: string, settings: EncryptionSettings, applicationID: number = APPLICATION_IDS.KEY_REQUEST): Promise<KeyRequestContext> {
   // Parse the encrypted envelope
   const envelope = parseRsaAesEnvelope(encryptedData);
 
@@ -50,7 +50,7 @@ export async function createKeyRequest(fileName: string, encryptedData: string, 
       publicExponent: new Uint8Array([0x01, 0x00, 0x01]), // 65537
       hash: rsaTransformationKeyResponse.algorithm.hash,
     },
-    true,
+    false,
     ['encrypt', 'decrypt']
   );
 
@@ -61,7 +61,7 @@ export async function createKeyRequest(fileName: string, encryptedData: string, 
 
   // Build the KEY_REQUEST message
   const messageBytes = concatArrays(
-    writeUnsignedShort(APPLICATION_IDS.KEY_REQUEST),    // (1) Application ID
+    writeUnsignedShort(applicationID),    // (1) Application ID
     writeString(fileName),                           // (2) Reference (file name)
     writeByteArray(publicKeySpki),                       // (3) RSA public key
     writeByteArray(envelope.fingerprint),                // (4) Fingerprint from envelope

@@ -29,7 +29,7 @@ import { EncryptionSettings } from "@/types/types";
 import { AES_KEY_LENGTHS } from "@/lib/constants";
 import { AES_TRANSFORMATIONS } from "@/lib/constants";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { isAndroid } from '@/hooks/useEncryptedVault';
+import { getEnvironment } from '@/hooks/useEncryptedVault';
 
 interface SettingsDialogProps {
   publicKey: string;
@@ -66,6 +66,7 @@ export function SettingsDialog({
   const [protection, setProtection] = useState<WorkspaceProtection>(workspaceProtection);
   const { toast } = useToast();
   const [keyValid, setKeyValid] = useState(false);
+  const env = useMemo(()=>getEnvironment(),[]);
 
   const resetToOriginal = () => {
     setKeyValue(publicKey);
@@ -152,7 +153,7 @@ export function SettingsDialog({
             <Label htmlFor="publicKey">Public Key (X509, Base64 encoded)</Label>
             <Textarea
               id="publicKey"
-              placeholder={`Go to OneMoreSecret Settings - Private Keys, select the key, ${isAndroid ? 'copy your public key to the clipboard and paste it here':'press TYPE'}`}
+              placeholder={`Go to OneMoreSecret Settings - Private Keys, select the key, ${env.android ? 'copy your public key to the clipboard and paste it here':'press TYPE'}`}
               value={keyValue}
               onChange={(e) => setKeyValue(e.target.value)}
               rows={6}

@@ -3,10 +3,12 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import { SW_BASE } from "./src/lib/constants";
+
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
-  const base = command === 'serve' ? '/' : '/oms4web/';
+  const base = command === 'serve' ? '/' : SW_BASE;
   return {
     base: base,
     server: {
@@ -25,9 +27,12 @@ export default defineConfig(({ mode, command }) => {
         filename: 'sw.ts',
         srcDir: 'src',
         injectManifest: {
-          injectionPoint: '__WB_MANIFEST'
+          injectionPoint: '__WB_MANIFEST',
+          // This caches all your JS, CSS, and HTML files automatically
+          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         },
         manifest: {
+          //id: base,    
           name: 'oms4web',
           short_name: 'oms4web',
           description: 'OneMoreSecret password manager',
@@ -51,8 +56,6 @@ export default defineConfig(({ mode, command }) => {
           ]
         },
         workbox: {
-          // This caches all your JS, CSS, and HTML files automatically
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           // Ensures the PWA works correctly with React Router
           navigateFallback: `${base}index.html`
         }
