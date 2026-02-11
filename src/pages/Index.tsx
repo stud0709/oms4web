@@ -126,10 +126,32 @@ const Index = () => {
     toast({ title: 'Exported', description: `${entries.length} entries saved to file.` });
   };
 
+  const backupCurrentVault = async () => {
+    if (entries.length === 0) return; // nothing to back up
+    const data = exportData();
+    const jsonData = JSON.stringify(data, null, 2);
+    const name = vaultName.trim() || 'Untitled';
+
+    if (publicKey) {
+      try {
+        const encryptedBytes = await encryptVaultData(jsonData, publicKey, encryptionSettings);
+        const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
+        downloadVault(`${name}_backup_${getTimestamp()}.json.oms00`, blob);
+        toast({ title: 'Backup created', description: 'Encrypted backup has been downloaded before import.' });
+        return;
+      } catch (err) {
+        console.error('Failed to encrypt backup:', err);
+      }
+    }
+
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    downloadVault(`${name}_backup_${getTimestamp()}.json`, blob);
+    toast({ title: 'Backup created', description: 'Backup has been downloaded before import.' });
+  };
+
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     // Handle .oms00 files as binary
     if (file.name.endsWith('.oms00')) {
       const reader = new FileReader();
@@ -162,11 +184,15 @@ const Index = () => {
         const data = JSON.parse(content);
         // Support both old format (array) and new format (object with entries)
         if (Array.isArray(data)) {
-          importEntries(data);
-          toast({ title: 'Imported', description: `${data.length} entries loaded.` });
+          backupCurrentVault().then(() => {
+            importEntries(data);
+            toast({ title: 'Imported', description: `${data.length} entries loaded.` });
+          });
         } else if (data.entries && Array.isArray(data.entries)) {
-          importEntries(data.entries, data.publicKey, data.encryptionSettings);
-          toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
+          backupCurrentVault().then(() => {
+            importEntries(data.entries, data.publicKey, data.encryptionSettings);
+            toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
+          });
         } else {
           throw new Error('Invalid format');
         }
@@ -178,9 +204,10 @@ const Index = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleImportDecrypted = (decryptedJson: string) => {
+  const handleImportDecrypted = async (decryptedJson: string) => {
     try {
       const data = JSON.parse(decryptedJson);
+      await backupCurrentVault();
       if (Array.isArray(data)) {
         importEntries(data);
         toast({ title: 'Imported', description: `${data.length} entries loaded.` });
