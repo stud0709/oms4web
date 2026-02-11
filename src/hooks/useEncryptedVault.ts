@@ -334,23 +334,9 @@ export function useEncryptedVault() {
     return Array.from(tags).sort();
   }, [vaultData.entries]);
 
-  const importEntries = useCallback((
-    newEntries: PasswordEntry[],
-    newPublicKey?: string,
-    newEncryptionSettings?: EncryptionSettings
-  ) => {
-    const processedEntries = newEntries.map(e => ({
-      ...e,
-      createdAt: new Date(e.createdAt),
-      updatedAt: new Date(e.updatedAt),
-    }));
-
-    setVaultData(prev => ({
-      ...prev,
-      entries: processedEntries,
-      ...(newPublicKey !== undefined && { publicKey: newPublicKey }),
-      ...(newEncryptionSettings !== undefined && { encryptionSettings: newEncryptionSettings }),
-    }));
+  const importEntries = useCallback((data: VaultData) => {
+    const parsed = parseVaultData(data);
+    setVaultData(parsed);
   }, []);
 
   const exportData = useCallback(() => {
