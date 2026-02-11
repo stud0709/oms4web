@@ -37,7 +37,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
 
   const isAirGapPassword = entry.password?.startsWith(OMS_PREFIX);
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
-  const env = useMemo(()=>getEnvironment(),[]);
+  const env = useMemo(() => getEnvironment(), []);
 
   const handleDelete = () => {
     if (isDeleted) {
@@ -142,13 +142,13 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
             <div className="flex gap-1">
               {isAirGapPassword && (
                 <>
-                  <Button
+                  {!env.android && (<Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setQrDialogValue(entry.password)}
                     title="Air Gap - Show QR Code">
                     <QrCode className="h-4 w-4" />
-                  </Button>
+                  </Button>)}
                   {env.android && (
                     <Button
                       variant="ghost"
@@ -183,13 +183,14 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
             <div className="flex gap-1">
               {isAirGapField(field.value) && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setQrDialogValue(field.value)}
-                    title="Air Gap - Show QR Code">
-                    <QrCode className="h-4 w-4" />
-                  </Button>
+                  {!env.android && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setQrDialogValue(field.value)}
+                      title="Air Gap - Show QR Code">
+                      <QrCode className="h-4 w-4" />
+                    </Button>)}
                   {env.android && (
                     <Button
                       variant="ghost"
