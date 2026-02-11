@@ -19,9 +19,9 @@ import {
   writeString,
   toFormattedHex,
 } from './crypto';
-import { RSA_TRANSFORMATIONS } from "./constants";
+import { DEFAULT_SETTINGS, RSA_TRANSFORMATIONS } from "./constants";
 import { OMS_PREFIX } from "./constants";
-import { EncryptionSettings, KeyRequestContext } from "@/types/types";
+import { KeyRequestContext } from "@/types/types";
 import { APPLICATION_IDS } from "./constants";
 
 
@@ -37,12 +37,15 @@ import { APPLICATION_IDS } from "./constants";
  * (6) RSA transformation index for the KeyResponse compatible with this system
  * (7) Encrypted AES key from the file header
  */
-export async function createKeyRequest(fileName: string, encryptedData: string, settings: EncryptionSettings, applicationID: number = APPLICATION_IDS.KEY_REQUEST): Promise<KeyRequestContext> {
+export async function createKeyRequest(
+  fileName: string,
+  encryptedData: string,
+  applicationID: number = APPLICATION_IDS.KEY_REQUEST): Promise<KeyRequestContext> {
   // Parse the encrypted envelope
   const envelope = parseRsaAesEnvelope(encryptedData);
 
   // Generate temporary RSA key pair for secure key transport
-  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
+  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[DEFAULT_SETTINGS.rsaTransformationIdx];
   const keyPair = await crypto.subtle.generateKey(
     {
       name: rsaTransformationKeyResponse.algorithm.name,
@@ -98,8 +101,7 @@ export async function createKeyRequest(fileName: string, encryptedData: string, 
  */
 export async function processKeyResponse(
   keyResponse: string,
-  context: KeyRequestContext,
-  settings: EncryptionSettings
+  context: KeyRequestContext
 ): Promise<string> {
   // Decode the response
   const responseBytes = Uint8Array.from(atob(keyResponse), c => c.charCodeAt(0));
@@ -123,7 +125,7 @@ export async function processKeyResponse(
 
   // Decrypt the AES key using our temporary private key
   console.log(`Decrypting AES key protecting the file`);
-  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[settings.rsaTransformationIdx];
+  const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[DEFAULT_SETTINGS.rsaTransformationIdx];
   const aesKeyBytes = new Uint8Array(
     await crypto.subtle.decrypt(
       rsaTransformationKeyResponse.algorithm,

@@ -11,17 +11,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getQrSequence } from '@/lib/qrUtil';
-import { APPLICATION_IDS, DB_NAME, DB_VERSION, INTERVAL_QR_SEQUENCE, } from "@/lib/constants";
+import { APPLICATION_IDS, INTERVAL_QR_SEQUENCE, } from "@/lib/constants";
 import { QrChunk } from "@/types/types";
 import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
 import { KeyRequestContext } from '@/types/types';
 import { OMS_PREFIX } from "@/lib/constants";
-import { EncryptionSettings } from "@/types/types";
 import { toast } from '@/hooks/use-toast';
 import { downloadVault, getTimestamp, getEnvironment, handleIntent } from '@/hooks/useEncryptedVault';
 import { useSearchParams } from 'react-router-dom';
-import { openDB, IDBPDatabase, DBSchema } from 'idb';
-const KEY_REQUEST_STORE = 'key_request_store', LATEST_CONTEXT = 'latest_context';
+import { KEY_REQUEST_STORE, oms4webDb } from '@/lib/db';
+const LATEST_CONTEXT = 'latest_context';
 
 interface DecryptQrDialogProps {
   open: boolean;
@@ -30,25 +29,9 @@ interface DecryptQrDialogProps {
   onDecrypted: (data: string) => void;
   onSkip?: () => void;
   hideCloseButton?: boolean;
-  settings: EncryptionSettings;
-}
-
-interface KeyRequestDB extends DBSchema {
-  [KEY_REQUEST_STORE]: {
-    key: string;
-    value: { id: string; keyRequestContext: KeyRequestContext };
-  };
 }
 
 type Step = 'loading' | 'display' | 'input' | 'processing' | 'success' | 'error';
-
-const dbPromise = openDB<KeyRequestDB>(DB_NAME, DB_VERSION, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains(KEY_REQUEST_STORE)) {
-      db.createObjectStore(KEY_REQUEST_STORE, { keyPath: 'id' });
-    }
-  },
-});
 
 export function DecryptQrDialog({
   open,
@@ -56,8 +39,7 @@ export function DecryptQrDialog({
   encryptedData,
   onDecrypted,
   onSkip,
-  hideCloseButton = false,
-  settings
+  hideCloseButton = false
 }: DecryptQrDialogProps) {
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -79,7 +61,6 @@ export function DecryptQrDialog({
       createKeyRequest(
         'vault',
         encryptedData,
-        settings,
         (env.android && env.pwaMode) ? APPLICATION_IDS.OMS4WEB_CALLBACK_REQUEST : APPLICATION_IDS.KEY_REQUEST)
         .then((context) => {
           keyRequestContext.current = context;
@@ -88,7 +69,7 @@ export function DecryptQrDialog({
           setChunks(qrChunks);
           setCurrentIndex(0);
           setStep('display');
-          persistKeyPair(dbPromise, keyRequestContext.current);
+          persistKeyPair(keyRequestContext.current);
         })
         .catch((err) => {
           console.error('Failed to create key request: ', err);
@@ -98,11 +79,10 @@ export function DecryptQrDialog({
     }
   }, [open, encryptedData]);
 
-  const persistKeyPair = async (db: Promise<IDBPDatabase<KeyRequestDB>>, keyRequestContext: KeyRequestContext) => {
+  const persistKeyPair = async (keyRequestContext: KeyRequestContext) => {
     if (!env.android) return;
     try {
-      const db = await dbPromise;
-      await db.put(KEY_REQUEST_STORE, { id: LATEST_CONTEXT, keyRequestContext });
+      await oms4webDb.put(KEY_REQUEST_STORE, keyRequestContext, LATEST_CONTEXT);
     } catch (err) {
       console.error('Failed to serialize unlock key:', err);
     }
@@ -141,8 +121,7 @@ export function DecryptQrDialog({
       // Process the KEY_RESPONSE to decrypt the vault
       const decryptedData = await processKeyResponse(
         (keyResponse ?? inputValue).trim(),
-        keyRequestContext.current,
-        settings
+        keyRequestContext.current
       );
 
       // Validate JSON
@@ -169,12 +148,11 @@ export function DecryptQrDialog({
     if (!searchParams.has("data")) return;
 
     (async () => {
-      const db = await dbPromise;
-      const entry = await db.get(KEY_REQUEST_STORE, LATEST_CONTEXT);
-      if (!entry) return;
-      (await dbPromise).delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
+      const dbEntry = await oms4webDb.get(KEY_REQUEST_STORE, LATEST_CONTEXT);
+      if (!dbEntry) return;
+      oms4webDb.delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
 
-      keyRequestContext.current = entry.keyRequestContext;
+      keyRequestContext.current = dbEntry;
       handleSubmitDecrypted(searchParams.get("data"));
       setSearchParams({});
     })();

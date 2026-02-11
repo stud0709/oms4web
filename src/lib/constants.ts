@@ -1,6 +1,4 @@
-import type { EncryptionSettings, AesTransformation, RsaTransformation } from "@/types/types";
-
-export const SW_BASE = '/oms4web/';
+import type { AesTransformation, RsaTransformation, AppSettings } from "@/types/types";
 
 export const APPLICATION_IDS = {
   AES_ENCRYPTED_PRIVATE_KEY_TRANSFER: 0,
@@ -38,13 +36,20 @@ export const AES_KEY_LENGTHS = [128, 192, 256] as const;
 //QR sequence interval (ms)
 export const INTERVAL_QR_SEQUENCE = 250;
 
-export const DEFAULT_ENCRYPTION_SETTINGS: EncryptionSettings = {
+export const DEFAULT_SETTINGS: AppSettings = {
+  publicKey: '',
   rsaTransformationIdx: 2,
   aesKeyLength: 256,
   aesTransformationIdx: 0,
+  encryptionEnabled: false,
+  vaultName: '',
+  workspaceProtection: 'none',
+  expertMode: false,
 };
-export const OMS_PREFIX = 'oms00_';
-export const STORAGE_KEY = 'current', DB_NAME = 'oms4web', DB_VERSION = 2;
+
+export const
+  OMS_PREFIX = 'oms00_',
+  SW_BASE = '/oms4web/';
 
 
 

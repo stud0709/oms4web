@@ -17,23 +17,14 @@ import { encryptVaultData } from '@/lib/fileEncryption';
 const Index = () => {
   const {
     vaultState,
-    entries,
-    publicKey,
-    encryptionSettings,
-    encryptionEnabled,
-    vaultName,
-    workspaceProtection,
+    vaultData,
     addEntry,
     updateEntry,
     deleteEntry,
     getAllHashtags,
     importEntries,
     exportData,
-    updatePublicKey,
-    updateEncryptionSettings,
-    updateEncryptionEnabled,
-    updateVaultName,
-    updateWorkspaceProtection,
+    updateSettings,
     loadDecryptedData,
     startWithEmptyVault,
     lockVault,
@@ -52,7 +43,7 @@ const Index = () => {
   const DELETED_TAG = 'deleted';
 
   const filteredEntries = useMemo(() => {
-    return entries.filter(entry => {
+    return vaultData.entries.filter(entry => {
       const matchesSearch = !search ||
         entry.title.toLowerCase().includes(search.toLowerCase()) ||
         entry.username.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,7 +58,7 @@ const Index = () => {
 
       return matchesSearch && matchesTag && (!isDeleted || showDeleted);
     });
-  }, [entries, search, selectedTag]);
+  }, [vaultData, search, selectedTag]);
 
   const handleSave = (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (editingEntry) {
@@ -105,14 +96,14 @@ const Index = () => {
     const jsonData = JSON.stringify(data, null, 2);
 
     // Generate filename: vaultName + local timestamp
-    const name = vaultName.trim() || 'Untitled';
+    const name = vaultData.settings.vaultName.trim() || 'Untitled';
     // If workspace protection is activated and public key exists, export encrypted
-    if (publicKey) {
+    if (vaultData.settings.publicKey) {
       try {
-        const encryptedBytes = await encryptVaultData(jsonData, publicKey, encryptionSettings);
+        const encryptedBytes = await encryptVaultData(jsonData, vaultData.settings);
         const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
         downloadVault(`${name}_${getTimestamp()}.json.oms00`, blob);
-        toast({ title: 'Exported (encrypted)', description: `${entries.length} entries saved to encrypted file.` });
+        toast({ title: 'Exported (encrypted)', description: `${vaultData.entries.length} entries saved to encrypted file.` });
         return;
       } catch (err) {
         console.error('Failed to encrypt export:', err);
@@ -123,18 +114,18 @@ const Index = () => {
     // Fallback to plain JSON
     const blob = new Blob([jsonData], { type: 'application/json' });
     downloadVault(`${name}_${getTimestamp()}.json`, blob);
-    toast({ title: 'Exported', description: `${entries.length} entries saved to file.` });
+    toast({ title: 'Exported', description: `${vaultData.entries.length} entries saved to file.` });
   };
 
   const backupCurrentVault = async () => {
-    if (entries.length === 0) return; // nothing to back up
+    if (vaultData.entries.length === 0) return; // nothing to back up
     const data = exportData();
     const jsonData = JSON.stringify(data, null, 2);
-    const name = vaultName.trim() || 'Untitled';
+    const name = vaultData.settings.vaultName.trim() || 'Untitled';
 
-    if (publicKey) {
+    if (vaultData.settings.publicKey) {
       try {
-        const encryptedBytes = await encryptVaultData(jsonData, publicKey, encryptionSettings);
+        const encryptedBytes = await encryptVaultData(jsonData, vaultData.settings);
         const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
         downloadVault(`${name}_backup_${getTimestamp()}.json.oms00`, blob);
         toast({ title: 'Backup created', description: 'Encrypted backup has been downloaded before import.' });
@@ -168,7 +159,7 @@ const Index = () => {
       return;
     }
 
-    // Handle text files (JSON or OMS text format)
+    // Handle unencrypted JSON 
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
@@ -229,7 +220,6 @@ const Index = () => {
           onDecrypted={loadDecryptedData}
           onSkip={startWithEmptyVault}
           hideCloseButton
-          settings={encryptionSettings}
         />
       </div>
     );
@@ -262,7 +252,7 @@ const Index = () => {
                 <a href="https://github.com/stud0709/oms4web">
                   <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
                 </a>
-                <p className="text-xs text-muted-foreground">{vaultName.trim() || 'Untitled'}</p>
+                <p className="text-xs text-muted-foreground">{vaultData.settings.vaultName.trim() || 'Untitled'}</p>
               </div>
             </div>
             <Button variant="outline" size="icon" onClick={() => setFormOpen(true)}>
@@ -275,23 +265,15 @@ const Index = () => {
               <Upload className="h-4 w-4" />
             </Button>
             {//"Lock workspace" button to be shown only if workspace protection activated
-              workspaceProtection !== 'none' && (<>
+              vaultData.settings.workspaceProtection !== 'none' && (<>
                 <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
                   <LockKeyhole className="h-4 w-4" />
                 </Button>
               </>
               )}
             <SettingsDialog
-              publicKey={publicKey}
-              encryptionSettings={encryptionSettings}
-              encryptionEnabled={encryptionEnabled}
-              vaultName={vaultName}
-              workspaceProtection={workspaceProtection}
-              onSavePublicKey={updatePublicKey}
-              onSaveEncryptionSettings={updateEncryptionSettings}
-              onSaveEncryptionEnabled={updateEncryptionEnabled}
-              onSaveVaultName={updateVaultName}
-              onSaveWorkspaceProtection={updateWorkspaceProtection}
+              settings={vaultData.settings}
+              onSaveSettings={updateSettings}
             />
             <input
               ref={fileInputRef}
@@ -341,16 +323,16 @@ const Index = () => {
               <Lock className="h-12 w-12 text-muted-foreground" />
             </div>
             <h2 className="text-xl font-semibold mb-2">
-              {entries.length === 0 ? 'Your vault is empty' : 'No results found'}
+              {vaultData.entries.length === 0 ? 'Your vault is empty' : 'No results found'}
             </h2>
-            {entries.length === 0 && (
+            {vaultData.entries.length === 0 && (
               <>
                 <p className="text-muted-foreground mb-6 max-w-sm text-justify">
                   ⚠️ Your data is stored locally in your browser, so export it regularly. It will be lost when clearling browser cache.
                   Your data will be encrypted as soon as you have provided a public key.
                 </p>
                 <p className="text-muted-foreground mb-6 max-w-sm">
-                  🚀 To start, go to Settings.
+                  🚀 To start, follow the <a target="_blank" href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide</a>
                 </p>
                 <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
                   <Plus className="h-5 w-5" />
@@ -358,7 +340,7 @@ const Index = () => {
                 </Button>
               </>
             )}
-            {entries.length > 0 && (
+            {vaultData.entries.length > 0 && (
               <>
                 <p className="text-muted-foreground mb-6 max-w-sm">
                   Try adjusting your search or filters to find what you\'re looking for.
@@ -382,9 +364,7 @@ const Index = () => {
         entry={editingEntry}
         onSave={handleSave}
         existingTags={allTags}
-        publicKey={publicKey}
-        encryptionSettings={encryptionSettings}
-        encryptionEnabled={encryptionEnabled}
+        settings={vaultData.settings}
       />
 
       {/* Decrypt dialog for importing encrypted files */}
@@ -395,7 +375,6 @@ const Index = () => {
           encryptedData={importDecryptData}
           onDecrypted={handleImportDecrypted}
           onSkip={() => setImportDecryptData(null)}
-          settings={encryptionSettings}
         />
       )}
     </div>

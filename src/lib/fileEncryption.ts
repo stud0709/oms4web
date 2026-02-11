@@ -18,9 +18,9 @@ import {
   aesEncryptData,
 } from './crypto';
 import { RSA_TRANSFORMATIONS } from "./constants";
-import { EncryptionSettings } from "@/types/types";
 import { AES_TRANSFORMATIONS } from "./constants";
 import { APPLICATION_IDS } from "./constants";
+import { AppSettings } from '@/types/types';
 
 /**
  * Create an encrypted file envelope for vault data
@@ -37,8 +37,7 @@ import { APPLICATION_IDS } from "./constants";
  */
 export async function encryptVaultData(
   data: string,
-  publicKeyBase64: string,
-  settings: EncryptionSettings
+  settings: AppSettings
 ): Promise<Uint8Array> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
 
@@ -46,7 +45,7 @@ export async function encryptVaultData(
   const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx];
 
   // Parse the public key
-  const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
+  const publicKey = await parsePublicKey(settings.publicKey, rsaTransformationIdx);
 
   // Generate AES key and IV
   const aesKey = await generateAesKey(aesKeyLength, aesTransformation.algorithm);

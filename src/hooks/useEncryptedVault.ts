@@ -4,7 +4,12 @@ import {
   useCallback
 } from 'react';
 
-import { PasswordEntry, VaultData, VaultState } from '@/types/types';
+import {
+  AppSettings,
+  PasswordEntry,
+  VaultData,
+  VaultState
+} from '@/types/types';
 
 import {
   generateIv,
@@ -12,33 +17,17 @@ import {
   generateKeyFromPassword,
   createEncryptedMessage
 } from '@/lib/crypto';
-import { DB_NAME, DB_VERSION, RSA_TRANSFORMATIONS, STORAGE_KEY } from "@/lib/constants";
-import { OMS_PREFIX } from "@/lib/constants";
-import { WorkspaceProtection } from "@/types/types";
-import { DEFAULT_ENCRYPTION_SETTINGS } from "@/lib/constants";
-import { EncryptionSettings } from "@/types/types";
-import { AES_KEY_LENGTHS } from "@/lib/constants";
-import { AES_TRANSFORMATIONS } from "@/lib/constants";
-import { APPLICATION_IDS } from "@/lib/constants";
-import { openDB, IDBPDatabase, DBSchema } from 'idb';
+import {
+  OMS_PREFIX,
+  DEFAULT_SETTINGS,
+  APPLICATION_IDS
+} from "@/lib/constants";
 import { encryptVaultData } from '@/lib/fileEncryption';
-
-const VAULT_STORE = 'vault_data';
-
-interface OmsDbSchema extends DBSchema {
-  [VAULT_STORE]: {
-    key: string;
-    value: string;
-  };
-}
+import { oms4webDb, STORAGE_KEY, VAULT_STORE } from '@/lib/db';
 
 const EMPTY_VAULT: VaultData = {
   entries: [],
-  publicKey: '',
-  encryptionSettings: DEFAULT_ENCRYPTION_SETTINGS,
-  encryptionEnabled: false,
-  vaultName: '',
-  workspaceProtection: 'none',
+  settings: DEFAULT_SETTINGS,
 };
 
 export const getEnvironment:
@@ -54,7 +43,7 @@ export const getEnvironment:
 const getIntentUrl = (message: string) => {
   const packageName = "com.onemoresecret";
   const baseUrl = "stud0709.github.io/oms_intent/";
-  const fallbackUrl = `https://${baseUrl}#data=${encodeURIComponent(message)}`;
+  //const fallbackUrl = `https://${baseUrl}#data=${encodeURIComponent(message)}`;
   return [
     `intent://${baseUrl}#Intent`,
     "scheme=https",
@@ -92,15 +81,13 @@ export const downloadVault = (vaultName: string, blob: Blob) => {
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
-  const [db, setDb] = useState<IDBPDatabase<OmsDbSchema>>()
 
   const encryptAndLock = useCallback(() => {
     const encoded = new TextEncoder().encode(JSON.stringify(vaultData));
     const pin = String(Math.floor(100000 + Math.random() * 900000));
     createEncryptedMessage(
       `${pin}\n`,
-      vaultData.publicKey,
-      vaultData.encryptionSettings,
+      vaultData.settings,
       APPLICATION_IDS.ENCRYPTED_OTP
     ).then(omsMessage => {
       generateKeyFromPassword(pin)
@@ -144,17 +131,7 @@ export function useEncryptedVault() {
         }
       }
 
-      const db = await openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
-        upgrade(db) {
-          if (!db.objectStoreNames.contains(VAULT_STORE)) {
-            db.createObjectStore(VAULT_STORE);
-          }
-        }
-      });
-
-      setDb(db);
-
-      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
+      const stored = await oms4webDb.get(VAULT_STORE, STORAGE_KEY);
 
       if (!stored) {
         setVaultState({ status: 'ready' });
@@ -170,9 +147,7 @@ export function useEncryptedVault() {
 
       // Try to parse as plain JSON
       try {
-        const parsed = JSON.parse(stored);
-        const data = parseVaultData(parsed);
-        setVaultData(data);
+        setVaultData(JSON.parse(stored));
         setVaultState({ status: 'ready' });
       } catch (e) {
         console.error('Failed to parse stored data, starting with empty vault', e);
@@ -191,16 +166,15 @@ export function useEncryptedVault() {
       const jsonData = JSON.stringify(vaultData);
 
       // Only encrypt if we have a valid public key
-      if (vaultData.publicKey) {
+      if (vaultData.settings.publicKey) {
         try {
           const encryptedBytes = await encryptVaultData(
             jsonData,
-            vaultData.publicKey,
-            vaultData.encryptionSettings
+            vaultData.settings
           );
           // Encode as OMS text format for indexDb
           const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
-          await db.put(VAULT_STORE, encoded, STORAGE_KEY);
+          await oms4webDb.put(VAULT_STORE, encoded, STORAGE_KEY);
           return;
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
@@ -209,15 +183,13 @@ export function useEncryptedVault() {
       }
 
       // Save as plain JSON for 'none' and 'pin' modes, or as fallback
-      await db.put(VAULT_STORE, jsonData, STORAGE_KEY);
+      await oms4webDb.put(VAULT_STORE, jsonData, STORAGE_KEY);
     })();
   }, [vaultData, vaultState.status]);
 
   const loadDecryptedData = useCallback((jsonData: string) => {
     try {
-      const parsed = JSON.parse(jsonData);
-      const data = parseVaultData(parsed);
-      setVaultData(data);
+      setVaultData(JSON.parse(jsonData));
       setVaultState({ status: 'ready' });
     } catch (e) {
       console.error('Failed to parse decrypted data', e);
@@ -229,18 +201,18 @@ export function useEncryptedVault() {
     setVaultData(EMPTY_VAULT);
     setVaultState({ status: 'ready' });
     // Save empty vault
-    db.put(VAULT_STORE, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
+    oms4webDb.put(VAULT_STORE, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
   }, []);
 
   const lockVault = useCallback(() => {
     (async () => {
       // Re-read from storage and reset state to trigger unlock flow
-      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
+      const stored = await oms4webDb.get(VAULT_STORE, STORAGE_KEY);
 
       // Encrypt on Lock
-      if (vaultData.workspaceProtection === 'encrypt' ||
+      if (vaultData.settings.workspaceProtection === 'encrypt' ||
         //enforce this mode on android device if PIN has been configured
-        (vaultData.workspaceProtection === 'pin' && getEnvironment().android)
+        (vaultData.settings.workspaceProtection === 'pin' && getEnvironment().android)
       ) {
         setVaultState({ status: 'encrypted', encryptedData: stored });
         setVaultData(EMPTY_VAULT);
@@ -285,24 +257,8 @@ export function useEncryptedVault() {
     }));
   }, []);
 
-  const setPublicKey = useCallback((publicKey: string) => {
-    setVaultData(prev => ({ ...prev, publicKey }));
-  }, []);
-
-  const setEncryptionSettings = useCallback((encryptionSettings: EncryptionSettings) => {
-    setVaultData(prev => ({ ...prev, encryptionSettings }));
-  }, []);
-
-  const setEncryptionEnabled = useCallback((encryptionEnabled: boolean) => {
-    setVaultData(prev => ({ ...prev, encryptionEnabled }));
-  }, []);
-
-  const setVaultName = useCallback((vaultName: string) => {
-    setVaultData(prev => ({ ...prev, vaultName }));
-  }, []);
-
-  const setWorkspaceProtection = useCallback((workspaceProtection: WorkspaceProtection) => {
-    setVaultData(prev => ({ ...prev, workspaceProtection }));
+  const setSettings = useCallback((settings: AppSettings) => {
+    setVaultData(prev => ({ ...prev, settings }));
   }, []);
 
   const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -335,8 +291,7 @@ export function useEncryptedVault() {
   }, [vaultData.entries]);
 
   const importEntries = useCallback((data: VaultData) => {
-    const parsed = parseVaultData(data);
-    setVaultData(parsed);
+    setVaultData(data);
   }, []);
 
   const exportData = useCallback(() => {
@@ -345,13 +300,7 @@ export function useEncryptedVault() {
 
   return {
     vaultState,
-    entries: vaultData.entries,
-    publicKey: vaultData.publicKey,
-    encryptionSettings: vaultData.encryptionSettings,
-    encryptionEnabled: vaultData.encryptionEnabled,
-    vaultName: vaultData.vaultName,
-    workspaceProtection: vaultData.workspaceProtection,
-    isLoaded: vaultState.status === 'ready',
+    vaultData: vaultData,
     loadDecryptedData,
     startWithEmptyVault,
     lockVault,
@@ -362,45 +311,6 @@ export function useEncryptedVault() {
     getAllHashtags,
     importEntries,
     exportData,
-    updatePublicKey: setPublicKey,
-    updateEncryptionSettings: setEncryptionSettings,
-    updateEncryptionEnabled: setEncryptionEnabled,
-    updateVaultName: setVaultName,
-    updateWorkspaceProtection: setWorkspaceProtection,
-  };
-}
-
-function parseVaultData(parsed: unknown): VaultData {
-  const data = parsed as VaultData;
-  const entries = (data.entries || []).map((e: PasswordEntry) => ({
-    ...e,
-    createdAt: new Date(e.createdAt),
-    updatedAt: new Date(e.updatedAt),
-  }));
-
-  // Normalize encryption settings
-  const loadedSettings = data.encryptionSettings || DEFAULT_ENCRYPTION_SETTINGS;
-
-  if (!RSA_TRANSFORMATIONS[loadedSettings.rsaTransformationIdx])
-    loadedSettings.rsaTransformationIdx = DEFAULT_ENCRYPTION_SETTINGS.rsaTransformationIdx;
-
-  if (!AES_TRANSFORMATIONS[loadedSettings.aesTransformationIdx])
-    loadedSettings.aesTransformationIdx = DEFAULT_ENCRYPTION_SETTINGS.aesTransformationIdx;
-
-  if (!AES_KEY_LENGTHS[loadedSettings.aesKeyLength])
-    loadedSettings.aesKeyLength = DEFAULT_ENCRYPTION_SETTINGS.aesKeyLength;
-
-  let workspaceProtection = data.workspaceProtection;
-  if (!workspaceProtection || !['none', 'encrypt', 'pin'].includes(workspaceProtection)) {
-    workspaceProtection = 'none';
-  }
-
-  return {
-    entries,
-    publicKey: data.publicKey || '',
-    encryptionSettings: loadedSettings,
-    encryptionEnabled: data.encryptionEnabled !== false,
-    vaultName: data.vaultName || '',
-    workspaceProtection,
+    updateSettings: setSettings,
   };
 }

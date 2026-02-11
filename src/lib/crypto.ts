@@ -3,7 +3,7 @@
  * Based on: https://github.com/stud0709/oms_companion
  */
 
-import { AesTransformation, EncryptionSettings, RsaAesEnvelope } from "@/types/types";
+import { AesTransformation, AppSettings, RsaAesEnvelope } from "@/types/types";
 import { AES_TRANSFORMATIONS, APPLICATION_IDS, OMS_PREFIX, RSA_TRANSFORMATIONS } from "./constants";
 
 /**
@@ -291,8 +291,7 @@ export async function aesDecryptData(aesTransformation: AesTransformation, ivBuf
  */
 export async function createEncryptedMessage(
   message: string,
-  publicKeyBase64: string,
-  settings: EncryptionSettings,
+  settings: AppSettings,
   payloadApplicationId: number = APPLICATION_IDS.ENCRYPTED_MESSAGE
 ): Promise<string> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
@@ -301,7 +300,7 @@ export async function createEncryptedMessage(
   const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx];
 
   // Parse the public key
-  const publicKey = await parsePublicKey(publicKeyBase64, rsaTransformationIdx);
+  const publicKey = await parsePublicKey(settings.publicKey, rsaTransformationIdx);
 
   // Generate AES key and IV
   const aesKey = await generateAesKey(aesKeyLength, aesTransformation.algorithm);

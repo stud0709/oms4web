@@ -1,3 +1,6 @@
+import { DBSchema } from "idb";
+import { VAULT_STORE, KEY_REQUEST_STORE } from "@/lib/db";
+
 export interface CustomField {
   id: string;
   label: string;
@@ -22,13 +25,31 @@ export interface PasswordEntry {
   updatedAt: Date;
 }
 
-export interface VaultData {
-  entries: PasswordEntry[];
+export interface AppSettings {
   publicKey: string;
-  encryptionSettings: EncryptionSettings;
+  rsaTransformationIdx: number;
+  aesKeyLength: number;
+  aesTransformationIdx: number;
   encryptionEnabled: boolean;
   vaultName: string;
   workspaceProtection: WorkspaceProtection;
+  expertMode: boolean;
+}
+
+export interface OmsDbSchema extends DBSchema {
+  [VAULT_STORE]: {
+    key: string;
+    value: string;
+  };
+  [KEY_REQUEST_STORE]: {
+    key: string;
+    value: KeyRequestContext ;
+  };
+}
+
+export interface VaultData {
+  entries: PasswordEntry[];
+  settings: AppSettings;
 }
 
 export type VaultState = { status: 'loading'; } |
@@ -58,11 +79,7 @@ export interface RsaAesEnvelope {
   encryptedAesKey: Uint8Array;
   encryptedData: Uint8Array;
 }
-export interface EncryptionSettings {
-  rsaTransformationIdx: number;
-  aesKeyLength: number;
-  aesTransformationIdx: number;
-}
+
 export type WorkspaceProtection = 'none' | 'encrypt' | 'pin';
 // AES Transformations - matching Java AesTransformation enum
 

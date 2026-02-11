@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PasswordEntry, CustomField, CustomFieldProtection } from '@/types/types';
+import { PasswordEntry, CustomField, CustomFieldProtection, AppSettings } from '@/types/types';
 import { Plus, Trash2, Eye, EyeOff, X, QrCode, Eraser } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { PasswordGenerator } from '@/components/PasswordGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { createEncryptedMessage } from '@/lib/crypto';
 import { OMS_PREFIX } from "@/lib/constants";
-import { EncryptionSettings } from "@/types/types";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +25,7 @@ interface PasswordFormProps {
   entry?: PasswordEntry | null;
   onSave: (entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => void;
   existingTags: string[];
-  publicKey: string;
-  encryptionSettings: EncryptionSettings;
-  encryptionEnabled: boolean;
+  settings: AppSettings;
 }
 
 interface ProtectionOption {
@@ -36,7 +33,7 @@ interface ProtectionOption {
   Icon: React.ComponentType<{ className?: string }>;
 }
 
-export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, publicKey, encryptionSettings, encryptionEnabled }: PasswordFormProps) {
+export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, settings }: PasswordFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
@@ -126,9 +123,9 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
 
       // Check if password needs encryption
       if (password && !password.startsWith(OMS_PREFIX)) {
-        if (encryptionEnabled) {
+        if (settings.encryptionEnabled) {
           // Encryption is required
-          if (!publicKey) {
+          if (!settings.publicKey) {
             toast({
               title: 'Cannot save entry',
               description: 'Encryption is enabled but no public key is configured. Please add your public key in Settings.',
@@ -138,7 +135,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
             return;
           }
           try {
-            finalPassword = await createEncryptedMessage(password, publicKey, encryptionSettings);
+            finalPassword = await createEncryptedMessage(password, settings);
           } catch (err) {
             toast({
               title: 'Encryption failed',
@@ -174,7 +171,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
             }
 
             // Encryption is required
-            field.value = await createEncryptedMessage(field.value, publicKey, encryptionSettings);
+            field.value = await createEncryptedMessage(field.value, settings);
             field.readonly = true; //encrypted value cannot be changed manually
             return field;
           }));
@@ -275,7 +272,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   </Button>
                 )}
               </div>
-              {encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
+              {settings.encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
             </div>
           </div>
 
@@ -391,7 +388,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                         { id: 'secret', Icon: EyeOff },
                         { id: 'encrypted', Icon: QrCode },
                       ] as ProtectionOption[])
-                        .filter(option => (publicKey && encryptionEnabled) || option.id !== 'encrypted')
+                        .filter(option => (settings.encryptionEnabled) || option.id !== 'encrypted')
                         .map(({ id, Icon }) => (
                           <div key={id} className="relative">
                             <RadioGroupItem
