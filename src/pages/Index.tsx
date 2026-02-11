@@ -12,7 +12,7 @@ import { PinUnlockDialog } from '@/components/PinUnlockDialog';
 import { PasswordEntry } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
-import { OMS_PREFIX } from "@/lib/constants";
+
 
 const Index = () => {
   const {
@@ -173,29 +173,16 @@ const Index = () => {
     reader.onload = (e) => {
       const content = e.target?.result as string;
 
-      // Check if it's encrypted data in text format
-      if (content.startsWith(OMS_PREFIX)) {
-        setImportDecryptData(content);
-        return;
-      }
-
       // Handle plain JSON
       try {
         const data = JSON.parse(content);
-        // Support both old format (array) and new format (object with entries)
-        if (Array.isArray(data)) {
-          backupCurrentVault().then(() => {
-            importEntries(data);
-            toast({ title: 'Imported', description: `${data.length} entries loaded.` });
-          });
-        } else if (data.entries && Array.isArray(data.entries)) {
-          backupCurrentVault().then(() => {
-            importEntries(data.entries, data.publicKey, data.encryptionSettings);
-            toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
-          });
-        } else {
+        if (!data.entries || !Array.isArray(data.entries)) {
           throw new Error('Invalid format');
         }
+        backupCurrentVault().then(() => {
+          importEntries(data);
+          toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
+        });
       } catch (err) {
         toast({ title: 'Import failed', description: 'Invalid JSON file format.', variant: 'destructive' });
       }
@@ -207,16 +194,12 @@ const Index = () => {
   const handleImportDecrypted = async (decryptedJson: string) => {
     try {
       const data = JSON.parse(decryptedJson);
-      await backupCurrentVault();
-      if (Array.isArray(data)) {
-        importEntries(data);
-        toast({ title: 'Imported', description: `${data.length} entries loaded.` });
-      } else if (data.entries && Array.isArray(data.entries)) {
-        importEntries(data.entries, data.publicKey, data.encryptionSettings);
-        toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
-      } else {
+      if (!data.entries || !Array.isArray(data.entries)) {
         throw new Error('Invalid format');
       }
+      await backupCurrentVault();
+      importEntries(data);
+      toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
     } catch (err) {
       toast({ title: 'Import failed', description: 'Invalid decrypted data format.', variant: 'destructive' });
     }
