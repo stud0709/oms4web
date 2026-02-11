@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, Lock, Download, Upload, Loader2, LockKeyhole } from 'lucide-react';
+import { Plus, Lock, Download, Upload, Loader2, LockKeyhole, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadVault, getTimestamp, useEncryptedVault } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
@@ -329,10 +329,13 @@ const Index = () => {
               <>
                 <p className="text-muted-foreground mb-6 max-w-sm text-justify">
                   ⚠️ Your data is stored locally in your browser, so export it regularly. It will be lost when clearling browser cache.
-                  Your data will be encrypted as soon as you have provided a public key.
+                  Your vault will be encrypted as soon as you have provided a public key.
                 </p>
                 <p className="text-muted-foreground mb-6 max-w-sm">
-                  🚀 To start, follow the <a target="_blank" href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide</a>
+                  🚀 To start, follow the <a
+                   target="_blank" 
+                   className="inline-flex items-center gap-1 text-primary hover:opacity-80 transition-opacity"
+                   href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide<ExternalLink className="h-5 w-5"/></a>
                 </p>
                 <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
                   <Plus className="h-5 w-5" />
