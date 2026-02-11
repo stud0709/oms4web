@@ -301,6 +301,11 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     addTag(tagInput);
                   }
                 }}
+                onBlur={() => {
+                  if (tagInput.trim()) {
+                    addTag(tagInput);
+                  }
+                }}
                 placeholder="Type and press Enter to add..."
               />
               {tagInput && suggestedTags.length > 0 && (
