@@ -7,7 +7,7 @@ export const DB_NAME = 'oms4web';
 export const KEY_REQUEST_STORE = 'key_request_store';
 export const VAULT_STORE = 'vault_data';
 
-export const oms4webDb = await openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
+export const oms4webDbPromise = openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
     upgrade(db) {
         console.warn("Database upgrade detected");
 

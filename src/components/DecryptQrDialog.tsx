@@ -12,14 +12,15 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getQrSequence } from '@/lib/qrUtil';
 import { APPLICATION_IDS, INTERVAL_QR_SEQUENCE, } from "@/lib/constants";
-import { QrChunk } from "@/types/types";
+import { OmsDbSchema, QrChunk } from "@/types/types";
 import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
 import { KeyRequestContext } from '@/types/types';
 import { OMS_PREFIX } from "@/lib/constants";
 import { toast } from '@/hooks/use-toast';
 import { downloadVault, getTimestamp, getEnvironment, handleIntent } from '@/hooks/useEncryptedVault';
 import { useSearchParams } from 'react-router-dom';
-import { KEY_REQUEST_STORE, oms4webDb } from '@/lib/db';
+import { KEY_REQUEST_STORE, oms4webDbPromise } from '@/lib/db';
+import { IDBPDatabase } from 'idb';
 const LATEST_CONTEXT = 'latest_context';
 
 interface DecryptQrDialogProps {
@@ -82,7 +83,8 @@ export function DecryptQrDialog({
   const persistKeyPair = async (keyRequestContext: KeyRequestContext) => {
     if (!env.android) return;
     try {
-      await oms4webDb.put(KEY_REQUEST_STORE, keyRequestContext, LATEST_CONTEXT);
+      const db = await oms4webDbPromise;
+      await db.put(KEY_REQUEST_STORE, keyRequestContext, LATEST_CONTEXT);
     } catch (err) {
       console.error('Failed to serialize unlock key:', err);
     }
@@ -148,9 +150,10 @@ export function DecryptQrDialog({
     if (!searchParams.has("data")) return;
 
     (async () => {
-      const dbEntry = await oms4webDb.get(KEY_REQUEST_STORE, LATEST_CONTEXT);
+      const db = await oms4webDbPromise;
+      const dbEntry = await db.get(KEY_REQUEST_STORE, LATEST_CONTEXT);
       if (!dbEntry) return;
-      oms4webDb.delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
+      db.delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
 
       keyRequestContext.current = dbEntry;
       handleSubmitDecrypted(searchParams.get("data"));

@@ -23,7 +23,7 @@ import {
   APPLICATION_IDS
 } from "@/lib/constants";
 import { encryptVaultData } from '@/lib/fileEncryption';
-import { oms4webDb, STORAGE_KEY, VAULT_STORE } from '@/lib/db';
+import { oms4webDbPromise, STORAGE_KEY, VAULT_STORE } from '@/lib/db';
 
 const EMPTY_VAULT: VaultData = {
   entries: [],
@@ -131,7 +131,8 @@ export function useEncryptedVault() {
         }
       }
 
-      const stored = await oms4webDb.get(VAULT_STORE, STORAGE_KEY);
+      const db = await oms4webDbPromise;
+      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
 
       if (!stored) {
         setVaultState({ status: 'ready' });
@@ -164,6 +165,7 @@ export function useEncryptedVault() {
 
     (async () => {
       const jsonData = JSON.stringify(vaultData);
+      const db = await oms4webDbPromise;          
 
       // Only encrypt if we have a valid public key
       if (vaultData.settings.publicKey) {
@@ -174,7 +176,7 @@ export function useEncryptedVault() {
           );
           // Encode as OMS text format for indexDb
           const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
-          await oms4webDb.put(VAULT_STORE, encoded, STORAGE_KEY);
+          await db.put(VAULT_STORE, encoded, STORAGE_KEY);
           return;
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
@@ -183,7 +185,7 @@ export function useEncryptedVault() {
       }
 
       // Save as plain JSON for 'none' and 'pin' modes, or as fallback
-      await oms4webDb.put(VAULT_STORE, jsonData, STORAGE_KEY);
+      await db.put(VAULT_STORE, jsonData, STORAGE_KEY);
     })();
   }, [vaultData, vaultState.status]);
 
@@ -197,17 +199,19 @@ export function useEncryptedVault() {
     }
   }, []);
 
-  const startWithEmptyVault = useCallback(() => {
+  const startWithEmptyVault = useCallback(async () => {
     setVaultData(EMPTY_VAULT);
     setVaultState({ status: 'ready' });
     // Save empty vault
-    oms4webDb.put(VAULT_STORE, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
+    const db = await oms4webDbPromise;
+    db.put(VAULT_STORE, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
   }, []);
 
   const lockVault = useCallback(() => {
     (async () => {
       // Re-read from storage and reset state to trigger unlock flow
-      const stored = await oms4webDb.get(VAULT_STORE, STORAGE_KEY);
+      const db = await oms4webDbPromise;
+      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
 
       // Encrypt on Lock
       if (vaultData.settings.workspaceProtection === 'encrypt' ||
