@@ -1,6 +1,4 @@
-import { EncryptionSettings } from "@/types/types";
-import { AesTransformation } from "@/types/types";
-import { RsaTransformation } from "@/types/types";
+import type { EncryptionSettings, AesTransformation, RsaTransformation } from "@/types/types";
 
 export const SW_BASE = '/oms4web/';
 
