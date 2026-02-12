@@ -12,7 +12,7 @@ import { PinUnlockDialog } from '@/components/PinUnlockDialog';
 import { PasswordEntry } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
-
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const Index = () => {
   const {
@@ -39,6 +39,10 @@ const Index = () => {
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<string | null>(null);
   const allTags = getAllHashtags();
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW();
 
   const DELETED_TAG = 'deleted';
 

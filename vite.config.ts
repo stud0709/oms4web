@@ -20,7 +20,7 @@ export default defineConfig(({ mode, command }) => {
       mode === "development" && componentTagger(),
       VitePWA({
         base: base,
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         injectRegister: 'script', // This injects the SW registration automatically
         includeAssets: ['favicon.png', 'favicon_192.png', 'favicon_512.png'],
         strategies: 'injectManifest',
