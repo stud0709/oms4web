@@ -88,7 +88,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
   }, [entry]);
 
   const addTag = (tag: string) => {
-    const cleanTag = tag.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const cleanTag = tag.trim().replace(/[^a-zA-Z0-9-]/g, '');
     if (cleanTag && !hashtags.includes(cleanTag)) {
       setHashtags([...hashtags, cleanTag]);
     }
@@ -194,7 +194,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
   };
 
   const suggestedTags = existingTags.filter(
-    tag => !hashtags.includes(tag) && tag.includes(tagInput.toLowerCase())
+    tag => !hashtags.some(h => h.toLowerCase() === tag.toLowerCase()) && tag.toLowerCase().includes(tagInput.toLowerCase())
   );
 
   return (
