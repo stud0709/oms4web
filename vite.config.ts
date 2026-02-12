@@ -5,7 +5,6 @@ import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import { SW_BASE } from "./src/lib/constants";
 
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
   const base = command === 'serve' ? '/' : SW_BASE;
@@ -21,14 +20,13 @@ export default defineConfig(({ mode, command }) => {
       VitePWA({
         base: base,
         registerType: 'prompt',
-        injectRegister: 'script', // This injects the SW registration automatically
+        injectRegister: 'script', 
         includeAssets: ['favicon.png', 'favicon_192.png', 'favicon_512.png'],
         strategies: 'injectManifest',
         filename: 'sw.ts',
         srcDir: 'src',
         injectManifest: {
           injectionPoint: '__WB_MANIFEST',
-          // This caches all your JS, CSS, and HTML files automatically
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         },
         manifest: {
@@ -37,8 +35,8 @@ export default defineConfig(({ mode, command }) => {
           short_name: 'oms4web',
           description: 'OneMoreSecret password manager',
           theme_color: '#ffffff',
-          start_url: base, // Ensures the app starts at your subfolder
-          scope: base,     // Limits the PWA to your subfolder
+          start_url: base, 
+          scope: base,     
           display: 'standalone',
           launch_handler: { client_mode: "focus-existing" },
           icons: [
@@ -56,7 +54,6 @@ export default defineConfig(({ mode, command }) => {
           ]
         },
         workbox: {
-          // Ensures the PWA works correctly with React Router
           navigateFallback: `${base}index.html`
         }
       })
