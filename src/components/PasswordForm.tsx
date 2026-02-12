@@ -298,7 +298,9 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     addTag(tagInput);
                   }
                 }}
-                onBlur={() => {
+                onBlur={(e) => {
+                  const related = e.relatedTarget as HTMLElement | null;
+                  if (related?.closest('[data-tag-suggestion]')) return;
                   if (tagInput.trim()) {
                     addTag(tagInput);
                   }
@@ -311,6 +313,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     <button
                       key={tag}
                       type="button"
+                      data-tag-suggestion
                       className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
                       onClick={() => addTag(tag)}
                     >
