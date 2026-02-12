@@ -81,9 +81,9 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                 href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 truncate transition-colors"
+                className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors max-w-full"
               >
-                {entry.url}
+                <span className="truncate">{entry.url}</span>
                 <ExternalLink className="h-3 w-3 flex-shrink-0" />
               </a>
             )}
