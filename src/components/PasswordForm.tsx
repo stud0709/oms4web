@@ -163,13 +163,16 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
         customFields
           .filter(f => f.label.trim())
           .map(async field => {
-            if (!field.value) return field; //empty
-            if (field.protection !== 'encrypted') return field; //plain text
+            if (!field.value.trim()){ 
+              field.protection = 'none'; //reset protection settings
+              return field; //empty
+            }
             if (field.value.startsWith(OMS_PREFIX)) {
               field.protection = 'encrypted';
               field.readonly = true;
               return field; //already encrypted
             }
+            if (field.protection !== 'encrypted') return field; //plain text            
 
             // Encryption is required
             field.value = await createEncryptedMessage(field.value, settings);
