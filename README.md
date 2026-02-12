@@ -23,7 +23,7 @@ Data is encrypted and stored locally in the browser database (indexDB). Encrypti
 There is no back-end at all, the entire logic runs in your browser.
 
 ### Different workspace protection modes
-- None
+- None - this does not affect password / field encryption though, these are always protected.
 - Lock: your database is encrypted with a temporary AES key
 - Encrypt: the encrypted version of the workspace is loaded into the app, you decrypt it to unlock the workspace (this is slightly more time-consuming than locking, but more secure)
 
@@ -32,7 +32,7 @@ Not even your [thoughts](https://www.euronews.com/next/2025/08/15/a-brain-comput
 
 ✅ The public key you pass to the settings can NOT be used to decrypt your data, it's part of [RSA](https://www.geeksforgeeks.org/computer-networks/rsa-algorithm-cryptography/) algorithm.
 
-⚠️ It goes without saying, that the password generator / encryption within *obs4web* has access to the unencrypted version of your data. If you don't want that, generate your passwords in *OneMoreSecret*, you can then have the app TYPE its encrypted version into the entry form. 
+⚠️ It goes without saying, that the *oms4web* internal password generator / field encryption has access to the unencrypted version of your data. If you don't want that, generate your passwords in *OneMoreSecret*, you can then have the app TYPE its encrypted version into the entry form. 
 
 ✅ The entire workspace data is encrypted by your private key, that's why you have to unlock it first.
 

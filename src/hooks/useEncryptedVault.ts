@@ -165,10 +165,11 @@ export function useEncryptedVault() {
 
     (async () => {
       const jsonData = JSON.stringify(vaultData);
-      const db = await oms4webDbPromise;          
+      const db = await oms4webDbPromise;
 
-      // Only encrypt if we have a valid public key
-      if (vaultData.settings.publicKey) {
+      // Only encrypt if we have a valid public key, and workspace protection is activated
+      if (vaultData.settings.publicKey
+        && vaultData.settings.workspaceProtection !== 'none') {
         try {
           const encryptedBytes = await encryptVaultData(
             jsonData,

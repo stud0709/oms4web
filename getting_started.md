@@ -30,3 +30,5 @@ Technically, if you generate passwords in oms4web, they will be only encrypted o
 
 ## One last tip
 Consider installing *oms4web* as an [web app](https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DDesktop). This makes it more convenient to use and allows tighter integration with the operation system.
+
+You might also want to have a look at the [README](./README.md) file.

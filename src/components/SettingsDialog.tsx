@@ -119,7 +119,7 @@ export function SettingsDialog({
                 <div className="flex items-start space-x-3">
                   <RadioGroupItem value="none" id="protection-none" className="mt-1" />
                   <div>
-                    <Label htmlFor="protection-none" className="font-normal cursor-pointer">None</Label>
+                    <Label htmlFor="protection-none" className="font-normal cursor-pointer">⚠️ None</Label>
                     <p className="text-xs text-muted-foreground">Local storage file not encrypted</p>
                   </div>
                 </div>
@@ -134,7 +134,7 @@ export function SettingsDialog({
                   <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
                   <div>
                     <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
-                    <p className="text-xs text-muted-foreground">Data stays in memory, but requires PIN via QR code to access</p>
+                    <p className="text-xs text-muted-foreground">Requires PIN via QR code to unlock</p>
                   </div>
                 </div>
               </RadioGroup>

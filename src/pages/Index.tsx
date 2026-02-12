@@ -328,8 +328,7 @@ const Index = () => {
             {vaultData.entries.length === 0 && (
               <>
                 <p className="text-muted-foreground mb-6 max-w-sm text-justify">
-                  ⚠️ Your data is stored locally in your browser, so export it regularly. It will be lost when clearling browser cache.
-                  Your vault will be encrypted as soon as you have provided a public key.
+                  ⚠️ Your data is stored locally in your browser, so export it regularly. It may be lost when clearling browser cache.
                 </p>
                 <p className="text-muted-foreground mb-6 max-w-sm">
                   🚀 To start, follow the <a
