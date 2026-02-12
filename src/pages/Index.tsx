@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Plus, Lock, Download, Upload, Loader2, LockKeyhole, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadVault, getTimestamp, useEncryptedVault } from '@/hooks/useEncryptedVault';
@@ -12,6 +12,7 @@ import { PinUnlockDialog } from '@/components/PinUnlockDialog';
 import { PasswordEntry } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
+import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const Index = () => {
@@ -43,6 +44,23 @@ const Index = () => {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW();
+
+  useEffect(() => {
+    if (needRefresh) {
+      sonnerToast('Update available', {
+        description: 'A new version of the app is ready.',
+        duration: Infinity,
+        action: {
+          label: 'Update',
+          onClick: () => updateServiceWorker(true),
+        },
+        cancel: {
+          label: 'Dismiss',
+          onClick: () => setNeedRefresh(false),
+        },
+      });
+    }
+  }, [needRefresh]);
 
   const DELETED_TAG = 'deleted';
 
