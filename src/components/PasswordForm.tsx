@@ -72,6 +72,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
     setHashtags([]);
     setTagInput('');
     setCustomFields([]);
+    setPasswordReadonly(false);
   };
 
   const handlePasswordGenerated = (generatedPassword: string) => {
