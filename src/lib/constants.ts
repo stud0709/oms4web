@@ -1,4 +1,8 @@
-import type { AesTransformation, RsaTransformation, AppSettings } from "@/types/types";
+import type {
+  AesTransformation,
+  RsaTransformation,
+  AppSettings
+} from "@/types/types";
 
 export const APPLICATION_IDS = {
   AES_ENCRYPTED_PRIVATE_KEY_TRANSFER: 0,

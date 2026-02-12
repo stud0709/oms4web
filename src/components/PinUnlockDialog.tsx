@@ -1,4 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback
+} from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Lock, QrCode, Loader2 } from 'lucide-react';
 import {

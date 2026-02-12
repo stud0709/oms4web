@@ -1,7 +1,23 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Plus, Lock, Download, Upload, Loader2, LockKeyhole, ExternalLink } from 'lucide-react';
+import {
+  useState,
+  useMemo,
+  useRef, useEffect
+} from 'react';
+import {
+  Plus,
+  Lock,
+  Download,
+  Upload,
+  Loader2,
+  LockKeyhole,
+  ExternalLink
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { downloadVault, getTimestamp, useEncryptedVault } from '@/hooks/useEncryptedVault';
+import {
+  downloadVault,
+  getTimestamp,
+  useEncryptedVault
+} from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
@@ -60,7 +76,7 @@ const Index = () => {
         },
       });
     }
-  }, [needRefresh]);
+  }, [needRefresh, updateServiceWorker, setNeedRefresh]);
 
   const DELETED_TAG = 'deleted';
 
@@ -356,7 +372,7 @@ const Index = () => {
                   🚀 To start, follow the <a
                    target="_blank" 
                    className="inline-flex items-center gap-1 text-primary hover:opacity-80 transition-opacity"
-                   href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide<ExternalLink className="h-5 w-5"/></a>
+                    href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide<ExternalLink className="h-5 w-5" /></a>
                 </p>
                 <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
                   <Plus className="h-5 w-5" />

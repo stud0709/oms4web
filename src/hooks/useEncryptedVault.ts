@@ -23,7 +23,11 @@ import {
   APPLICATION_IDS
 } from "@/lib/constants";
 import { encryptVaultData } from '@/lib/fileEncryption';
-import { oms4webDbPromise, STORAGE_KEY, VAULT_STORE } from '@/lib/db';
+import {
+  oms4webDbPromise,
+  STORAGE_KEY,
+  VAULT_STORE
+} from '@/lib/db';
 
 const EMPTY_VAULT: VaultData = {
   entries: [],

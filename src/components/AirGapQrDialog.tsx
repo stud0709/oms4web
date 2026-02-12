@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect
+} from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { QrCode } from 'lucide-react';
 import {
@@ -65,16 +68,15 @@ export function AirGapQrDialog({ open, onOpenChange, password }: AirGapQrDialogP
                     {chunks.map((_, idx) => (
                       <div
                         key={idx}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                          idx === currentIndex ? 'bg-primary' : 'bg-muted'
-                        }`}
+                        className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-primary' : 'bg-muted'
+                          }`}
                       />
                     ))}
                   </div>
                 </div>
               )}
               <p className="text-sm text-muted-foreground text-center">
-                {chunks.length > 1 
+                {chunks.length > 1
                   ? 'Scan all QR codes in sequence to transfer the password'
                   : 'Scan this QR code to transfer the password securely'
                 }

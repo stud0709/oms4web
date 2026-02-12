@@ -19,7 +19,10 @@ import {
   writeString,
   toFormattedHex,
 } from './crypto';
-import { DEFAULT_SETTINGS, RSA_TRANSFORMATIONS } from "./constants";
+import {
+  DEFAULT_SETTINGS,
+  RSA_TRANSFORMATIONS
+} from "./constants";
 import { OMS_PREFIX } from "./constants";
 import { KeyRequestContext } from "@/types/types";
 import { APPLICATION_IDS } from "./constants";

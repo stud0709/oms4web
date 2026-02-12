@@ -1,8 +1,25 @@
-import { useCallback, useMemo, useState } from 'react';
+import {
+  useMemo,
+  useState
+} from 'react';
 import { PasswordEntry } from '@/types/types';
-import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2, Hash, QrCode, Webhook } from 'lucide-react';
+import {
+  Copy,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Pencil,
+  Trash2,
+  Hash,
+  QrCode,
+  Webhook
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { AirGapQrDialog } from '@/components/AirGapQrDialog';
@@ -18,7 +35,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { OMS_PREFIX } from "@/lib/constants";
-import { handleIntent, getEnvironment } from '@/hooks/useEncryptedVault';
+import {
+  handleIntent,
+  getEnvironment
+} from '@/hooks/useEncryptedVault';
 
 const DELETED_TAG = 'deleted';
 

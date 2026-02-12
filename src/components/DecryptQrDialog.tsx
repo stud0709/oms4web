@@ -1,6 +1,21 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo
+} from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Upload, CheckCircle, AlertCircle, Loader2, Webhook, Copy, KeyRound } from 'lucide-react';
+import {
+  QrCode,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Webhook,
+  Copy,
+  KeyRound
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -11,16 +26,23 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getQrSequence } from '@/lib/qrUtil';
-import { APPLICATION_IDS, INTERVAL_QR_SEQUENCE, } from "@/lib/constants";
-import { OmsDbSchema, QrChunk } from "@/types/types";
+import {
+  APPLICATION_IDS,
+  INTERVAL_QR_SEQUENCE,
+} from "@/lib/constants";
+import { QrChunk } from "@/types/types";
 import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
 import { KeyRequestContext } from '@/types/types';
 import { OMS_PREFIX } from "@/lib/constants";
 import { toast } from '@/hooks/use-toast';
-import { downloadVault, getTimestamp, getEnvironment, handleIntent } from '@/hooks/useEncryptedVault';
+import {
+  downloadVault,
+  getTimestamp,
+  getEnvironment,
+  handleIntent
+} from '@/hooks/useEncryptedVault';
 import { useSearchParams } from 'react-router-dom';
 import { KEY_REQUEST_STORE, oms4webDbPromise } from '@/lib/db';
-import { IDBPDatabase } from 'idb';
 const LATEST_CONTEXT = 'latest_context';
 
 interface DecryptQrDialogProps {

@@ -1,6 +1,8 @@
 import { Hash, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { 
+  ScrollArea, 
+  ScrollBar } from '@/components/ui/scroll-area';
 
 interface HashtagFilterProps {
   tags: string[];

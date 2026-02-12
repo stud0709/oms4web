@@ -1,6 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
-import { PasswordEntry, CustomField, CustomFieldProtection, AppSettings } from '@/types/types';
-import { Plus, Trash2, Eye, EyeOff, X, QrCode, Eraser } from 'lucide-react';
+import {
+  useState,
+  useEffect,
+  useCallback
+} from 'react';
+import {
+  PasswordEntry,
+  CustomField,
+  CustomFieldProtection,
+  AppSettings
+} from '@/types/types';
+import {
+  Plus,
+  Trash2,
+  Eye,
+  EyeOff,
+  X,
+  QrCode,
+  Eraser
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -163,7 +180,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
         customFields
           .filter(f => f.label.trim())
           .map(async field => {
-            if (!field.value.trim()){ 
+            if (!field.value.trim()) {
               field.protection = 'none'; //reset protection settings
               return field; //empty
             }

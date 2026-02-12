@@ -1,4 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo
+} from 'react';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,10 +28,16 @@ import {
   validatePublicKey,
 } from '@/lib/crypto';
 import { RSA_TRANSFORMATIONS } from "@/lib/constants";
-import { AppSettings, WorkspaceProtection } from "@/types/types";
+import {
+  AppSettings,
+  WorkspaceProtection
+} from "@/types/types";
 import { AES_KEY_LENGTHS } from "@/lib/constants";
 import { AES_TRANSFORMATIONS } from "@/lib/constants";
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  RadioGroup,
+  RadioGroupItem
+} from '@/components/ui/radio-group';
 import { getEnvironment } from '@/hooks/useEncryptedVault';
 
 interface SettingsDialogProps {

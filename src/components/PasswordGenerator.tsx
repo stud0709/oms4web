@@ -1,5 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Settings2, Shuffle } from 'lucide-react';
+import {
+  useState,
+  useEffect,
+  useCallback
+} from 'react';
+import {
+  Settings2,
+  Shuffle
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -72,7 +79,7 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
   useEffect(() => {
     const enabledCategories = [policy.includeLetters, policy.includeNumbers, policy.includeSpecial].filter(Boolean).length;
     const minRequired = enabledCategories * policy.minPerCategory;
-    
+
     if (enabledCategories === 0) {
       setValidationError('Enable at least one character category');
     } else if (minRequired > policy.length) {
@@ -86,7 +93,7 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
     if (validationError) return;
 
     const useAmbiguous = !policy.excludeAmbiguous;
-    
+
     const letters = useAmbiguous ? CHARS.letters : CHARS.lettersNoAmbiguous;
     const numbers = useAmbiguous ? CHARS.numbers : CHARS.numbersNoAmbiguous;
     const special = useAmbiguous ? CHARS.special : CHARS.specialNoAmbiguous;
@@ -149,7 +156,7 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
         <PopoverContent className="w-80" align="end">
           <div className="space-y-4">
             <h4 className="font-medium text-sm">Password Policy</h4>
-            
+
             {/* Length */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -231,9 +238,9 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
             )}
 
             {/* Generate button in popover */}
-            <Button 
-              type="button" 
-              className="w-full" 
+            <Button
+              type="button"
+              className="w-full"
               size="sm"
               onClick={() => {
                 generatePassword();
@@ -247,12 +254,12 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
           </div>
         </PopoverContent>
       </Popover>
-      
-      <Button 
-        type="button" 
-        variant="outline" 
-        size="icon" 
-        onClick={generatePassword} 
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={generatePassword}
         title="Generate password"
         disabled={!!validationError}
       >

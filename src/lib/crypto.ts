@@ -3,8 +3,18 @@
  * Based on: https://github.com/stud0709/oms_companion
  */
 
-import { AesTransformation, AppSettings, RsaAesEnvelope } from "@/types/types";
-import { AES_TRANSFORMATIONS, APPLICATION_IDS, OMS_PREFIX, RSA_TRANSFORMATIONS } from "./constants";
+import {
+  AesTransformation,
+  AppSettings,
+  RsaAesEnvelope
+} from "@/types/types";
+
+import {
+  AES_TRANSFORMATIONS,
+  APPLICATION_IDS,
+  OMS_PREFIX,
+  RSA_TRANSFORMATIONS
+} from "./constants";
 
 /**
  * Parse a base64-encoded X509 public key
