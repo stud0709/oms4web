@@ -16,8 +16,10 @@ import {
   EyeOff,
   X,
   QrCode,
-  Eraser
+  Eraser,
+  Copy
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -53,6 +55,11 @@ interface ProtectionOption {
 export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, settings }: PasswordFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const copyToClipboard = useCallback((text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Copied to clipboard' });
+  }, [toast]);
   const [title, setTitle] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -271,15 +278,26 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   disabled={passwordReadonly}
                 />
                 {passwordReadonly && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full"
-                    onClick={() => erasePassword()}
-                  >
-                    <Eraser className="h-4 w-4" />
-                  </Button>
+                  <div className="absolute right-0 top-0 h-full flex">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" size="icon" className="h-full" onClick={() => copyToClipboard(password)}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" size="icon" className="h-full" onClick={() => erasePassword()}>
+                            <Eraser className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Erase</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 )}
                 {!passwordReadonly && (
                   <Button
@@ -384,15 +402,26 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                       disabled={field.readonly}
                     />
                     {field.readonly && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full w-8"
-                        onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}
-                      >
-                        <Eraser className="h-4 w-4" />
-                      </Button>
+                      <div className="absolute right-0 top-0 h-full flex">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" className="h-full w-8" onClick={() => copyToClipboard(field.value)}>
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Copy</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" className="h-full w-8" onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}>
+                                <Eraser className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Erase</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
