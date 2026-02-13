@@ -56,6 +56,7 @@ const Index = () => {
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<string | null>(null);
   const allTags = getAllHashtags();
+  
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -64,6 +65,7 @@ const Index = () => {
   useEffect(() => {
     if (needRefresh) {
       sonnerToast('Update available', {
+        id: 'sw-update-toast',
         description: 'A new version of the app is ready.',
         duration: Infinity,
         action: {
@@ -77,6 +79,7 @@ const Index = () => {
       });
     }
   }, [needRefresh, updateServiceWorker, setNeedRefresh]);
+  
 
   const DELETED_TAG = 'deleted';
 
