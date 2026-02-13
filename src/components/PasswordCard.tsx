@@ -51,11 +51,9 @@ interface PasswordCardProps {
 }
 
 export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick }: PasswordCardProps) {
-  const [showPassword, setShowPassword] = useState(false);
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
 
-  const isAirGapPassword = entry.password?.startsWith(OMS_PREFIX);
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
   const env = useMemo(() => getEnvironment(), []);
 
@@ -156,12 +154,10 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">Password</p>
               <p className="text-sm font-mono truncate">
-                {showPassword ? entry.password : maskValue(entry.password)}
+                {maskValue(entry.password)}
               </p>
             </div>
             <div className="flex gap-1">
-              {isAirGapPassword && (
-                <>
                   {!env.android && (<Button
                     variant="ghost"
                     size="icon"
@@ -170,22 +166,18 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                     <QrCode className="h-4 w-4" />
                   </Button>)}
                   {env.android && (
+                <>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleIntent(entry.password)}>
                       <Webhook className="h-4 w-4" />
-                    </Button>)}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.password, 'Password')}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
                 </>
               )}
-              {!isAirGapPassword && (
-                <Button variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.password, 'Password')}>
-                <Copy className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         )}

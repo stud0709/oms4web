@@ -11,9 +11,6 @@ registerSW({
   onRegisterError(error) {
     console.error('Service Worker registration failed:', error);
   },
-  onNeedRefresh() {
-    console.log("New version detected.");
-  },
   onOfflineReady() {
     console.log("App is ready for offline use.");
   }
