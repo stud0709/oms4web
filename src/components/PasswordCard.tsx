@@ -158,20 +158,20 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               </p>
             </div>
             <div className="flex gap-1">
-                  {!env.android && (<Button
+              {!env.android && (<Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setQrDialogValue(entry.password)}
+                title="Air Gap - Show QR Code">
+                <QrCode className="h-4 w-4" />
+              </Button>)}
+              {env.android && (
+                <>
+                  <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setQrDialogValue(entry.password)}
-                    title="Air Gap - Show QR Code">
-                    <QrCode className="h-4 w-4" />
-                  </Button>)}
-                  {env.android && (
-                <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleIntent(entry.password)}>
-                      <Webhook className="h-4 w-4" />
+                    onClick={() => handleIntent(entry.password)}>
+                    <Webhook className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.password, 'Password')}>
                     <Copy className="h-4 w-4" />
@@ -217,9 +217,11 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                   {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               )}
-              <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
-                <Copy className="h-4 w-4" />
-              </Button>
+              {(!isAirGapField(field.value) || env.android) && (
+                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         ))}
