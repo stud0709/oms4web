@@ -274,7 +274,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   onChange={e => setPassword(e.target.value)}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
-                  className="pr-10 font-mono"
+                  className={`font-mono ${passwordReadonly ? 'pr-20' : 'pr-10'}`}
                   disabled={passwordReadonly}
                 />
                 {passwordReadonly && (
@@ -398,7 +398,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                       onChange={e => updateCustomField(field.id, { value: e.target.value })}
                       placeholder="Value"
                       type={field.protection !== 'none' ? 'password' : 'text'}
-                      className="h-8 font-mono pr-10"
+                      className={`h-8 font-mono ${field.readonly ? 'pr-20' : 'pr-10'}`}
                       disabled={field.readonly}
                     />
                     {field.readonly && (
