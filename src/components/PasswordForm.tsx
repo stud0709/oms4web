@@ -267,44 +267,41 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="flex gap-2">
-              <div className="relative flex-1">
+              <div className="flex flex-1 gap-1">
                 <Input
                   id="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
-                  className={`font-mono ${passwordReadonly ? 'pr-20' : 'pr-10'}`}
+                  className="flex-1 font-mono"
                   disabled={passwordReadonly}
                 />
                 {passwordReadonly && (
-                  <div className="absolute right-0 top-0 h-full flex">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button type="button" variant="ghost" size="icon" className="h-full" onClick={() => copyToClipboard(password)}>
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Copy</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button type="button" variant="ghost" size="icon" className="h-full" onClick={() => erasePassword()}>
-                            <Eraser className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Erase</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(password)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Copy</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => erasePassword()}>
+                          <Eraser className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Erase</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 {!passwordReadonly && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-0 top-0 h-full"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -392,36 +389,34 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     placeholder="Field name"
                     className="h-8"
                   />
-                  <div className="relative">
+                  <div className="flex gap-1">
                     <Input
                       value={field.value}
                       onChange={e => updateCustomField(field.id, { value: e.target.value })}
                       placeholder="Value"
                       type={field.protection !== 'none' ? 'password' : 'text'}
-                      className={`h-8 font-mono ${field.readonly ? 'pr-20' : 'pr-10'}`}
+                      className="h-8 font-mono flex-1"
                       disabled={field.readonly}
                     />
                     {field.readonly && (
-                      <div className="absolute right-0 top-0 h-full flex">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button type="button" variant="ghost" size="icon" className="h-full w-8" onClick={() => copyToClipboard(field.value)}>
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Copy</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button type="button" variant="ghost" size="icon" className="h-full w-8" onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}>
-                                <Eraser className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Erase</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(field.value)}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Copy</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}>
+                              <Eraser className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Erase</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
