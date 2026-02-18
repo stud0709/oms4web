@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { OMS_PREFIX } from "@/lib/constants";
+import { OMS_PREFIX, OMS4WEB_REF } from "@/lib/constants";
 import {
   handleIntent,
   getEnvironment
@@ -69,7 +69,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
   const isAirGapField = (value: string) => value?.startsWith(OMS_PREFIX);
 
   const copyReference = (path: string) => {
-    const ref = `oms4web://${entry.id}.${path}`;
+    const ref = `${OMS4WEB_REF}${entry.id}.${path}`;
     copyToClipboard(ref, 'Reference');
   };
 
