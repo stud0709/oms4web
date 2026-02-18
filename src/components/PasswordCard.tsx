@@ -95,15 +95,20 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-lg truncate text-foreground">{entry.title}</h3>
             {entry.url && (
-              <a
-                href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors max-w-full"
-              >
-                <span className="truncate">{entry.url}</span>
-                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-              </a>
+              <div className="flex items-center gap-1 max-w-full">
+                <a
+                  href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors min-w-0"
+                >
+                  <span className="truncate">{entry.url}</span>
+                  <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                </a>
+                <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entry.url!, 'URL')}>
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
             )}
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
