@@ -156,17 +156,6 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                 </AlertDialog>
               </div>
             )}
-            <div className={`transition-opacity ${(referenceMode || env.android) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setReferenceMode(prev => !prev)}
-                className={referenceMode ? 'text-primary' : ''}
-                title="Toggle reference mode"
-              >
-                <Link className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
         </div>
       </CardHeader>
@@ -300,8 +289,8 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
           </div>
         )}
 
-        {entry.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-2">
+        <div className="flex items-start justify-between gap-2 pt-2">
+          <div className="flex flex-wrap gap-1.5 flex-1">
             {entry.hashtags.map(tag => (
               <Badge
                 key={tag}
@@ -317,7 +306,18 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               </Badge>
             ))}
           </div>
-        )}
+          <div className={`transition-opacity ${(referenceMode || env.android) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-7 w-7 ${referenceMode ? 'text-primary' : ''}`}
+              onClick={() => setReferenceMode(prev => !prev)}
+              title="Toggle reference mode"
+            >
+              <Link className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </CardContent>
 
       {/* Air Gap QR Code Dialog */}
