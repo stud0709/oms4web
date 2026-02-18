@@ -123,7 +123,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               </div>
             )}
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className={`flex gap-1 transition-opacity ${referenceMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
             <Button
               variant="ghost"
               size="icon"
