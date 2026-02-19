@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { PasswordGenerator } from '@/components/PasswordGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { createEncryptedMessage } from '@/lib/crypto';
-import { OMS_PREFIX } from "@/lib/constants";
+import { OMS4WEB_REF, OMS_PREFIX } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
@@ -147,18 +147,8 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
       let finalPassword = password;
 
       // Check if password needs encryption
-      if (password && !password.startsWith(OMS_PREFIX)) {
-        if (settings.encryptionEnabled) {
-          // Encryption is required
-          if (!settings.publicKey) {
-            toast({
-              title: 'Cannot save entry',
-              description: 'Encryption is enabled but no public key is configured. Please add your public key in Settings.',
-              variant: 'destructive',
-            });
-            setIsSubmitting(false);
-            return;
-          }
+      if (password && !password.startsWith(OMS_PREFIX) && !password.startsWith(OMS4WEB_REF)) {
+        if (settings.encryptionEnabled) {          
           try {
             finalPassword = await createEncryptedMessage(password, settings);
           } catch (err) {
@@ -196,7 +186,8 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
               field.readonly = true;
               return field; //already encrypted
             }
-            if (field.protection !== 'encrypted') return field; //plain text            
+            if (field.protection !== 'encrypted') return field; //plain text     
+            if (field.value.startsWith(OMS4WEB_REF)) return field; //reference to another value 
 
             // Encryption is required
             field.value = await createEncryptedMessage(field.value, settings);
