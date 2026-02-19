@@ -250,7 +250,6 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
               value={url}
               onChange={e => setUrl(e.target.value)}
               placeholder="https://example.com"
-              type="url"
             />
           </div>
 

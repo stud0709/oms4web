@@ -6,6 +6,7 @@ import {
 
 import {
   AppSettings,
+  CustomField,
   PasswordEntry,
   VaultData,
   VaultState
@@ -20,7 +21,9 @@ import {
 import {
   OMS_PREFIX,
   DEFAULT_SETTINGS,
-  APPLICATION_IDS
+  APPLICATION_IDS,
+  OMS4WEB_REF,
+  customFieldProtectionPropertyName
 } from "@/lib/constants";
 import { encryptVaultData } from '@/lib/fileEncryption';
 import {
@@ -28,6 +31,7 @@ import {
   STORAGE_KEY,
   VAULT_STORE
 } from '@/lib/db';
+import { JSONPath } from 'jsonpath-plus';
 
 const EMPTY_VAULT: VaultData = {
   entries: [],
@@ -307,6 +311,54 @@ export function useEncryptedVault() {
     return vaultData;
   }, [vaultData]);
 
+  const applyRef = useCallback((entry: PasswordEntry) => {
+    const deepMap = (obj: any) => {
+      // Handle Arrays
+      if (Array.isArray(obj)) {
+        return obj.map(item => deepMap(item));
+      }
+
+      // Handle Objects
+      if (typeof obj === 'object' && obj !== null) {
+        const copy = {};
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            copy[key] = deepMap(obj[key]);
+          }
+        }
+        if (customFieldProtectionPropertyName in obj) {
+          const customField = obj as CustomField;
+          if (customField.value.startsWith(OMS4WEB_REF)) {
+            //inherit protection mode as well
+            const path = customField.value.substring(OMS4WEB_REF.length);
+            (copy as CustomField).protection = (query(path, vaultData) as CustomField)?.protection || customField.protection;
+          }
+        }
+        return copy;
+      }
+
+      if (typeof obj !== 'string')
+        return obj;
+
+      if (!obj.startsWith(OMS4WEB_REF)) return obj;
+
+      const path = obj.substring(OMS4WEB_REF.length);
+      const result = query(path, vaultData.entries) ?? '(invalid reference)';
+
+      if (typeof result === 'string') return result;
+      return (result as CustomField).value;
+    }
+
+    const query = (path: string, json: any) => {
+      return JSONPath({
+        path: path,
+        json: vaultData.entries
+      })?.[0]
+    }
+
+    return deepMap(entry) as PasswordEntry
+  }, [vaultData]);
+
   return {
     vaultState,
     vaultData: vaultData,
@@ -321,5 +373,6 @@ export function useEncryptedVault() {
     importEntries,
     exportData,
     updateSettings: setSettings,
+    applyRef
   };
 }

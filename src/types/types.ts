@@ -1,11 +1,12 @@
 import { DBSchema } from "idb";
 import { VAULT_STORE, KEY_REQUEST_STORE } from "@/lib/db";
+import { customFieldProtectionPropertyName } from "@/lib/constants";
 
 export interface CustomField {
   id: string;
   label: string;
   value: string;
-  protection: CustomFieldProtection
+  [customFieldProtectionPropertyName]: CustomFieldProtection
   readonly: boolean;
 }
 

@@ -1,4 +1,6 @@
 import {
+  useCallback,
+  useEffect,
   useMemo,
   useState
 } from 'react';
@@ -13,7 +15,8 @@ import {
   Hash,
   QrCode,
   Webhook,
-  Link
+  Link,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -53,9 +56,10 @@ interface PasswordCardProps {
   onDelete: (id: string) => void;
   onSoftDelete: (entry: PasswordEntry) => void;
   onTagClick: (tag: string) => void;
+  applyRef: (entry: PasswordEntry) => PasswordEntry;
 }
 
-export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick }: PasswordCardProps) {
+export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick, applyRef }: PasswordCardProps) {
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
   const [referenceMode, setReferenceMode] = useState(false);
@@ -63,17 +67,28 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
   const env = useMemo(() => getEnvironment(), []);
 
+  const entryToDisplay = applyRef(entry);
+
+  const underConstruction = useCallback(() => {
+    toast({
+      title: 'TODO!',
+      description: `Not yet implemented`,
+    });
+  }, [toast]);
+
   const handleDelete = () => {
     if (isDeleted) {
-      onDelete(entry.id);
+      onDelete(entryToDisplay.id);
     } else {
-      onSoftDelete(entry);
+      onSoftDelete(entryToDisplay);
     }
   };
   const isAirGapField = (value: string) => value?.startsWith(OMS_PREFIX);
 
-  const copyReference = (path: string) => {
-    const ref = `${OMS4WEB_REF}${entry.id}.${path}`;
+  const copyReference = (path: string, value: string) => {
+    const ref = value.startsWith(OMS4WEB_REF) ?
+      value /* is already a ref to another object */ :
+      `${OMS4WEB_REF}$.[?(@.id=='${entryToDisplay.id}')].${path}`;
     copyToClipboard(ref, 'Reference');
   };
 
@@ -104,27 +119,34 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-lg truncate text-foreground">{entry.title}</h3>
-            {entry.url && (
+            <h3 className="font-semibold text-lg truncate text-foreground">{entryToDisplay.title}</h3>
+            {entryToDisplay.url && (
               <div className="flex items-center gap-1 max-w-full">
                 <a
-                  href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`}
+                  href={entryToDisplay.url.startsWith('http') ? entryToDisplay.url : `https://${entryToDisplay.url}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors min-w-0"
                 >
-                  <span className="truncate">{entry.url}</span>
+                  <span className="truncate">{entryToDisplay.url}</span>
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 </a>
                 {!referenceMode && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entry.url!, 'URL')}>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entryToDisplay.url!, 'URL')}>
                     <Copy className="h-3 w-3" />
                   </Button>
                 )}
                 {referenceMode && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyReference('url')} title="Copy reference">
-                    <Link className="h-3 w-3" />
-                  </Button>
+                  <>
+                    {entry.url.startsWith(OMS4WEB_REF) && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => underConstruction()} title="Locate source">
+                        <MapPin className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyReference('url', entry.url)} title="Copy reference">
+                      <Link className="h-3 w-3" />
+                    </Button>
+                  </>
                 )}
               </div>
             )}
@@ -146,8 +168,8 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                       <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
                       <AlertDialogDescription>
                         {isDeleted
-                          ? `Are you sure you want to permanently delete "${entry.title}"? This action cannot be undone.`
-                          : `"${entry.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
+                          ? `Are you sure you want to permanently delete "${entryToDisplay.title}"? This action cannot be undone.`
+                          : `"${entryToDisplay.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -175,33 +197,40 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {entry.username && (
+        {entryToDisplay.username && (
           <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">Username</p>
-              <p className="text-sm font-mono truncate">{entry.username}</p>
+              <p className="text-sm font-mono truncate">{entryToDisplay.username}</p>
             </div>
             <div className="flex gap-1 flex-shrink-0">
               {!referenceMode && (
-                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.username, 'Username')}>
+                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.username, 'Username')}>
                   <Copy className="h-4 w-4" />
                 </Button>
               )}
               {referenceMode && (
-                <Button variant="ghost" size="icon" onClick={() => copyReference('username')} title="Copy reference">
-                  <Link className="h-4 w-4" />
-                </Button>
+                <>
+                  {entry.username.startsWith(OMS4WEB_REF) && (
+                    <Button variant="ghost" size="icon" onClick={e => underConstruction()} title="Locate source">
+                      <MapPin className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => copyReference('username', entry.username)} title="Copy reference">
+                    <Link className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
         )}
 
-        {entry.password && (
+        {entryToDisplay.password && (
           <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">Password</p>
               <p className="text-sm font-mono truncate">
-                {maskValue(entry.password)}
+                {maskValue(entryToDisplay.password)}
               </p>
             </div>
             <div className="flex gap-1 flex-shrink-0">
@@ -210,7 +239,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                   {!env.android && (<Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setQrDialogValue(entry.password)}
+                    onClick={() => setQrDialogValue(entryToDisplay.password)}
                     title="Air Gap - Show QR Code">
                     <QrCode className="h-4 w-4" />
                   </Button>)}
@@ -219,25 +248,32 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleIntent(entry.password)}>
+                        onClick={() => handleIntent(entryToDisplay.password)}>
                         <Webhook className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.password, 'Password')}>
+                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.password, 'Password')}>
                         <Copy className="h-4 w-4" />
                       </Button>
                     </>
                   )}
                 </>)}
               {referenceMode && (
-                <Button variant="ghost" size="icon" onClick={() => copyReference('password')} title="Copy reference">
-                  <Link className="h-4 w-4" />
-                </Button>
+                <>
+                  {entry.password.startsWith(OMS4WEB_REF) && (
+                    <Button variant="ghost" size="icon" onClick={e => underConstruction()} title="Locate source">
+                      <MapPin className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => copyReference('password', entry.password)} title="Copy reference">
+                    <Link className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
         )}
 
-        {entry.customFields.map(field => (
+        {entryToDisplay.customFields.map((field, i) => (
           <div key={field.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">{field.label}</p>
@@ -282,38 +318,52 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                 </>
               )}
               {referenceMode && (
-                <Button variant="ghost" size="icon" onClick={() => copyReference(`customFields[${field.id}]`)} title="Copy reference">
-                  <Link className="h-4 w-4" />
-                </Button>
+                <>
+                  {entry.customFields[i].value.startsWith(OMS4WEB_REF) && (
+                    <Button variant="ghost" size="icon" onClick={e => underConstruction()} title="Locate source">
+                      <MapPin className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => copyReference(`customFields[?(@.id == '${field.id}')]`, entry.customFields[i].value)} title="Copy reference">
+                    <Link className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
         ))}
 
-        {entry.notes && (
+        {entryToDisplay.notes && (
           <div className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/50">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground mb-1">Notes</p>
-              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{entry.notes}</p>
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{entryToDisplay.notes}</p>
             </div>
             {referenceMode && (
-              <Button variant="ghost" size="icon" onClick={() => copyReference('notes')} title="Copy reference">
-                <Link className="h-4 w-4" />
-              </Button>
+              <>
+                {entry.notes.startsWith(OMS4WEB_REF) && (
+                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => underConstruction()} title="Locate source">
+                    <MapPin className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" onClick={() => copyReference('notes', entry.notes)} title="Copy reference">
+                  <Link className="h-4 w-4" />
+                </Button>
+              </>
             )}
           </div>
         )}
 
-        {entry.hashtags.length > 0 && (
+        {entryToDisplay.hashtags.length > 0 && (
           <ScrollArea className="w-px min-w-full whitespace-nowrap pt-2">
             <div className="flex w-max space-x-2 pb-3">
-              {entry.hashtags.map((tag) => (
+              {entryToDisplay.hashtags.map((tag) => (
                 <Badge
                   key={tag}
                   variant={tag === DELETED_TAG ? 'destructive' : 'secondary'}
                   className={`cursor-pointer transition-colors ${tag === DELETED_TAG
-                      ? 'hover:bg-destructive/80'
-                      : 'hover:bg-primary hover:text-primary-foreground'
+                    ? 'hover:bg-destructive/80'
+                    : 'hover:bg-primary hover:text-primary-foreground'
                     }`}
                   onClick={() => onTagClick(tag)}
                 >

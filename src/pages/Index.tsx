@@ -46,6 +46,7 @@ const Index = () => {
     startWithEmptyVault,
     lockVault,
     unlockPin,
+    applyRef,
   } = useEncryptedVault();
 
   const { toast } = useToast();
@@ -354,6 +355,7 @@ const Index = () => {
                   onDelete={deleteEntry}
                   onSoftDelete={handleSoftDelete}
                   onTagClick={setSelectedTag}
+                  applyRef={applyRef}
                 />
               </div>
             ))}
