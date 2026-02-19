@@ -350,10 +350,14 @@ export function useEncryptedVault() {
     }
 
     const query = (path: string, json: any) => {
-      return JSONPath({
-        path: path,
-        json: vaultData.entries
-      })?.[0]
+      try {
+        return JSONPath({
+          path: path,
+          json: vaultData.entries
+        })?.[0]
+      } catch (err) {
+        console.log(err)
+      }
     }
 
     return deepMap(entry) as PasswordEntry
