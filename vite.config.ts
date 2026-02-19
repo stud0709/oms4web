@@ -53,9 +53,6 @@ export default defineConfig(({ mode, command }) => {
             }
           ]
         },
-        workbox: {
-          navigateFallback: `${base}index.html`
-        }
       })
     ].filter(Boolean),
     resolve: {
