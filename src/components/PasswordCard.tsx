@@ -40,6 +40,10 @@ import {
   handleIntent,
   getEnvironment
 } from '@/hooks/useEncryptedVault';
+import {
+  ScrollArea,
+  ScrollBar
+} from '@/components/ui/scroll-area';
 
 const DELETED_TAG = 'deleted';
 
@@ -301,22 +305,26 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
         )}
 
         {entry.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-2">
-            {entry.hashtags.map(tag => (
-              <Badge
-                key={tag}
-                variant={tag === DELETED_TAG ? 'destructive' : 'secondary'}
-                className={`cursor-pointer transition-colors ${tag === DELETED_TAG
-                  ? 'hover:bg-destructive/80'
-                  : 'hover:bg-primary hover:text-primary-foreground'
-                  }`}
-                onClick={() => onTagClick(tag)}
-              >
-                <Hash className="h-3 w-3 mr-0.5" />
-                {tag}
-              </Badge>
-            ))}
-          </div>
+          <ScrollArea className="w-px min-w-full whitespace-nowrap pt-2">
+            <div className="flex w-max space-x-2 pb-3">
+              {entry.hashtags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant={tag === DELETED_TAG ? 'destructive' : 'secondary'}
+                  className={`cursor-pointer transition-colors ${tag === DELETED_TAG
+                      ? 'hover:bg-destructive/80'
+                      : 'hover:bg-primary hover:text-primary-foreground'
+                    }`}
+                  onClick={() => onTagClick(tag)}
+                >
+                  <Hash className="h-3 w-3 mr-0.5" />
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+            {/* orientation="horizontal" is the key here */}
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         )}
       </CardContent>
 
