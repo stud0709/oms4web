@@ -227,12 +227,11 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input
@@ -473,8 +472,8 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
               </div>
             ))}
           </div>
-          </div>
-          <DialogFooter className="pt-4 border-t border-border shrink-0">
+
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
