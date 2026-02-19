@@ -112,11 +112,9 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                   <span className="truncate">{entry.url}</span>
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 </a>
-                {!referenceMode && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entry.url!, 'URL')}>
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                )}
+                <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entry.url!, 'URL')}>
+                  <Copy className="h-3 w-3" />
+                </Button>
                 {referenceMode && (
                   <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyReference('url')} title="Copy reference">
                     <Link className="h-3 w-3" />
@@ -124,7 +122,48 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                 )}
               </div>
             )}
-          </div>          
+          </div>
+          <div className="flex gap-1">
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {isDeleted
+                        ? `Are you sure you want to permanently delete "${entry.title}"? This action cannot be undone.`
+                        : `"${entry.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      {isDeleted ? 'Delete Permanently' : 'Move to Deleted'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            <div className={`transition-opacity ${referenceMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setReferenceMode(prev => !prev)}
+                className={referenceMode ? 'text-primary' : ''}
+                title="Toggle reference mode"
+              >
+                <Link className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -135,11 +174,9 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               <p className="text-sm font-mono truncate">{entry.username}</p>
             </div>
             <div className="flex gap-1">
-              {!referenceMode && (
-                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.username, 'Username')}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              )}
+              <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.username, 'Username')}>
+                <Copy className="h-4 w-4" />
+              </Button>
               {referenceMode && (
                 <Button variant="ghost" size="icon" onClick={() => copyReference('username')} title="Copy reference">
                   <Link className="h-4 w-4" />
@@ -158,29 +195,26 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               </p>
             </div>
             <div className="flex gap-1">
-              {!referenceMode && (
+              {!env.android && (<Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setQrDialogValue(entry.password)}
+                title="Air Gap - Show QR Code">
+                <QrCode className="h-4 w-4" />
+              </Button>)}
+              {env.android && (
                 <>
-                  {!env.android && (<Button
+                  <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setQrDialogValue(entry.password)}
-                    title="Air Gap - Show QR Code">
-                    <QrCode className="h-4 w-4" />
-                  </Button>)}
-                  {env.android && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleIntent(entry.password)}>
-                        <Webhook className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.password, 'Password')}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                </>)}
+                    onClick={() => handleIntent(entry.password)}>
+                    <Webhook className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.password, 'Password')}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
               {referenceMode && (
                 <Button variant="ghost" size="icon" onClick={() => copyReference('password')} title="Copy reference">
                   <Link className="h-4 w-4" />
@@ -201,38 +235,34 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               </p>
             </div>
             <div className="flex gap-1">
-              {!referenceMode && (
+              {isAirGapField(field.value) && (
                 <>
-                  {isAirGapField(field.value) && (
-                    <>
-                      {!env.android && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setQrDialogValue(field.value)}
-                          title="Air Gap - Show QR Code">
-                          <QrCode className="h-4 w-4" />
-                        </Button>)}
-                      {env.android && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleIntent(field.value)}>
-                          <Webhook className="h-4 w-4" />
-                        </Button>)}
-                    </>
-                  )}
-                  {field.protection === 'secret' && (
-                    <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
-                      {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  )}
-                  {(!isAirGapField(field.value) || env.android) && (
-                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  )}
+                  {!env.android && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setQrDialogValue(field.value)}
+                      title="Air Gap - Show QR Code">
+                      <QrCode className="h-4 w-4" />
+                    </Button>)}
+                  {env.android && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleIntent(field.value)}>
+                      <Webhook className="h-4 w-4" />
+                    </Button>)}
                 </>
+              )}
+              {field.protection === 'secret' && (
+                <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
+                  {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              )}
+              {(!isAirGapField(field.value) || env.android) && (
+                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
               )}
               {referenceMode && (
                 <Button variant="ghost" size="icon" onClick={() => copyReference(`customFields[${field.id}]`)} title="Copy reference">
@@ -257,8 +287,8 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
           </div>
         )}
 
-        <div className="flex items-start justify-between gap-2 pt-2">
-          <div className="flex flex-wrap gap-1.5 flex-1">
+        {entry.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-2">
             {entry.hashtags.map(tag => (
               <Badge
                 key={tag}
@@ -274,50 +304,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               </Badge>
             ))}
           </div>
-          <div className="flex gap-1">
-            {!referenceMode && (
-              <div className={`flex gap-1 ${env.android ? 'opacity-100' : "opacity-0 group-hover:opacity-100 transition-opacity"}`}>
-                <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {isDeleted
-                          ? `Are you sure you want to permanently delete "${entry.title}"? This action cannot be undone.`
-                          : `"${entry.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        {isDeleted ? 'Delete Permanently' : 'Move to Deleted'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
-          </div>
-          <div className={`transition-opacity ${(referenceMode || env.android) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`${referenceMode ? 'text-primary' : ''}`}
-              onClick={() => setReferenceMode(prev => !prev)}
-              title="Toggle reference mode"
-            >
-              <Link className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        )}
       </CardContent>
 
       {/* Air Gap QR Code Dialog */}
