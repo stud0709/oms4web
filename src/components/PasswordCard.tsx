@@ -98,7 +98,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
   return (
     <Card className="group transition-all duration-300 hover:shadow-glow hover:border-primary/30">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-lg truncate text-foreground">{entry.title}</h3>
             {entry.url && (
@@ -125,7 +125,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               </div>
             )}
           </div>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1 self-end sm:self-start">
             {!referenceMode && (
               <div className={`flex gap-1 ${env.android ? 'opacity-100' : "opacity-0 group-hover:opacity-100 transition-opacity"}`}>
                 <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
@@ -177,7 +177,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               <p className="text-xs text-muted-foreground">Username</p>
               <p className="text-sm font-mono truncate">{entry.username}</p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-shrink-0">
               {!referenceMode && (
                 <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entry.username, 'Username')}>
                   <Copy className="h-4 w-4" />
@@ -200,7 +200,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                 {maskValue(entry.password)}
               </p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-shrink-0">
               {!referenceMode && (
                 <>
                   {!env.android && (<Button
@@ -243,7 +243,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                   : field.value}
               </p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-shrink-0">
               {!referenceMode && (
                 <>
                   {isAirGapField(field.value) && (
