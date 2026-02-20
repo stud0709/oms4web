@@ -361,13 +361,8 @@ const Index = () => {
             />
           </div>
           <SearchBar value={search} onChange={handleSearchChange} />
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container max-w-4xl px-4 py-6">
-        {allTags.length > 0 && (
-          <div className="mb-6">
+          {allTags.length > 0 && (
+          <div className="mt-6">
             <HashtagFilter
               tags={allTags}
               selectedTag={selectedTag}
@@ -375,7 +370,11 @@ const Index = () => {
             />
           </div>
         )}
+        </div>
+      </header>
 
+      {/* Main Content */}
+      <main className="container max-w-4xl px-4 py-6">        
         {filteredEntries.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredEntries.map((entry, index) => (
