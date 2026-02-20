@@ -311,6 +311,13 @@ const Index = () => {
     );
   }
 
+  const handleSelectedTag = (tag: string) =>{
+    if(search?.startsWith(OMS4WEB_REF)){
+      setSearch('');
+    }
+    setSelectedTag(tag);
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -364,7 +371,7 @@ const Index = () => {
             <HashtagFilter
               tags={allTags}
               selectedTag={selectedTag}
-              onSelectTag={setSelectedTag}
+              onSelectTag={handleSelectedTag}
             />
           </div>
         )}
