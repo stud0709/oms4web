@@ -30,6 +30,8 @@ import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { OMS4WEB_REF, passwordReadOnlyPropertyName } from '@/lib/constants';
+import { JSONPath } from 'jsonpath-plus';
 
 const Index = () => {
   const {
@@ -57,7 +59,7 @@ const Index = () => {
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<string | null>(null);
   const allTags = getAllHashtags();
-  
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -80,11 +82,28 @@ const Index = () => {
       });
     }
   }, [needRefresh, updateServiceWorker, setNeedRefresh]);
-  
+
 
   const DELETED_TAG = 'deleted';
 
   const filteredEntries = useMemo(() => {
+    if (search?.startsWith(OMS4WEB_REF)) {
+      const path = search.substring(OMS4WEB_REF.length);
+      try {
+        const result = JSONPath({
+          path: path,
+          json: vaultData.entries
+        }) as PasswordEntry[];
+        if (result.length && passwordReadOnlyPropertyName in result[0]) {
+            return result;
+        }
+        throw "Result is not PasswordEntry[]"
+      } catch (err) {
+        console.log(err);
+        toast({ title: 'Invalid JSONPath query', description: `${err}` });
+        
+      }
+    }
     return vaultData.entries.filter(entry => {
       const matchesSearch = !search ||
         entry.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -132,6 +151,15 @@ const Index = () => {
       setEditingEntry(null);
     }
   };
+
+  const handleSearchChange = (value: string) => {
+    if (value.startsWith(OMS4WEB_REF)) {
+      //clear tag selection
+      setSelectedTag(null)
+    }
+
+    setSearch(value)
+  }
 
   const handleExport = async () => {
     const data = exportData();
@@ -325,7 +353,7 @@ const Index = () => {
               onChange={handleImport}
             />
           </div>
-          <SearchBar value={search} onChange={setSearch} />
+          <SearchBar value={search} onChange={handleSearchChange} />
         </div>
       </header>
 
@@ -356,6 +384,7 @@ const Index = () => {
                   onSoftDelete={handleSoftDelete}
                   onTagClick={setSelectedTag}
                   applyRef={applyRef}
+                  setSearch={setSearch}
                 />
               </div>
             ))}
@@ -375,8 +404,8 @@ const Index = () => {
                 </p>
                 <p className="text-muted-foreground mb-6 max-w-sm">
                   🚀 To start, follow the <a
-                   target="_blank" 
-                   className="inline-flex items-center gap-1 text-primary hover:opacity-80 transition-opacity"
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-primary hover:opacity-80 transition-opacity"
                     href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide<ExternalLink className="h-5 w-5" /></a>
                 </p>
                 <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">

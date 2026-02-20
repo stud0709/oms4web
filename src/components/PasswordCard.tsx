@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useState
 } from 'react';
@@ -57,9 +56,17 @@ interface PasswordCardProps {
   onSoftDelete: (entry: PasswordEntry) => void;
   onTagClick: (tag: string) => void;
   applyRef: (entry: PasswordEntry) => PasswordEntry;
+  setSearch: React.Dispatch<React.SetStateAction<string>>
 }
 
-export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick, applyRef }: PasswordCardProps) {
+export function PasswordCard({
+  entry,
+  onEdit,
+  onDelete,
+  onSoftDelete,
+  onTagClick,
+  applyRef,
+  setSearch }: PasswordCardProps) {
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
   const [referenceMode, setReferenceMode] = useState(false);
@@ -68,13 +75,6 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
   const env = useMemo(() => getEnvironment(), []);
 
   const entryToDisplay = applyRef(entry);
-
-  const underConstruction = useCallback(() => {
-    toast({
-      title: 'TODO!',
-      description: `Not yet implemented`,
-    });
-  }, [toast]);
 
   const handleDelete = () => {
     if (isDeleted) {
@@ -112,6 +112,14 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
     });
   };
 
+  const locateSource = (ref: string) => {
+    if (!ref.startsWith(OMS4WEB_REF)) return;
+    const match = /.*?\]/.exec(ref);
+    if (match) {
+      setSearch(match[0]);
+    }
+  }
+
   const maskValue = (value: string) => '•'.repeat(Math.min(value.length, 16));
 
   return (
@@ -139,7 +147,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
                 {referenceMode && (
                   <>
                     {entry.url.startsWith(OMS4WEB_REF) && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => underConstruction()} title="Locate source">
+                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => locateSource(entry.url)} title="Locate source">
                         <MapPin className="h-3 w-3" />
                       </Button>
                     )}
@@ -212,7 +220,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               {referenceMode && (
                 <>
                   {entry.username.startsWith(OMS4WEB_REF) && (
-                    <Button variant="ghost" size="icon" onClick={e => underConstruction()} title="Locate source">
+                    <Button variant="ghost" size="icon" onClick={e => locateSource(entry.username)} title="Locate source">
                       <MapPin className="h-4 w-4" />
                     </Button>
                   )}
@@ -260,7 +268,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               {referenceMode && (
                 <>
                   {entry.password.startsWith(OMS4WEB_REF) && (
-                    <Button variant="ghost" size="icon" onClick={e => underConstruction()} title="Locate source">
+                    <Button variant="ghost" size="icon" onClick={e => locateSource(entry.password)} title="Locate source">
                       <MapPin className="h-4 w-4" />
                     </Button>
                   )}
@@ -320,7 +328,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
               {referenceMode && (
                 <>
                   {entry.customFields[i].value.startsWith(OMS4WEB_REF) && (
-                    <Button variant="ghost" size="icon" onClick={e => underConstruction()} title="Locate source">
+                    <Button variant="ghost" size="icon" onClick={e => locateSource(entry.customFields[i].value)} title="Locate source">
                       <MapPin className="h-4 w-4" />
                     </Button>
                   )}
@@ -342,7 +350,7 @@ export function PasswordCard({ entry, onEdit, onDelete, onSoftDelete, onTagClick
             {referenceMode && (
               <>
                 {entry.notes.startsWith(OMS4WEB_REF) && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => underConstruction()} title="Locate source">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => locateSource(entry.notes)} title="Locate source">
                     <MapPin className="h-4 w-4" />
                   </Button>
                 )}

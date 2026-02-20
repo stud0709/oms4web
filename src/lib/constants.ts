@@ -55,7 +55,8 @@ export const
   OMS_PREFIX = 'oms00_',
   SW_BASE = '/oms4web/',
   OMS4WEB_REF = 'oms4web://',
-  customFieldProtectionPropertyName = 'protection';
+  customFieldProtectionPropertyName = 'protection',
+  passwordReadOnlyPropertyName = "passwordReadonly";
 
 
 

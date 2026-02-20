@@ -1,6 +1,6 @@
 import { DBSchema } from "idb";
 import { VAULT_STORE, KEY_REQUEST_STORE } from "@/lib/db";
-import { customFieldProtectionPropertyName } from "@/lib/constants";
+import { customFieldProtectionPropertyName, passwordReadOnlyPropertyName } from "@/lib/constants";
 
 export interface CustomField {
   id: string;
@@ -17,7 +17,7 @@ export interface PasswordEntry {
   title: string;
   username: string;
   password: string;
-  passwordReadonly: boolean;
+  [passwordReadOnlyPropertyName]: boolean;
   url: string;
   notes: string;
   hashtags: string[];
