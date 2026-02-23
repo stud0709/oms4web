@@ -1,6 +1,18 @@
 import { DBSchema } from "idb";
-import { VAULT_STORE, KEY_REQUEST_STORE, QUICK_UNLOCK_STORE } from "@/lib/db";
-import { CUSTOM_FIELD_PROTECTION_PROPERTY_NAME, ENTRIES_PROPERTY_NAME, PASSWORD_READONLY_PROPERTY_NAME, SETTINGS_PROPERTY_NAME } from "@/lib/constants";
+
+import {
+  VAULT_STORE,
+  VAULT_STORE_V2,
+  KEY_REQUEST_STORE,
+  QUICK_UNLOCK_STORE
+} from "@/lib/db";
+
+import {
+  CUSTOM_FIELD_PROTECTION_PROPERTY_NAME,
+  ENTRIES_PROPERTY_NAME,
+  PASSWORD_READONLY_PROPERTY_NAME,
+  SETTINGS_PROPERTY_NAME
+} from "@/lib/constants";
 
 export interface CustomField {
   id: string;
@@ -48,10 +60,17 @@ export interface OmsDbSchema extends DBSchema {
     key: string;
     value: string;
   };
+
+  [VAULT_STORE_V2]: {
+    key: string;
+    value: Uint8Array;
+  };
+
   [KEY_REQUEST_STORE]: {
     key: string;
     value: KeyRequestContext;
   };
+  
   [QUICK_UNLOCK_STORE]: {
     key: string;
     value: QuickUnlockData;

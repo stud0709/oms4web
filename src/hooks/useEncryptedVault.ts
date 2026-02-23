@@ -7,6 +7,7 @@ import {
 import {
   AppSettings,
   CustomField,
+  OmsDbSchema,
   PasswordEntry,
   QuickUnlockData,
   VaultData,
@@ -30,18 +31,18 @@ import {
   OMS4WEB_REF,
   CUSTOM_FIELD_PROTECTION_PROPERTY_NAME,
   ENTRIES_PROPERTY_NAME,
-  SETTINGS_PROPERTY_NAME,
-  AES_TRANSFORMATIONS
+  SETTINGS_PROPERTY_NAME
 } from "@/lib/constants";
 import { encryptVaultData } from '@/lib/fileEncryption';
 import {
   oms4webDbPromise,
   QUICK_UNLOCK_STORE,
   STORAGE_KEY,
-  VAULT_STORE
+  VAULT_STORE as VAULT_STORE_OBSOLETE,
+  VAULT_STORE_V2
 } from '@/lib/db';
 import { JSONPath } from 'jsonpath-plus';
-import { createKeyRequest } from '@/lib/keyRequest';
+import { IDBPDatabase } from 'idb';
 
 const EMPTY_VAULT: VaultData = {
   entries: [],
@@ -99,7 +100,7 @@ export const downloadVault = (vaultName: string, blob: Blob) => {
 export const setQuickUnlock = async (
   vaultAesKeyRaw: Uint8Array,
   workspaceProtection: WorkspaceProtection) => {
-    
+
   const db = await oms4webDbPromise;
 
   if (workspaceProtection === 'quickUnlock') {
@@ -215,8 +216,13 @@ export function useEncryptedVault() {
       }
 
       const db = await oms4webDbPromise;
-      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
       const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
+
+      //OLD FORMAT, REMOVE >>>
+      if (await parseObsoleteStorage(db, quickUnlock)) return;
+      //<<< OLD FORMAT, REMOVE
+
+      const stored = await db.get(VAULT_STORE_V2, STORAGE_KEY);
 
       if (!stored) {
         setVaultState({ status: 'ready' });
@@ -224,30 +230,51 @@ export function useEncryptedVault() {
         return;
       }
 
-      // Check if data is encrypted (only for 'encrypt' protection mode)
-      if (stored.startsWith(OMS_PREFIX)) {
-        const base64Data = stored.slice(OMS_PREFIX.length);
-        const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
+      if (stored[0] === 123 /* ASCII 123 is opening curly brace, should be JSON object */) {
+        try {
+          const json = JSON.parse(new TextDecoder().decode(stored));
+          setVaultData(validateJson(json));
+          setVaultState({ status: 'ready' });
+        } catch (e) {
+          console.error('Failed to parse stored data, starting with empty vault', e);
+          setVaultState({ status: 'ready' });
+          setVaultData(EMPTY_VAULT);
+          throw new Error('Failed to parse stored data, starting with empty vault');
+        }
+      } else {
+        //encrypted
         setVaultState({
           status: 'encrypted',
-          encryptedData: binary,
+          encryptedData: stored,
           quickUnlock
         });
-        return;
-      }
-
-      // Try to parse as plain JSON
-      try {
-        setVaultData(JSON.parse(stored));
-        setVaultState({ status: 'ready' });
-      } catch (e) {
-        console.error('Failed to parse stored data, starting with empty vault', e);
-        setVaultState({ status: 'ready' });
-        setVaultData(EMPTY_VAULT);
-        throw new Error('Failed to parse stored data, starting with empty vault');
       }
     })();
+  }, []);
+
+  /** OLD FORMAT, REMOVE */
+  const parseObsoleteStorage = useCallback(async (db: IDBPDatabase<OmsDbSchema>, quickUnlock: QuickUnlockData) => {
+    const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+    if (!stored) return false;
+
+    if (stored.startsWith(OMS_PREFIX)) {
+      //encrypted version
+      const base64Data = stored.slice(OMS_PREFIX.length);
+      const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+      setVaultState({
+        status: 'encrypted',
+        encryptedData: binary,
+        quickUnlock
+      });
+    } else {
+      //plain JSON
+      const json = JSON.parse(stored);
+      setVaultData(validateJson(json));
+      setVaultState({ status: 'ready' });
+    }
+
+    return true;
   }, []);
 
   // Save vault when data changes 
@@ -256,6 +283,8 @@ export function useEncryptedVault() {
 
     (async () => {
       const jsonData = JSON.stringify(vaultData);
+      const dataBytes = new TextEncoder().encode(jsonData);
+
       const db = await oms4webDbPromise;
 
       // Only encrypt if we have a valid public key, and workspace protection is activated
@@ -263,21 +292,22 @@ export function useEncryptedVault() {
         && vaultData.settings.workspaceProtection !== 'none') {
         try {
           const encryptedBytes = await encryptVaultData(
-            jsonData,
+            dataBytes,
             vaultData.settings
           );
-          // Encode as OMS text format for indexDb
-          const encoded = OMS_PREFIX + btoa(String.fromCharCode(...encryptedBytes));
-          await db.put(VAULT_STORE, encoded, STORAGE_KEY);
-          return;
+          await db.put(VAULT_STORE_V2, encryptedBytes, STORAGE_KEY);
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
           throw new Error('Failed to encrypt vault, saving as plain JSON');
         }
+      } else {
+        // Save as plain JSON for 'none' and 'pin' modes, or as fallback
+        await db.put(VAULT_STORE_V2, dataBytes, STORAGE_KEY);
       }
 
-      // Save as plain JSON for 'none' and 'pin' modes, or as fallback
-      await db.put(VAULT_STORE, jsonData, STORAGE_KEY);
+      //OLD FORMAT, REMOVE >>>
+      db.delete(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+      //<<< OLD FORMAT, REMOVE
     })();
   }, [vaultData, vaultState.status]);
 
@@ -329,19 +359,16 @@ export function useEncryptedVault() {
     }
   }, []);
 
-  const startWithEmptyVault = useCallback(async () => {
+  const startWithEmptyVault = useCallback(() => {
     setVaultData(EMPTY_VAULT);
     setVaultState({ status: 'ready' });
-    // Save empty vault
-    const db = await oms4webDbPromise;
-    db.put(VAULT_STORE, STORAGE_KEY, JSON.stringify(EMPTY_VAULT));
   }, []);
 
   const lockVault = useCallback(() => {
     (async () => {
       // Re-read from storage and reset state to trigger unlock flow
       const db = await oms4webDbPromise;
-      const stored = await db.get(VAULT_STORE, STORAGE_KEY);
+      const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
       const base64Data = stored.slice(OMS_PREFIX.length);
       const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
@@ -460,7 +487,7 @@ export function useEncryptedVault() {
           if (customField.value.startsWith(OMS4WEB_REF)) {
             //inherit protection mode as well
             const path = customField.value.substring(OMS4WEB_REF.length);
-            (copy as CustomField).protection = (query(path, vaultData) as CustomField)?.protection || customField.protection;
+            (copy as CustomField).protection = (query(path) as CustomField)?.protection || customField.protection;
           }
         }
         return copy;
@@ -472,13 +499,13 @@ export function useEncryptedVault() {
       if (!obj.startsWith(OMS4WEB_REF)) return obj;
 
       const path = obj.substring(OMS4WEB_REF.length);
-      const result = query(path, vaultData.entries) ?? '(invalid reference)';
+      const result = query(path) ?? '(invalid reference)';
 
       if (typeof result === 'string') return result;
       return (result as CustomField).value;
     }
 
-    const query = (path: string, json: any) => {
+    const query = (path: string) => {
       try {
         return JSONPath({
           path: path,

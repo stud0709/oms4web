@@ -37,7 +37,7 @@ import { setQuickUnlock } from '@/hooks/useEncryptedVault';
  * (7) AES-encrypted file data (byte array with length prefix)
  */
 export async function encryptVaultData(
-  data: string,
+  dataBytes: Uint8Array,
   settings: AppSettings
 ): Promise<Uint8Array> {
   const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
@@ -67,9 +67,6 @@ export async function encryptVaultData(
 
   // Get fingerprint
   const fingerprint = await getFingerprint(publicKey);
-
-  // Convert data to bytes
-  const dataBytes = new TextEncoder().encode(data);
 
   // Encrypt based on algorithm
   const ivBuffer = toArrayBuffer(iv);
