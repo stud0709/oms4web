@@ -21,6 +21,7 @@ import { RSA_TRANSFORMATIONS } from "./constants";
 import { AES_TRANSFORMATIONS } from "./constants";
 import { APPLICATION_IDS } from "./constants";
 import { AppSettings } from '@/types/types';
+import { setQuickUnlock } from '@/hooks/useEncryptedVault';
 
 /**
  * Create an encrypted file envelope for vault data
@@ -92,6 +93,10 @@ export async function encryptVaultData(
   console.log(`AES transformation: ${aesTransformation.idx} = ${aesTransformation.algorithm}`);
   console.log(`IV: ${toFormattedHex(iv)}`);
   console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
+
+  setQuickUnlock(
+    aesKeyRaw,
+    settings.workspaceProtection);
 
   return finalMessage;
 }

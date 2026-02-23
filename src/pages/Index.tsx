@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button';
 import {
   downloadVault,
   getTimestamp,
-  useEncryptedVault
+  useEncryptedVault,
+  validateJson
 } from '@/hooks/useEncryptedVault';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
@@ -25,12 +26,12 @@ import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
-import { PasswordEntry } from '@/types/types';
+import { PasswordEntry, VaultData } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { OMS4WEB_REF, passwordReadOnlyPropertyName } from '@/lib/constants';
+import { OMS4WEB_REF, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
 import { JSONPath } from 'jsonpath-plus';
 
 const Index = () => {
@@ -43,12 +44,13 @@ const Index = () => {
     getAllHashtags,
     importEntries,
     exportData,
-    updateSettings,
+    setSettings: updateSettings,
     loadDecryptedData,
     startWithEmptyVault,
     lockVault,
     unlockPin,
     applyRef,
+    switchToQuickUnlock,
   } = useEncryptedVault();
 
   const { toast } = useToast();
@@ -57,7 +59,7 @@ const Index = () => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
-  const [importDecryptData, setImportDecryptData] = useState<string | null>(null);
+  const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
   const allTags = getAllHashtags();
 
   const {
@@ -83,7 +85,6 @@ const Index = () => {
     }
   }, [needRefresh, updateServiceWorker, setNeedRefresh]);
 
-
   const DELETED_TAG = 'deleted';
 
   const filteredEntries = useMemo(() => {
@@ -94,14 +95,14 @@ const Index = () => {
           path: path,
           json: vaultData.entries
         }) as PasswordEntry[];
-        if (result.length && passwordReadOnlyPropertyName in result[0]) {
-            return result;
+        if (result.length && PASSWORD_READONLY_PROPERTY_NAME in result[0]) {
+          return result;
         }
         throw "Result is not PasswordEntry[]"
       } catch (err) {
         console.log(err);
         toast({ title: 'Invalid JSONPath query', description: `${err}` });
-        
+
       }
     }
     return vaultData.entries.filter(entry => {
@@ -219,10 +220,7 @@ const Index = () => {
       reader.onload = (e) => {
         const arrayBuffer = e.target?.result as ArrayBuffer;
         const bytes = new Uint8Array(arrayBuffer);
-        // Convert raw binary to OMS format (oms00_ prefix + base64)
-        const base64 = btoa(String.fromCharCode(...bytes));
-        const omsData = `oms00_${base64}`;
-        setImportDecryptData(omsData);
+        setImportDecryptData(bytes);
       };
       reader.readAsArrayBuffer(file);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -236,10 +234,8 @@ const Index = () => {
 
       // Handle plain JSON
       try {
-        const data = JSON.parse(content);
-        if (!data.entries || !Array.isArray(data.entries)) {
-          throw new Error('Invalid format');
-        }
+        const data = validateJson(JSON.parse(content));
+
         backupCurrentVault().then(() => {
           importEntries(data);
           toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
@@ -252,15 +248,11 @@ const Index = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleImportDecrypted = async (decryptedJson: string) => {
+  const handleImportDecrypted = async (vaultData: VaultData) => {
     try {
-      const data = JSON.parse(decryptedJson);
-      if (!data.entries || !Array.isArray(data.entries)) {
-        throw new Error('Invalid format');
-      }
       await backupCurrentVault();
-      importEntries(data);
-      toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
+      importEntries(vaultData);
+      toast({ title: 'Imported', description: `${vaultData.entries.length} entries loaded.` });
     } catch (err) {
       toast({ title: 'Import failed', description: 'Invalid decrypted data format.', variant: 'destructive' });
     }
@@ -281,18 +273,24 @@ const Index = () => {
 
   // Show decrypt dialog if vault is encrypted
   if (vaultState.status === 'encrypted') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <DecryptQrDialog
-          open={true}
-          onOpenChange={() => { }}
-          encryptedData={vaultState.encryptedData}
-          onDecrypted={loadDecryptedData}
-          onSkip={startWithEmptyVault}
-          hideCloseButton
-        />
-      </div>
-    );
+    if (vaultState.quickUnlock) {
+      //decrypt and immediately convert into pin-locked status
+      switchToQuickUnlock(vaultState);
+      return null;
+    } else {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <DecryptQrDialog
+            open={true}
+            onOpenChange={() => { }}
+            encryptedData={vaultState.encryptedData}
+            onDecrypted={loadDecryptedData}
+            onSkip={startWithEmptyVault}
+            hideCloseButton
+          />
+        </div>
+      );
+    }
   }
 
   // Show PIN unlock dialog if vault is pin-locked
@@ -311,8 +309,8 @@ const Index = () => {
     );
   }
 
-  const handleSelectedTag = (tag: string) =>{
-    if(search?.startsWith(OMS4WEB_REF)){
+  const handleSelectedTag = (tag: string) => {
+    if (search?.startsWith(OMS4WEB_REF)) {
       setSearch('');
     }
     setSelectedTag(tag);
@@ -362,19 +360,19 @@ const Index = () => {
           </div>
           <SearchBar value={search} onChange={handleSearchChange} />
           {allTags.length > 0 && (
-          <div className="mt-6">
-            <HashtagFilter
-              tags={allTags}
-              selectedTag={selectedTag}
-              onSelectTag={handleSelectedTag}
-            />
-          </div>
-        )}
+            <div className="mt-6">
+              <HashtagFilter
+                tags={allTags}
+                selectedTag={selectedTag}
+                onSelectTag={handleSelectedTag}
+              />
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container max-w-4xl px-4 py-6">        
+      <main className="container max-w-4xl px-4 py-6">
         {filteredEntries.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredEntries.map((entry, index) => (

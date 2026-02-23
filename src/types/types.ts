@@ -1,12 +1,12 @@
 import { DBSchema } from "idb";
-import { VAULT_STORE, KEY_REQUEST_STORE } from "@/lib/db";
-import { customFieldProtectionPropertyName, passwordReadOnlyPropertyName } from "@/lib/constants";
+import { VAULT_STORE, KEY_REQUEST_STORE, QUICK_UNLOCK_STORE } from "@/lib/db";
+import { CUSTOM_FIELD_PROTECTION_PROPERTY_NAME, ENTRIES_PROPERTY_NAME, PASSWORD_READONLY_PROPERTY_NAME, SETTINGS_PROPERTY_NAME } from "@/lib/constants";
 
 export interface CustomField {
   id: string;
   label: string;
   value: string;
-  [customFieldProtectionPropertyName]: CustomFieldProtection
+  [CUSTOM_FIELD_PROTECTION_PROPERTY_NAME]: CustomFieldProtection
   readonly: boolean;
 }
 
@@ -17,7 +17,7 @@ export interface PasswordEntry {
   title: string;
   username: string;
   password: string;
-  [passwordReadOnlyPropertyName]: boolean;
+  [PASSWORD_READONLY_PROPERTY_NAME]: boolean;
   url: string;
   notes: string;
   hashtags: string[];
@@ -37,6 +37,12 @@ export interface AppSettings {
   expertMode: boolean;
 }
 
+export interface QuickUnlockData {
+  wrapperKey: CryptoKey;
+  wrapperIv: Uint8Array;
+  encryptedVaultKey: Uint8Array;
+}
+
 export interface OmsDbSchema extends DBSchema {
   [VAULT_STORE]: {
     key: string;
@@ -44,19 +50,40 @@ export interface OmsDbSchema extends DBSchema {
   };
   [KEY_REQUEST_STORE]: {
     key: string;
-    value: KeyRequestContext ;
+    value: KeyRequestContext;
+  };
+  [QUICK_UNLOCK_STORE]: {
+    key: string;
+    value: QuickUnlockData;
   };
 }
 
 export interface VaultData {
-  entries: PasswordEntry[];
-  settings: AppSettings;
+  [ENTRIES_PROPERTY_NAME]: PasswordEntry[];
+  [SETTINGS_PROPERTY_NAME]: AppSettings;
 }
 
-export type VaultState = { status: 'loading'; } |
-{ status: 'encrypted'; encryptedData: string; } |
-{ status: 'pin-locked'; aesKey: CryptoKey; salt: Uint8Array<ArrayBuffer>; iv: Uint8Array; encrypted: ArrayBuffer; omsMessage: string; } |
-{ status: 'ready'; };
+export type VaultState = {
+  status: 'loading';
+} |
+{
+  status: 'encrypted';
+  encryptedData: Uint8Array;
+  quickUnlock: QuickUnlockData;
+} |
+{
+  status: 'pin-locked';
+  aesKey: CryptoKey;
+  salt: Uint8Array<ArrayBuffer>;
+  iv: Uint8Array;
+  encryptedData: ArrayBuffer;
+  omsMessage: string;
+} |
+{
+  status: 'ready';
+};
+
+export type VaultStateWithOmsMessage = Extract<VaultState, { omsMessage: string }>;
 
 export interface QrChunk {
   transactionId: string;
@@ -81,13 +108,13 @@ export interface RsaAesEnvelope {
   encryptedData: Uint8Array;
 }
 
-export type WorkspaceProtection = 'none' | 'encrypt' | 'pin';
+export type WorkspaceProtection = 'none' | 'encrypt' | 'pin' | 'quickUnlock';
 // AES Transformations - matching Java AesTransformation enum
 
 export interface AesTransformation {
   idx: number;
   name: string;
-  algorithm: string;
+  algorithm: 'AES-CBC' | 'AES-GCM';
   ivSize: number;
 }
 

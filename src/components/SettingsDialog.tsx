@@ -38,7 +38,7 @@ import {
   RadioGroup,
   RadioGroupItem
 } from '@/components/ui/radio-group';
-import { getEnvironment } from '@/hooks/useEncryptedVault';
+import { getEnvironment, validateSettings } from '@/hooks/useEncryptedVault';
 
 interface SettingsDialogProps {
   settings: AppSettings;
@@ -80,6 +80,9 @@ export function SettingsDialog({
       });
       return;
     }
+
+    validateSettings(newSettings);
+
     onSaveSettings(newSettings);
     toast({ title: 'Settings saved', description: 'Settings have been updated.' });
     setOpen(false);
@@ -134,17 +137,24 @@ export function SettingsDialog({
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
+                  <RadioGroupItem value="quickUnlock" id="protection-qu" className="mt-1" />
                   <div>
-                    <Label htmlFor="protection-encrypt" className="font-normal cursor-pointer">Encrypt Local Storage</Label>
-                    <p className="text-xs text-muted-foreground">Clears memory, displays encryption dialog</p>
+                    <Label htmlFor="protection-qu" className="font-normal cursor-pointer">Quick Unlock</Label>
+                    <p className="text-xs text-muted-foreground">PIN on startup and to unlock workspace</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
                   <div>
                     <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
-                    <p className="text-xs text-muted-foreground">Requires PIN via QR code to unlock</p>
+                    <p className="text-xs text-muted-foreground">Decryption on start, PIN to unlock workspace</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
+                  <div>
+                    <Label htmlFor="protection-encrypt" className="font-normal cursor-pointer">Encrypt Local Storage</Label>
+                    <p className="text-xs text-muted-foreground">Decryption on start and to unlock workspace</p>
                   </div>
                 </div>
               </RadioGroup>
@@ -160,21 +170,21 @@ export function SettingsDialog({
                 onCheckedChange={encryptionEnabled => setNewSettings({ ...newSettings, encryptionEnabled })}
               />
             </div>
+
+            <div className="flex items-center justify-between p-3">
+              <Label htmlFor="encryptionEnabled" className="font-medium">
+                Expert Mode
+              </Label>
+              <Switch
+                id="expertModeEnabled"
+                checked={newSettings.expertMode}
+                onCheckedChange={expertMode => setNewSettings({ ...newSettings, expertMode })}
+              />
+            </div>
           </>)}
-
-          <div className="flex items-center justify-between p-3">
-            <Label htmlFor="encryptionEnabled" className="font-medium">
-              Expert Mode
-            </Label>
-            <Switch
-              id="expertModeEnabled"
-              checked={newSettings.expertMode}
-              onCheckedChange={expertMode => setNewSettings({ ...newSettings, expertMode })}
-            />
-          </div>
-
+          
           {//Expert Mode Settings
-            newSettings.expertMode && (
+            keyValid && newSettings.expertMode && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="rsaTransformation">RSA Transformation</Label>

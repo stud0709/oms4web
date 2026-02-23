@@ -24,8 +24,9 @@ import {
   RSA_TRANSFORMATIONS
 } from "./constants";
 import { OMS_PREFIX } from "./constants";
-import { KeyRequestContext } from "@/types/types";
+import { KeyRequestContext, VaultData } from "@/types/types";
 import { APPLICATION_IDS } from "./constants";
+import { setQuickUnlock as setupQuickUnlock, validateJson } from '@/hooks/useEncryptedVault';
 
 
 /**
@@ -42,7 +43,7 @@ import { APPLICATION_IDS } from "./constants";
  */
 export async function createKeyRequest(
   fileName: string,
-  encryptedData: string,
+  encryptedData: Uint8Array,
   applicationID: number = APPLICATION_IDS.KEY_REQUEST): Promise<KeyRequestContext> {
   // Parse the encrypted envelope
   const envelope = parseRsaAesEnvelope(encryptedData);
@@ -105,7 +106,7 @@ export async function createKeyRequest(
 export async function processKeyResponse(
   keyResponse: string,
   context: KeyRequestContext
-): Promise<string> {
+): Promise<VaultData> {
   // Decode the response
   const responseBytes = Uint8Array.from(atob(keyResponse), c => c.charCodeAt(0));
 
@@ -151,8 +152,16 @@ export async function processKeyResponse(
   // Decrypt file contents
   const ivBuffer = toArrayBuffer(context.envelope.iv);
   console.log(`Decrypting file contents`);
-  const decryptedBytes = await aesDecryptData(aesTransformation, ivBuffer, aesKey, context.envelope.encryptedData);
+  const decryptedBytes = await aesDecryptData(aesTransformation.algorithm, ivBuffer, aesKey, context.envelope.encryptedData);
 
   // Convert to string
-  return new TextDecoder().decode(decryptedBytes);
+  const s = new TextDecoder().decode(decryptedBytes);
+  const vaultData = validateJson(JSON.parse(s));
+
+  //setup QuickUnlock
+  setupQuickUnlock(
+     aesKeyBytes, 
+     vaultData.settings.workspaceProtection);
+
+  return vaultData;
 }

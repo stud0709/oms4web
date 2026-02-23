@@ -37,10 +37,10 @@ export async function parsePublicKey(base64Key: string, rsaTransformationIdx: nu
 /**
  * Generate a random AES key
  */
-export async function generateAesKey(keyLength: number, algorithm: string): Promise<CryptoKey> {
+export async function generateAesKey(keyLength: number, algorithm: string, extractable: boolean = true): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
     { name: algorithm, length: keyLength },
-    true,
+    extractable,
     ['encrypt', 'decrypt']
   );
 }
@@ -261,10 +261,10 @@ export async function aesEncryptData(aesTransformation: AesTransformation, ivBuf
   return encryptedData;
 }
 
-export async function aesDecryptData(aesTransformation: AesTransformation, ivBuffer: ArrayBuffer, aesKey: CryptoKey, encryptedData: Uint8Array): Promise<Uint8Array> {
+export async function aesDecryptData(aesAlgorithm: string, ivBuffer: ArrayBuffer, aesKey: CryptoKey, encryptedData: Uint8Array): Promise<Uint8Array> {
   let decryptedBytes: Uint8Array;
 
-  if (aesTransformation.algorithm === 'AES-GCM') {
+  if (aesAlgorithm === 'AES-GCM') {
     decryptedBytes = new Uint8Array(
       await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: ivBuffer },
@@ -396,14 +396,7 @@ export function toFormattedHex(byteArray: Uint8Array) {
  * Parse RSA x AES envelope from OMS-encoded data
  * Format matches EncryptedFile.java structure
  */
-export function parseRsaAesEnvelope(omsData: string): RsaAesEnvelope {
-  if (!omsData.startsWith(OMS_PREFIX)) {
-    throw new Error('Invalid OMS data format');
-  }
-
-  const base64Data = omsData.slice(OMS_PREFIX.length);
-  const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
+export function parseRsaAesEnvelope(binary: Uint8Array): RsaAesEnvelope {  
   let offset = 0;
 
   // (1) Application ID

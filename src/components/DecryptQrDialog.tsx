@@ -30,10 +30,9 @@ import {
   APPLICATION_IDS,
   INTERVAL_QR_SEQUENCE,
 } from "@/lib/constants";
-import { QrChunk } from "@/types/types";
+import { QrChunk, VaultData } from "@/types/types";
 import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
 import { KeyRequestContext } from '@/types/types';
-import { OMS_PREFIX } from "@/lib/constants";
 import { toast } from '@/hooks/use-toast';
 import {
   downloadVault,
@@ -48,8 +47,8 @@ const LATEST_CONTEXT = 'latest_context';
 interface DecryptQrDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  encryptedData: string;
-  onDecrypted: (data: string) => void;
+  encryptedData: Uint8Array;
+  onDecrypted: (vaultData: VaultData) => void;
   onSkip?: () => void;
   hideCloseButton?: boolean;
 }
@@ -143,17 +142,14 @@ export function DecryptQrDialog({
 
     try {
       // Process the KEY_RESPONSE to decrypt the vault
-      const decryptedData = await processKeyResponse(
+      const vaultData = await processKeyResponse(
         (keyResponse ?? inputValue).trim(),
         keyRequestContext.current
       );
 
-      // Validate JSON
-      JSON.parse(decryptedData);
-
       setStep('success');
       setTimeout(() => {
-        onDecrypted(decryptedData);
+        onDecrypted(vaultData);
         onOpenChange(false);
       }, 1000);
     } catch (err) {
@@ -194,7 +190,9 @@ export function DecryptQrDialog({
   const handleSkip = useCallback(() => {
     // Download backup of encrypted vault data before replacing
     if (encryptedData) {
-      const dataUrl = `data:application/octet-stream;base64,${encryptedData.substring(OMS_PREFIX.length)}`;
+      // Convert raw binary to OMS format (oms00_ prefix + base64)
+      const base64 = btoa(String.fromCharCode(...encryptedData));
+      const dataUrl = `data:application/octet-stream;base64,${base64}`;
       (async () => {
         try {
           const res = await fetch(dataUrl);

@@ -1,11 +1,12 @@
 import { OmsDbSchema } from "@/types/types";
 import { openDB } from "idb";
 
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 export const STORAGE_KEY = 'current';
 export const DB_NAME = 'oms4web';
 export const KEY_REQUEST_STORE = 'key_request_store';
 export const VAULT_STORE = 'vault_data';
+export const QUICK_UNLOCK_STORE = 'quick_unlock_store';
 
 export const oms4webDbPromise = openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
     upgrade(db) {
@@ -17,6 +18,9 @@ export const oms4webDbPromise = openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
 
         if (!db.objectStoreNames.contains(KEY_REQUEST_STORE)) {
             db.createObjectStore(KEY_REQUEST_STORE);
+        }
+        if(!db.objectStoreNames.contains(QUICK_UNLOCK_STORE)){
+            db.createObjectStore(QUICK_UNLOCK_STORE);
         }
     },
     blocked() {

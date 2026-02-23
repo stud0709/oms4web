@@ -8,30 +8,40 @@ import {
   AppSettings,
   CustomField,
   PasswordEntry,
+  QuickUnlockData,
   VaultData,
-  VaultState
+  VaultState,
+  WorkspaceProtection
 } from '@/types/types';
 
 import {
   generateIv,
   toArrayBuffer,
   generateKeyFromPassword,
-  createEncryptedMessage
+  createEncryptedMessage,
+  generateAesKey,
+  aesDecryptData,
+  parseRsaAesEnvelope
 } from '@/lib/crypto';
 import {
   OMS_PREFIX,
   DEFAULT_SETTINGS,
   APPLICATION_IDS,
   OMS4WEB_REF,
-  customFieldProtectionPropertyName
+  CUSTOM_FIELD_PROTECTION_PROPERTY_NAME,
+  ENTRIES_PROPERTY_NAME,
+  SETTINGS_PROPERTY_NAME,
+  AES_TRANSFORMATIONS
 } from "@/lib/constants";
 import { encryptVaultData } from '@/lib/fileEncryption';
 import {
   oms4webDbPromise,
+  QUICK_UNLOCK_STORE,
   STORAGE_KEY,
   VAULT_STORE
 } from '@/lib/db';
 import { JSONPath } from 'jsonpath-plus';
+import { createKeyRequest } from '@/lib/keyRequest';
 
 const EMPTY_VAULT: VaultData = {
   entries: [],
@@ -86,40 +96,105 @@ export const downloadVault = (vaultName: string, blob: Blob) => {
   URL.revokeObjectURL(url);
 }
 
+export const setQuickUnlock = async (
+  vaultAesKeyRaw: Uint8Array,
+  workspaceProtection: WorkspaceProtection) => {
+    
+  const db = await oms4webDbPromise;
+
+  if (workspaceProtection === 'quickUnlock') {
+    //create wrapper key (AES)
+    const wrapperKey = await generateAesKey(256, 'AES-GCM', false);
+    const wrapperIv = generateIv(12);
+
+    //encrypt vault key
+    const encryptedVaultKey = await crypto.subtle.encrypt({
+      name: "AES-GCM",
+      iv: toArrayBuffer(wrapperIv)
+    },
+      wrapperKey,
+      vaultAesKeyRaw.slice().buffer);
+
+    //set data
+    await db.put(
+      QUICK_UNLOCK_STORE,
+      {
+        wrapperKey,
+        wrapperIv,
+        encryptedVaultKey: new Uint8Array(encryptedVaultKey)
+      },
+      STORAGE_KEY
+    );
+  } else {
+    await db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
+  }
+};
+
+export const validateJson = (data: any) => {
+  if (typeof data !== 'object') throw new Error('Invalid format');
+
+  const vd = data as VaultData;
+
+  if (!(ENTRIES_PROPERTY_NAME in vd) || !Array.isArray(vd.entries)) {
+    throw new Error('Invalid format');
+  }
+
+  if (!(SETTINGS_PROPERTY_NAME in vd)) throw new Error('Invalid format');
+
+  validateSettings(vd.settings);
+
+  return vd;
+}
+
+export const validateSettings = (settings: AppSettings) => {
+  settings = { ...DEFAULT_SETTINGS, ...settings };
+
+  if (!settings.publicKey) {
+    settings.workspaceProtection = 'none';
+    settings.encryptionEnabled = false;
+  }
+}
+
+const _encryptAndLock = (vaultData: VaultData, andThen: (vaultState: VaultState) => void) => {
+  const encoded = new TextEncoder().encode(JSON.stringify(vaultData));
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  createEncryptedMessage(
+    `${pin}\n`,
+    vaultData.settings,
+    APPLICATION_IDS.ENCRYPTED_OTP
+  ).then(omsMessage => {
+    generateKeyFromPassword(pin)
+      .then(({ aesKey, salt }) => {
+        const iv = generateIv(12);
+        crypto.subtle.encrypt(
+          {
+            name: "AES-GCM",
+            iv: toArrayBuffer(iv)
+          },
+          aesKey,
+          encoded
+        ).then(encryptedData => {
+          andThen({
+            status: 'pin-locked',
+            aesKey,
+            salt,
+            iv,
+            encryptedData,
+            omsMessage
+          });
+        });
+      });
+  });
+};
+
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
 
   const encryptAndLock = useCallback(() => {
-    const encoded = new TextEncoder().encode(JSON.stringify(vaultData));
-    const pin = String(Math.floor(100000 + Math.random() * 900000));
-    createEncryptedMessage(
-      `${pin}\n`,
-      vaultData.settings,
-      APPLICATION_IDS.ENCRYPTED_OTP
-    ).then(omsMessage => {
-      generateKeyFromPassword(pin)
-        .then(({ aesKey, salt }) => {
-          const iv = generateIv(12);
-          crypto.subtle.encrypt(
-            {
-              name: "AES-GCM",
-              iv: toArrayBuffer(iv)
-            },
-            aesKey,
-            encoded
-          ).then(cipherText => {
-            setVaultState({
-              status: 'pin-locked',
-              aesKey: aesKey,
-              salt: salt,
-              iv: iv,
-              encrypted: cipherText,
-              omsMessage: omsMessage
-            });
-            setVaultData(EMPTY_VAULT);
-          });
-        });
+    _encryptAndLock(vaultData, vaultState => {
+      setVaultState(vaultState);
+      setVaultData(EMPTY_VAULT);
     });
   }, [vaultData]);
 
@@ -141,6 +216,7 @@ export function useEncryptedVault() {
 
       const db = await oms4webDbPromise;
       const stored = await db.get(VAULT_STORE, STORAGE_KEY);
+      const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
 
       if (!stored) {
         setVaultState({ status: 'ready' });
@@ -150,7 +226,14 @@ export function useEncryptedVault() {
 
       // Check if data is encrypted (only for 'encrypt' protection mode)
       if (stored.startsWith(OMS_PREFIX)) {
-        setVaultState({ status: 'encrypted', encryptedData: stored });
+        const base64Data = stored.slice(OMS_PREFIX.length);
+        const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+        setVaultState({
+          status: 'encrypted',
+          encryptedData: binary,
+          quickUnlock
+        });
         return;
       }
 
@@ -198,10 +281,48 @@ export function useEncryptedVault() {
     })();
   }, [vaultData, vaultState.status]);
 
-  const loadDecryptedData = useCallback((jsonData: string) => {
+  const switchToQuickUnlock = async (vaultState: VaultState) => {
+    if (vaultState.status !== 'encrypted') return;
+
+    //decrypt the file key using wrapper key
+    const aesKeyBytes = await crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: toArrayBuffer(vaultState.quickUnlock.wrapperIv)
+      },
+      vaultState.quickUnlock.wrapperKey,
+      vaultState.quickUnlock.encryptedVaultKey.slice().buffer
+    );
+
+    const envelope = parseRsaAesEnvelope(vaultState.encryptedData);
+
+    //restore key
+    const aesKey = await crypto.subtle.importKey(
+      'raw',
+      aesKeyBytes,
+      { name: envelope.aesTransformation.algorithm },
+      false,
+      ['decrypt']
+    );
+
+    // Decrypt file contents
+    const ivBuffer = toArrayBuffer(envelope.iv);
+    const decrypted = await aesDecryptData(
+      envelope.aesTransformation.algorithm,
+      ivBuffer,
+      aesKey,
+      envelope.encryptedData);
+    const decoded = new TextDecoder().decode(decrypted);
+    const vaultData = validateJson(JSON.parse(decoded));
+
+    _encryptAndLock(vaultData, vaultStatePinLocked => setVaultState(vaultStatePinLocked));
+  };
+
+  const loadDecryptedData = useCallback((vaultData: VaultData) => {
     try {
-      setVaultData(JSON.parse(jsonData));
+      setVaultData(vaultData);
       setVaultState({ status: 'ready' });
+      return vaultData;
     } catch (e) {
       console.error('Failed to parse decrypted data', e);
       throw new Error('Invalid decrypted data format');
@@ -221,13 +342,21 @@ export function useEncryptedVault() {
       // Re-read from storage and reset state to trigger unlock flow
       const db = await oms4webDbPromise;
       const stored = await db.get(VAULT_STORE, STORAGE_KEY);
+      const base64Data = stored.slice(OMS_PREFIX.length);
+      const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+      const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
 
       // Encrypt on Lock
       if (vaultData.settings.workspaceProtection === 'encrypt' ||
         //enforce this mode on android device if PIN has been configured
         (vaultData.settings.workspaceProtection === 'pin' && getEnvironment().android)
       ) {
-        setVaultState({ status: 'encrypted', encryptedData: stored });
+        setVaultState({
+          status: 'encrypted',
+          encryptedData: binary,
+          quickUnlock
+        });
         setVaultData(EMPTY_VAULT);
         return;
       }
@@ -248,10 +377,10 @@ export function useEncryptedVault() {
           iv: toArrayBuffer(vaultState.iv)
         },
         aesKey,
-        vaultState.encrypted
+        vaultState.encryptedData
       );
       const decoded = new TextDecoder().decode(decrypted);
-      const data = JSON.parse(decoded);
+      const data = validateJson(JSON.parse(decoded));
 
       // PIN was verified, transition to ready state
       setVaultData(data);
@@ -326,7 +455,7 @@ export function useEncryptedVault() {
             copy[key] = deepMap(obj[key]);
           }
         }
-        if (customFieldProtectionPropertyName in obj) {
+        if (CUSTOM_FIELD_PROTECTION_PROPERTY_NAME in obj) {
           const customField = obj as CustomField;
           if (customField.value.startsWith(OMS4WEB_REF)) {
             //inherit protection mode as well
@@ -376,7 +505,8 @@ export function useEncryptedVault() {
     getAllHashtags,
     importEntries,
     exportData,
-    updateSettings: setSettings,
-    applyRef
+    setSettings,
+    applyRef,
+    switchToQuickUnlock,
   };
 }
