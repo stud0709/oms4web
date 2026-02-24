@@ -136,20 +136,22 @@ export function SettingsDialog({
                     <p className="text-xs text-muted-foreground">Local storage file not encrypted</p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <RadioGroupItem value="quickUnlock" id="protection-qu" className="mt-1" />
-                  <div>
-                    <Label htmlFor="protection-qu" className="font-normal cursor-pointer">Quick Unlock</Label>
-                    <p className="text-xs text-muted-foreground">PIN on startup and to unlock workspace</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
-                  <div>
-                    <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
-                    <p className="text-xs text-muted-foreground">Decryption on start, PIN to unlock workspace</p>
-                  </div>
-                </div>
+                {(env.android === false || newSettings.workspaceProtection === 'quickUnlock') && (
+                  <div className="flex items-start space-x-3">
+                    <RadioGroupItem value="quickUnlock" id="protection-qu" className="mt-1" />
+                    <div>
+                      <Label htmlFor="protection-qu" className="font-normal cursor-pointer">Quick Unlock</Label>
+                      <p className="text-xs text-muted-foreground">{env.android ? "On Android, Encrypt mode is used instead" : "PIN on startup and to unlock workspace"}</p>
+                    </div>
+                  </div>)}
+                {(env.android === false || newSettings.workspaceProtection === 'pin') && (
+                  <div className="flex items-start space-x-3">
+                    <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
+                    <div>
+                      <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
+                      <p className="text-xs text-muted-foreground">{env.android ? "On Android, Encrypt mode ist used instead" : "Decryption on start, PIN to unlock workspace"}</p>
+                    </div>
+                  </div>)}
                 <div className="flex items-start space-x-3">
                   <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
                   <div>
@@ -182,7 +184,7 @@ export function SettingsDialog({
               />
             </div>
           </>)}
-          
+
           {//Expert Mode Settings
             keyValid && newSettings.expertMode && (
               <>

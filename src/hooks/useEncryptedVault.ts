@@ -103,7 +103,7 @@ export const setQuickUnlock = async (
 
   const db = await oms4webDbPromise;
 
-  if (workspaceProtection === 'quickUnlock') {
+  if (workspaceProtection === 'quickUnlock' && !getEnvironment().android) {
     //create wrapper key (AES)
     const wrapperKey = await generateAesKey(256, 'AES-GCM', false);
     const wrapperIv = generateIv(12);
@@ -368,9 +368,15 @@ export function useEncryptedVault() {
     (async () => {
       // Re-read from storage and reset state to trigger unlock flow
       const db = await oms4webDbPromise;
+      let binary: Uint8Array;
+      //OLD FORMAT, REMOVE >>>
       const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
-      const base64Data = stored.slice(OMS_PREFIX.length);
-      const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      if (stored) {
+        const base64Data = stored.slice(OMS_PREFIX.length);
+        binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      } else 
+      //<<<OLD FORMAT, REMOVE 
+      binary = await db.get(VAULT_STORE_V2, STORAGE_KEY);
 
       const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
 
