@@ -254,6 +254,7 @@ export function useEncryptedVault() {
 
   /** OLD FORMAT, REMOVE */
   const parseObsoleteStorage = useCallback(async (db: IDBPDatabase<OmsDbSchema>, quickUnlock: QuickUnlockData) => {
+    if (!db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) return false;
     const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
     if (!stored) return false;
 
@@ -306,7 +307,9 @@ export function useEncryptedVault() {
       }
 
       //OLD FORMAT, REMOVE >>>
-      db.delete(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+      if (db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) {
+        db.delete(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+      }
       //<<< OLD FORMAT, REMOVE
     })();
   }, [vaultData, vaultState.status]);
@@ -370,11 +373,14 @@ export function useEncryptedVault() {
       const db = await oms4webDbPromise;
       let binary: Uint8Array;
       //OLD FORMAT, REMOVE >>>
-      const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+      let stored: string | undefined;
+      if (db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) {
+        stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+      }
       if (stored) {
         const base64Data = stored.slice(OMS_PREFIX.length);
         binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-      } else 
+      } else
       //<<<OLD FORMAT, REMOVE 
       binary = await db.get(VAULT_STORE_V2, STORAGE_KEY);
 
