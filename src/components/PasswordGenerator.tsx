@@ -1,7 +1,8 @@
 import {
   useState,
   useEffect,
-  useCallback
+  useCallback,
+  useMemo
 } from 'react';
 import {
   Settings2,
@@ -68,25 +69,23 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
   });
 
   const [open, setOpen] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Save policy to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(policy));
-  }, [policy]);
-
-  // Validate minimum requirements vs length
-  useEffect(() => {
+  const validationError = useMemo(() => {
     const enabledCategories = [policy.includeLetters, policy.includeNumbers, policy.includeSpecial].filter(Boolean).length;
     const minRequired = enabledCategories * policy.minPerCategory;
 
     if (enabledCategories === 0) {
-      setValidationError('Enable at least one character category');
-    } else if (minRequired > policy.length) {
-      setValidationError(`Minimum requirements (${minRequired}) exceed password length (${policy.length})`);
-    } else {
-      setValidationError(null);
+      return 'Enable at least one character category';
     }
+    if (minRequired > policy.length) {
+      return `Minimum requirements (${minRequired}) exceed password length (${policy.length})`;
+    }
+    return null;
+  }, [policy]);
+
+  // Save policy to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(policy));
   }, [policy]);
 
   const generatePassword = useCallback(() => {
@@ -98,7 +97,7 @@ export function PasswordGenerator({ onGenerate }: PasswordGeneratorProps) {
     const numbers = useAmbiguous ? CHARS.numbers : CHARS.numbersNoAmbiguous;
     const special = useAmbiguous ? CHARS.special : CHARS.specialNoAmbiguous;
 
-    let result: string[] = [];
+    const result: string[] = [];
 
     // Add minimum required characters from each enabled category
     if (policy.includeLetters) {

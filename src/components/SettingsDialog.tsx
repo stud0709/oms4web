@@ -68,7 +68,7 @@ export function SettingsDialog({
       if (!valid && newSettings.workspaceProtection !== 'none')
         setNewSettings({ ...newSettings, workspaceProtection: 'none' });
     })();
-  }, [newSettings.publicKey, newSettings.rsaTransformationIdx]);
+  }, [newSettings]);
 
   const handleSave = () => {
     // Validate public key format for encrypt and pin modes

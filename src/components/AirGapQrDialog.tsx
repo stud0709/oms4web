@@ -1,6 +1,7 @@
 import {
   useState,
-  useEffect
+  useEffect,
+  useMemo
 } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { QrCode } from 'lucide-react';
@@ -21,16 +22,35 @@ interface AirGapQrDialogProps {
 }
 
 export function AirGapQrDialog({ open, onOpenChange, password }: AirGapQrDialogProps) {
-  const [chunks, setChunks] = useState<QrChunk[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (open && password) {
-      const qrChunks = getQrSequence(password);
-      setChunks(qrChunks);
-      setCurrentIndex(0);
-    }
+  const chunks = useMemo(() => {
+    if (!open || !password) return [];
+    return getQrSequence(password);
   }, [open, password]);
+
+  const sequenceKey = open ? password : 'closed';
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <QrCode className="h-5 w-5" />
+            Air Gap - QR Code
+          </DialogTitle>
+        </DialogHeader>
+        <AirGapQrSequence key={sequenceKey} open={open} chunks={chunks} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface AirGapQrSequenceProps {
+  open: boolean;
+  chunks: QrChunk[];
+}
+
+function AirGapQrSequence({ open, chunks }: AirGapQrSequenceProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     if (!open || chunks.length <= 1) return;
@@ -45,46 +65,36 @@ export function AirGapQrDialog({ open, onOpenChange, password }: AirGapQrDialogP
   const currentChunk = chunks[currentIndex];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <QrCode className="h-5 w-5" />
-            Air Gap - QR Code
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col items-center gap-4 py-4">
-          {currentChunk && (
-            <>
-              <div className="p-4 bg-white rounded-lg">
-                <QRCodeSVG value={currentChunk.encoded} size={200} />
+    <div className="flex flex-col items-center gap-4 py-4">
+      {currentChunk && (
+        <>
+          <div className="p-4 bg-white rounded-lg">
+            <QRCodeSVG value={currentChunk.encoded} size={200} />
+          </div>
+          {chunks.length > 1 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono text-muted-foreground">
+                {currentIndex + 1} / {chunks.length}
+              </span>
+              <div className="flex gap-1">
+                {chunks.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-primary' : 'bg-muted'
+                      }`}
+                  />
+                ))}
               </div>
-              {chunks.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono text-muted-foreground">
-                    {currentIndex + 1} / {chunks.length}
-                  </span>
-                  <div className="flex gap-1">
-                    {chunks.map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-primary' : 'bg-muted'
-                          }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <p className="text-sm text-muted-foreground text-center">
-                {chunks.length > 1
-                  ? 'Scan all QR codes in sequence to transfer the password'
-                  : 'Scan this QR code to transfer the password securely'
-                }
-              </p>
-            </>
+            </div>
           )}
-        </div>
-      </DialogContent>
-    </Dialog>
+          <p className="text-sm text-muted-foreground text-center">
+            {chunks.length > 1
+              ? 'Scan all QR codes in sequence to transfer the password'
+              : 'Scan this QR code to transfer the password securely'
+            }
+          </p>
+        </>
+      )}
+    </div>
   );
 }

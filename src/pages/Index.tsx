@@ -120,7 +120,7 @@ const Index = () => {
 
       return matchesSearch && matchesTag && (!isDeleted || showDeleted);
     });
-  }, [vaultData, search, selectedTag]);
+  }, [vaultData, search, selectedTag, toast]);
 
   const handleSave = (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (editingEntry) {

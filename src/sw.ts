@@ -1,10 +1,10 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
+import { precacheAndRoute, createHandlerBoundToURL, type ManifestEntry } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 // This line is required for Vite to inject the list of files to cache
 declare let self: ServiceWorkerGlobalScope;
-declare const __WB_MANIFEST: any[];
+declare const __WB_MANIFEST: ManifestEntry[];
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {

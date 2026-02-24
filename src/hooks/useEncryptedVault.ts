@@ -131,8 +131,8 @@ export const setQuickUnlock = async (
   }
 };
 
-export const validateJson = (data: any) => {
-  if (typeof data !== 'object') throw new Error('Invalid format');
+export const validateJson = (data: unknown) => {
+  if (typeof data !== 'object' || data === null) throw new Error('Invalid format');
 
   const vd = data as VaultData;
 
@@ -192,6 +192,32 @@ export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
 
+  /** OLD FORMAT, REMOVE */
+  const parseObsoleteStorage = useCallback(async (db: IDBPDatabase<OmsDbSchema>, quickUnlock: QuickUnlockData) => {
+    if (!db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) return false;
+    const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+    if (!stored) return false;
+
+    if (stored.startsWith(OMS_PREFIX)) {
+      //encrypted version
+      const base64Data = stored.slice(OMS_PREFIX.length);
+      const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+      setVaultState({
+        status: 'encrypted',
+        encryptedData: binary,
+        quickUnlock
+      });
+    } else {
+      //plain JSON
+      const json = JSON.parse(stored);
+      setVaultData(validateJson(json));
+      setVaultState({ status: 'ready' });
+    }
+
+    return true;
+  }, []);
+
   const encryptAndLock = useCallback(() => {
     _encryptAndLock(vaultData, vaultState => {
       setVaultState(vaultState);
@@ -239,7 +265,7 @@ export function useEncryptedVault() {
           console.error('Failed to parse stored data, starting with empty vault', e);
           setVaultState({ status: 'ready' });
           setVaultData(EMPTY_VAULT);
-          throw new Error('Failed to parse stored data, starting with empty vault');
+          throw new Error('Failed to parse stored data, starting with empty vault', { cause: e });
         }
       } else {
         //encrypted
@@ -250,33 +276,7 @@ export function useEncryptedVault() {
         });
       }
     })();
-  }, []);
-
-  /** OLD FORMAT, REMOVE */
-  const parseObsoleteStorage = useCallback(async (db: IDBPDatabase<OmsDbSchema>, quickUnlock: QuickUnlockData) => {
-    if (!db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) return false;
-    const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
-    if (!stored) return false;
-
-    if (stored.startsWith(OMS_PREFIX)) {
-      //encrypted version
-      const base64Data = stored.slice(OMS_PREFIX.length);
-      const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-      setVaultState({
-        status: 'encrypted',
-        encryptedData: binary,
-        quickUnlock
-      });
-    } else {
-      //plain JSON
-      const json = JSON.parse(stored);
-      setVaultData(validateJson(json));
-      setVaultState({ status: 'ready' });
-    }
-
-    return true;
-  }, []);
+  }, [parseObsoleteStorage]);
 
   // Save vault when data changes 
   useEffect(() => {
@@ -299,7 +299,7 @@ export function useEncryptedVault() {
           await db.put(VAULT_STORE_V2, encryptedBytes, STORAGE_KEY);
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
-          throw new Error('Failed to encrypt vault, saving as plain JSON');
+          throw new Error('Failed to encrypt vault, saving as plain JSON', { cause: e });
         }
       } else {
         // Save as plain JSON for 'none' and 'pin' modes, or as fallback
@@ -358,7 +358,7 @@ export function useEncryptedVault() {
       return vaultData;
     } catch (e) {
       console.error('Failed to parse decrypted data', e);
-      throw new Error('Invalid decrypted data format');
+      throw new Error('Invalid decrypted data format', { cause: e });
     }
   }, []);
 
@@ -403,7 +403,7 @@ export function useEncryptedVault() {
       // PIN protection (desktop only)
       encryptAndLock();
     })();
-  }, [vaultData]);
+  }, [vaultData, encryptAndLock]);
 
   const unlockPin = useCallback(async (inputValue: string) => {
     if (vaultState.status !== 'pin-locked') return false;
@@ -480,7 +480,7 @@ export function useEncryptedVault() {
   }, [vaultData]);
 
   const applyRef = useCallback((entry: PasswordEntry) => {
-    const deepMap = (obj: any) => {
+    const deepMap = (obj: unknown): unknown => {
       // Handle Arrays
       if (Array.isArray(obj)) {
         return obj.map(item => deepMap(item));
@@ -488,7 +488,7 @@ export function useEncryptedVault() {
 
       // Handle Objects
       if (typeof obj === 'object' && obj !== null) {
-        const copy = {};
+        const copy: Record<string, unknown> = {};
         for (const key in obj) {
           if (Object.prototype.hasOwnProperty.call(obj, key)) {
             copy[key] = deepMap(obj[key]);

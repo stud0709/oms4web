@@ -57,6 +57,22 @@ type Step = 'loading' | 'display' | 'input' | 'processing' | 'success' | 'error'
 
 export function DecryptQrDialog({
   open,
+  encryptedData,
+  ...props
+}: DecryptQrDialogProps) {
+  const sessionKey = open ? `${encryptedData.byteLength}-${encryptedData[0] ?? 0}` : 'closed';
+  return (
+    <DecryptQrDialogContent
+      key={sessionKey}
+      open={open}
+      encryptedData={encryptedData}
+      {...props}
+    />
+  );
+}
+
+function DecryptQrDialogContent({
+  open,
   onOpenChange,
   encryptedData,
   onDecrypted,
@@ -73,12 +89,18 @@ export function DecryptQrDialog({
   const env = useMemo(() => getEnvironment(), []);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const persistKeyPair = useCallback(async (context: KeyRequestContext) => {
+    if (!env.android) return;
+    try {
+      const db = await oms4webDbPromise;
+      await db.put(KEY_REQUEST_STORE, context, LATEST_CONTEXT);
+    } catch (err) {
+      console.error('Failed to serialize unlock key:', err);
+    }
+  }, [env.android]);
+
   useEffect(() => {
     if (open && encryptedData) {
-      setStep('loading');
-      setInputValue('');
-      setError(null);
-
       // Create KEY_REQUEST message
       createKeyRequest(
         'vault',
@@ -99,17 +121,7 @@ export function DecryptQrDialog({
           setStep('error');
         });
     }
-  }, [open, encryptedData]);
-
-  const persistKeyPair = async (keyRequestContext: KeyRequestContext) => {
-    if (!env.android) return;
-    try {
-      const db = await oms4webDbPromise;
-      await db.put(KEY_REQUEST_STORE, keyRequestContext, LATEST_CONTEXT);
-    } catch (err) {
-      console.error('Failed to serialize unlock key:', err);
-    }
-  }
+  }, [open, encryptedData, env.android, env.pwaMode, persistKeyPair]);
 
   useEffect(() => {
     if (!open || chunks.length <= 1 || step !== 'display') return;
