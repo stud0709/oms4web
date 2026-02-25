@@ -329,7 +329,7 @@ const Index = () => {
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container max-w-4xl px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center gap-3 w-1/2 sm:w-[30%] min-w-0">
+            <div className="flex items-center gap-3 min-w-0 max-w-[50%] sm:max-w-[30%]">
               <div className="min-w-0">
                 <a href="https://github.com/stud0709/oms4web">
                   <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
