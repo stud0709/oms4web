@@ -61,6 +61,7 @@ const Index = () => {
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [historyView, setHistoryView] = useState(false);
   const [activeEntry, setActiveEntry] = useState<PasswordEntry | null>(null);
+  const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<PasswordEntryHistoryItem | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
   const allTags = getAllHashtags();
 
@@ -140,6 +141,7 @@ const Index = () => {
     setEditingEntry(entry);
     setHistoryView(false);
     setActiveEntry(entry);
+    setSelectedHistoryEntry(null);
     setFormOpen(true);
   };
 
@@ -152,9 +154,11 @@ const Index = () => {
         history: activeEntry.history,
       });
       setHistoryView(true);
+      setSelectedHistoryEntry(historyEntry);
     } else {
       setEditingEntry(activeEntry);
       setHistoryView(false);
+      setSelectedHistoryEntry(null);
     }
   };
 
@@ -171,6 +175,7 @@ const Index = () => {
       setEditingEntry(null);
       setHistoryView(false);
       setActiveEntry(null);
+      setSelectedHistoryEntry(null);
     }
   };
 
@@ -467,6 +472,7 @@ const Index = () => {
         readOnly={historyView}
         historyItems={activeEntry?.history}
         onSelectHistory={handleHistorySelect}
+        selectedHistoryEntry={selectedHistoryEntry}
       />
 
       {/* Decrypt dialog for importing encrypted files */}

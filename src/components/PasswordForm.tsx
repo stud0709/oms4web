@@ -58,6 +58,7 @@ interface PasswordFormProps {
   readOnly?: boolean;
   historyItems?: PasswordEntryHistoryItem[];
   onSelectHistory?: (historyEntry: PasswordEntryHistoryItem | null) => void;
+  selectedHistoryEntry?: PasswordEntryHistoryItem | null;
 }
 
 interface ProtectionOption {
@@ -74,7 +75,8 @@ export function PasswordForm({
   settings,
   readOnly = false,
   historyItems,
-  onSelectHistory
+  onSelectHistory,
+  selectedHistoryEntry
 }: PasswordFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -246,8 +248,13 @@ export function PasswordForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-        <div className="flex items-center justify-between gap-2">
-          <DialogTitle>{readOnly ? 'Entry History' : entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <DialogTitle>{readOnly ? 'Entry History' : entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
+            {readOnly && selectedHistoryEntry && (
+              <span className="text-sm text-muted-foreground">{formatTimestamp(selectedHistoryEntry.timestamp)}</span>
+            )}
+          </div>
           {entry && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
