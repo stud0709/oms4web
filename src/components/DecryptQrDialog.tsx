@@ -79,16 +79,16 @@ function DecryptQrDialogContent({
   onSkip,
   hideCloseButton = false
 }: DecryptQrDialogProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [step, setStep] = useState<Step>('loading');
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [processingSearchParams, setProcessingSearchParams] = useState(false);
+  const [processingSearchParams, setProcessingSearchParams] = useState(() => searchParams.has("data"));
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyRequestContext = useRef<KeyRequestContext | null>(null);
   const env = useMemo(() => getEnvironment(), []);
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const persistKeyPair = useCallback(async (context: KeyRequestContext) => {
     if (!env.android) return;
