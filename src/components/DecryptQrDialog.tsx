@@ -227,8 +227,6 @@ function DecryptQrDialogContent({
 
   const currentChunk = chunks[currentIndex];
 
-  console.log(`step: ${step}, searchparams: ${searchParams}`);
-
   if (searchParams.has("data"))
     return null;
 
