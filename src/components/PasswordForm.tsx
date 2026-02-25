@@ -290,36 +290,36 @@ export function PasswordForm({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="e.g., Gmail, Netflix, Bank..."
-            autoFocus
-            disabled={readOnly}
-          />
+            <Input
+              id="title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder={readOnly ? ' ' : 'e.g., Gmail, Netflix, Bank...'}
+              autoFocus
+              disabled={readOnly}
+            />
         </div>
 
           <div className="space-y-2">
             <Label htmlFor="url">URL</Label>
-          <Input
-            id="url"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            placeholder="https://example.com"
-            disabled={readOnly}
-          />
+            <Input
+              id="url"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder={readOnly ? ' ' : 'https://example.com'}
+              disabled={readOnly}
+            />
         </div>
 
           <div className="space-y-2">
             <Label htmlFor="username">Username / Email</Label>
-          <Input
-            id="username"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            placeholder="your@email.com"
-            disabled={readOnly}
-          />
+            <Input
+              id="username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder={readOnly ? ' ' : 'your@email.com'}
+              disabled={readOnly}
+            />
         </div>
 
           <div className="space-y-2">
@@ -331,7 +331,7 @@ export function PasswordForm({
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  placeholder={readOnly ? ' ' : '••••••••'}
                   className="flex-1 font-mono"
                   disabled={readOnly || passwordReadonly}
                 />
@@ -403,7 +403,7 @@ export function PasswordForm({
                     addTag(tagInput);
                   }
                 }}
-                placeholder="Type and press Enter to add..."
+                placeholder={readOnly ? ' ' : 'Type and press Enter to add...'}
                 disabled={readOnly}
               />
               {tagInput && suggestedTags.length > 0 && (
@@ -430,7 +430,7 @@ export function PasswordForm({
               id="notes"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Additional notes, recovery codes, security questions..."
+              placeholder={readOnly ? ' ' : 'Additional notes, recovery codes, security questions...'}
               rows={3}
               disabled={readOnly}
             />
@@ -452,7 +452,7 @@ export function PasswordForm({
                   <Input
                     value={field.label}
                     onChange={e => updateCustomField(field.id, { label: e.target.value })}
-                    placeholder="Field name"
+                    placeholder={readOnly ? ' ' : 'Field name'}
                     className="h-8"
                     disabled={readOnly}
                   />
@@ -460,7 +460,7 @@ export function PasswordForm({
                     <Input
                       value={field.value}
                       onChange={e => updateCustomField(field.id, { value: e.target.value })}
-                      placeholder="Value"
+                      placeholder={readOnly ? ' ' : 'Value'}
                       type={field.protection !== 'none' ? 'password' : 'text'}
                       className="h-8 font-mono flex-1"
                       disabled={readOnly || field.readonly}
