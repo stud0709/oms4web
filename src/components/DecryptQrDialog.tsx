@@ -138,7 +138,7 @@ function DecryptQrDialogContent({
     setTimeout(() => textareaRef.current?.focus(), 100);
   }, []);
 
-  const handleSubmitDecrypted = useCallback(async (keyResponse?: string, fromSearchParams = false) => {
+  const handleSubmitDecrypted = useCallback(async (keyResponse?: string) => {
     if (!keyResponse && !inputValue.trim()) {
       setError('Please paste the key response from your device');
       return;
@@ -170,12 +170,7 @@ function DecryptQrDialogContent({
         err instanceof Error
           ? `Decryption failed: ${err.message}`
           : 'Decryption failed. Please ensure you pasted the complete key response.'
-      );
-      if (fromSearchParams && keyRequestContext.current?.message) {
-        const qrChunks = getQrSequence(keyRequestContext.current.message);
-        setChunks(qrChunks);
-        setCurrentIndex(0);
-      }
+      );      
       setStep('input');
       return;
     } finally {
@@ -197,7 +192,7 @@ function DecryptQrDialogContent({
       db.delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
 
       keyRequestContext.current = dbEntry;
-      handleSubmitDecrypted(searchParams.get("data") ?? '', true);
+      handleSubmitDecrypted(searchParams.get("data"));
     })();
 
   }, [searchParams, handleSubmitDecrypted]);
