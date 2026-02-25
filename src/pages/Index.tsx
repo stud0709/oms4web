@@ -13,6 +13,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   downloadVault,
   getTimestamp,
@@ -336,8 +337,8 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground truncate">{vaultData.settings.vaultName.trim() || 'Untitled'}</p>
               </div>
             </div>
-            <div className="flex flex-1 items-center justify-end overflow-x-auto">
-              <div className="flex items-center gap-2 flex-nowrap pr-1">
+            <ScrollArea className="flex-1">
+              <div className="flex items-center gap-2 flex-nowrap justify-end pr-1">
                 <Button className="shrink-0" variant="outline" size="icon" onClick={() => setFormOpen(true)}>
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -365,7 +366,8 @@ const Index = () => {
                   onChange={handleImport}
                 />
               </div>
-            </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
           </div>
           <SearchBar value={search} onChange={handleSearchChange} />
           {allTags.length > 0 && (
