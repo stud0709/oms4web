@@ -26,7 +26,7 @@ import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
-import { PasswordEntry, VaultData } from '@/types/types';
+import { PasswordEntry, PasswordEntryHistoryItem, VaultData } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
@@ -59,6 +59,7 @@ const Index = () => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
+  const [historyView, setHistoryView] = useState(false);
   const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
   const allTags = getAllHashtags();
 
@@ -122,7 +123,7 @@ const Index = () => {
     });
   }, [vaultData, search, selectedTag, toast]);
 
-  const handleSave = (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleSave = (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => {
     if (editingEntry) {
       updateEntry(editingEntry.id, data);
     } else {
@@ -136,6 +137,21 @@ const Index = () => {
 
   const handleEdit = (entry: PasswordEntry) => {
     setEditingEntry(entry);
+    setHistoryView(false);
+    setFormOpen(true);
+  };
+
+  const handleHistoryView = (entry: PasswordEntry, historyEntry: PasswordEntryHistoryItem | null) => {
+    if (historyEntry) {
+      setEditingEntry({
+        ...historyEntry.data,
+        history: entry.history,
+      });
+      setHistoryView(true);
+    } else {
+      setEditingEntry(entry);
+      setHistoryView(false);
+    }
     setFormOpen(true);
   };
 
@@ -150,6 +166,7 @@ const Index = () => {
     setFormOpen(open);
     if (!open) {
       setEditingEntry(null);
+      setHistoryView(false);
     }
   };
 
@@ -384,6 +401,7 @@ const Index = () => {
                 <PasswordCard
                   entry={entry}
                   onEdit={handleEdit}
+                  onViewHistory={handleHistoryView}
                   onDelete={deleteEntry}
                   onSoftDelete={handleSoftDelete}
                   onTagClick={setSelectedTag}
@@ -443,6 +461,7 @@ const Index = () => {
         onSave={handleSave}
         existingTags={allTags}
         settings={vaultData.settings}
+        readOnly={historyView}
       />
 
       {/* Decrypt dialog for importing encrypted files */}

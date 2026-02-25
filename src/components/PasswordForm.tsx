@@ -42,9 +42,10 @@ interface PasswordFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entry?: PasswordEntry | null;
-  onSave: (entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onSave: (entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => void;
   existingTags: string[];
   settings: AppSettings;
+  readOnly?: boolean;
 }
 
 interface ProtectionOption {
@@ -52,7 +53,7 @@ interface ProtectionOption {
   Icon: React.ComponentType<{ className?: string }>;
 }
 
-export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, settings }: PasswordFormProps) {
+export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, settings, readOnly = false }: PasswordFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -141,6 +142,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (readOnly) return;
     setIsSubmitting(true);
 
     try {
@@ -220,39 +222,42 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g., Gmail, Netflix, Bank..."
-              autoFocus
-            />
-          </div>
+        <DialogTitle>{readOnly ? 'Entry History' : entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="title">Title</Label>
+          <Input
+            id="title"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="e.g., Gmail, Netflix, Bank..."
+            autoFocus
+            disabled={readOnly}
+          />
+        </div>
 
           <div className="space-y-2">
             <Label htmlFor="url">URL</Label>
-            <Input
-              id="url"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
-              placeholder="https://example.com"
-            />
-          </div>
+          <Input
+            id="url"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="https://example.com"
+            disabled={readOnly}
+          />
+        </div>
 
           <div className="space-y-2">
             <Label htmlFor="username">Username / Email</Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="your@email.com"
-            />
-          </div>
+          <Input
+            id="username"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="your@email.com"
+            disabled={readOnly}
+          />
+        </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -265,7 +270,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   className="flex-1 font-mono"
-                  disabled={passwordReadonly}
+                  disabled={readOnly || passwordReadonly}
                 />
                 {passwordReadonly && (
                   <TooltipProvider>
@@ -277,14 +282,16 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                       </TooltipTrigger>
                       <TooltipContent>Copy</TooltipContent>
                     </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => erasePassword()}>
-                          <Eraser className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Erase</TooltipContent>
-                    </Tooltip>
+                    {!readOnly && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => erasePassword()}>
+                            <Eraser className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Erase</TooltipContent>
+                      </Tooltip>
+                    )}
                   </TooltipProvider>
                 )}
                 {!passwordReadonly && (
@@ -298,7 +305,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   </Button>
                 )}
               </div>
-              {settings.encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
+              {!readOnly && settings.encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
             </div>
           </div>
 
@@ -308,9 +315,11 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
               {hashtags.map(tag => (
                 <Badge key={tag} variant="secondary" className="gap-1">
                   #{tag}
-                  <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
+                  {!readOnly && (
+                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </Badge>
               ))}
             </div>
@@ -332,6 +341,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                   }
                 }}
                 placeholder="Type and press Enter to add..."
+                disabled={readOnly}
               />
               {tagInput && suggestedTags.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-10 max-h-32 overflow-y-auto">
@@ -359,16 +369,19 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
               onChange={e => setNotes(e.target.value)}
               placeholder="Additional notes, recovery codes, security questions..."
               rows={3}
+              disabled={readOnly}
             />
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>Custom Fields</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addCustomField}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Field
-              </Button>
+              {!readOnly && (
+                <Button type="button" variant="outline" size="sm" onClick={addCustomField}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Field
+                </Button>
+              )}
             </div>
             {customFields.map(field => (
               <div key={field.id} className="flex gap-2 items-start p-3 rounded-lg bg-muted/50">
@@ -378,6 +391,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     onChange={e => updateCustomField(field.id, { label: e.target.value })}
                     placeholder="Field name"
                     className="h-8"
+                    disabled={readOnly}
                   />
                   <div className="flex gap-1">
                     <Input
@@ -386,7 +400,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                       placeholder="Value"
                       type={field.protection !== 'none' ? 'password' : 'text'}
                       className="h-8 font-mono flex-1"
-                      disabled={field.readonly}
+                      disabled={readOnly || field.readonly}
                     />
                     {field.readonly && (
                       <TooltipProvider>
@@ -398,14 +412,16 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                           </TooltipTrigger>
                           <TooltipContent>Copy</TooltipContent>
                         </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}>
-                              <Eraser className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Erase</TooltipContent>
-                        </Tooltip>
+                        {!readOnly && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}>
+                                <Eraser className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Erase</TooltipContent>
+                          </Tooltip>
+                        )}
                       </TooltipProvider>
                     )}
                   </div>
@@ -419,7 +435,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                       className="flex flex-row gap-1"
                       value={field.protection}
                       onValueChange={v => updateCustomField(field.id, { protection: v as CustomFieldProtection })}
-                      disabled={field.readonly}
+                      disabled={readOnly || field.readonly}
                     >
                       {([
                         { id: 'none', Icon: Eye },
@@ -450,15 +466,17 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
                     </RadioGroup>
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeCustomField(field.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {!readOnly && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeCustomField(field.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -467,7 +485,7 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || readOnly}>
               {isSubmitting ? 'Encrypting...' : entry ? 'Save Changes' : 'Create Entry'}
             </Button>
           </DialogFooter>

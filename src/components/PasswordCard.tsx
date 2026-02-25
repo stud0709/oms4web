@@ -1,9 +1,8 @@
 import {
-  useCallback,
   useMemo,
   useState
 } from 'react';
-import { PasswordEntry } from '@/types/types';
+import { PasswordEntry, PasswordEntryHistoryItem } from '@/types/types';
 import {
   Copy,
   Eye,
@@ -15,7 +14,8 @@ import {
   QrCode,
   Webhook,
   Link,
-  MapPin
+  MapPin,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,12 +46,21 @@ import {
   ScrollArea,
   ScrollBar
 } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 
 const DELETED_TAG = 'deleted';
 
 interface PasswordCardProps {
   entry: PasswordEntry;
   onEdit: (entry: PasswordEntry) => void;
+  onViewHistory: (entry: PasswordEntry, historyEntry: PasswordEntryHistoryItem | null) => void;
   onDelete: (id: string) => void;
   onSoftDelete: (entry: PasswordEntry) => void;
   onTagClick: (tag: string) => void;
@@ -62,6 +71,7 @@ interface PasswordCardProps {
 export function PasswordCard({
   entry,
   onEdit,
+  onViewHistory,
   onDelete,
   onSoftDelete,
   onTagClick,
@@ -121,6 +131,8 @@ export function PasswordCard({
   }
 
   const maskValue = (value: string) => '•'.repeat(Math.min(value.length, 16));
+  const historyEntries = entry.history ?? [];
+  const formatTimestamp = (timestamp: Date) => new Date(timestamp).toLocaleString();
 
   return (
     <Card className="group transition-all duration-300 hover:shadow-glow hover:border-primary/30">
@@ -162,6 +174,34 @@ export function PasswordCard({
           <div className="flex items-center gap-1 self-end sm:self-start">
             {!referenceMode && (
               <div className={`flex gap-1 ${env.android ? 'opacity-100' : "opacity-0 group-hover:opacity-100 transition-opacity"}`}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" title="Entry history">
+                      <History className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>History</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => onViewHistory(entry, null)}>
+                      Current version
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {historyEntries.length > 0 ? (
+                      historyEntries.map((historyEntry, index) => (
+                        <DropdownMenuItem
+                          key={`${historyEntry.timestamp}-${index}`}
+                          onClick={() => onViewHistory(entry, historyEntry)}
+                          className="flex flex-col items-start"
+                        >
+                          <span className="text-sm">{formatTimestamp(historyEntry.timestamp)}</span>
+                          <span className="text-xs text-muted-foreground truncate w-full">{historyEntry.data.title}</span>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled>No history yet</DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
                   <Pencil className="h-4 w-4" />
                 </Button>

@@ -24,7 +24,7 @@ export interface CustomField {
 
 export type CustomFieldProtection = 'none' | 'secret' | 'encrypted';
 
-export interface PasswordEntry {
+export interface PasswordEntryData {
   id: string;
   title: string;
   username: string;
@@ -36,6 +36,15 @@ export interface PasswordEntry {
   customFields: CustomField[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PasswordEntryHistoryItem {
+  timestamp: Date;
+  data: PasswordEntryData;
+}
+
+export interface PasswordEntry extends PasswordEntryData {
+  history: PasswordEntryHistoryItem[];
 }
 
 export interface AppSettings {
@@ -152,4 +161,3 @@ export interface KeyRequestContext {
   envelope: RsaAesEnvelope;
   message: string; // OMS-encoded message for QR display
 }
-

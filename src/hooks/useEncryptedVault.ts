@@ -9,6 +9,7 @@ import {
   CustomField,
   OmsDbSchema,
   PasswordEntry,
+  PasswordEntryHistoryItem,
   QuickUnlockData,
   VaultData,
   VaultState,
@@ -143,6 +144,11 @@ export const validateJson = (data: unknown) => {
   if (!(SETTINGS_PROPERTY_NAME in vd)) throw new Error('Invalid format');
 
   validateSettings(vd.settings);
+
+  vd.entries = vd.entries.map(entry => ({
+    ...entry,
+    history: entry.history ?? []
+  }));
 
   return vd;
 }
@@ -442,21 +448,34 @@ export function useEncryptedVault() {
     setVaultData(prev => ({ ...prev, settings }));
   }, []);
 
-  const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addEntry = useCallback((entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => {
     const newEntry: PasswordEntry = {
       ...entry,
       id: crypto.randomUUID(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      history: [],
     };
     setEntries(prev => [newEntry, ...prev]);
     return newEntry;
   }, [setEntries]);
 
-  const updateEntry = useCallback((id: string, updates: Partial<Omit<PasswordEntry, 'id' | 'createdAt'>>) => {
+  const updateEntry = useCallback((id: string, updates: Partial<Omit<PasswordEntry, 'id' | 'createdAt' | 'history'>>) => {
     setEntries(prev => prev.map(entry =>
       entry.id === id
-        ? { ...entry, ...updates, updatedAt: new Date() }
+        ? (() => {
+          const { history, ...entryData } = entry;
+          const historyEntry: PasswordEntryHistoryItem = {
+            timestamp: new Date(),
+            data: entryData,
+          };
+          return {
+            ...entry,
+            ...updates,
+            updatedAt: new Date(),
+            history: [historyEntry, ...(history ?? [])],
+          };
+        })()
         : entry
     ));
   }, [setEntries]);
