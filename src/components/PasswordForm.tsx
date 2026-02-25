@@ -357,7 +357,7 @@ export function PasswordForm({
                     )}
                   </TooltipProvider>
                 )}
-                {!passwordReadonly && (
+                {!passwordReadonly && !readOnly && (
                   <Button
                     type="button"
                     variant="ghost"
