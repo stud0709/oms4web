@@ -162,53 +162,59 @@ const Index = () => {
     setSearch(value)
   }
 
-  const handleExport = async () => {
+  const downloadVaultSnapshot = async ({
+    suffix,
+    encryptedToast,
+    plainToast,
+    onEncryptError
+  }: {
+    suffix: string;
+    encryptedToast: { title: string; description: string; variant?: 'destructive' };
+    plainToast: { title: string; description: string; variant?: 'destructive' };
+    onEncryptError?: () => void;
+  }) => {
     const data = exportData();
     const jsonData = JSON.stringify(data, null, 2);
-
-    // Generate filename: vaultName + local timestamp
     const name = vaultData.settings.vaultName.trim() || 'Untitled';
-    // If workspace protection is activated and public key exists, export encrypted
+
     if (vaultData.settings.publicKey) {
       try {
-        const encryptedBytes = await encryptVaultData(jsonData, vaultData.settings);
+        const encryptedBytes = await encryptVaultData(new TextEncoder().encode(jsonData), vaultData.settings);
         const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
-        downloadVault(`${name}_${getTimestamp()}.json.oms00`, blob);
-        toast({ title: 'Exported (encrypted)', description: `${vaultData.entries.length} entries saved to encrypted file.` });
+        downloadVault(`${name}${suffix}.json.oms00`, blob);
+        toast(encryptedToast);
         return;
       } catch (err) {
         console.error('Failed to encrypt export:', err);
-        toast({ title: 'Encryption failed', description: 'Falling back to JSON export.', variant: 'destructive' });
+        onEncryptError?.();
       }
     }
 
-    // Fallback to plain JSON
     const blob = new Blob([jsonData], { type: 'application/json' });
-    downloadVault(`${name}_${getTimestamp()}.json`, blob);
-    toast({ title: 'Exported', description: `${vaultData.entries.length} entries saved to file.` });
+    downloadVault(`${name}${suffix}.json`, blob);
+    toast(plainToast);
+  };
+
+  const handleExport = async () => {
+    const timestamp = getTimestamp();
+    await downloadVaultSnapshot({
+      suffix: `_${timestamp}`,
+      encryptedToast: { title: 'Exported (encrypted)', description: `${vaultData.entries.length} entries saved to encrypted file.` },
+      plainToast: { title: 'Exported', description: `${vaultData.entries.length} entries saved to file.` },
+      onEncryptError: () => {
+        toast({ title: 'Encryption failed', description: 'Falling back to JSON export.', variant: 'destructive' });
+      }
+    });
   };
 
   const backupCurrentVault = async () => {
     if (vaultData.entries.length === 0) return; // nothing to back up
-    const data = exportData();
-    const jsonData = JSON.stringify(data, null, 2);
-    const name = vaultData.settings.vaultName.trim() || 'Untitled';
-
-    if (vaultData.settings.publicKey) {
-      try {
-        const encryptedBytes = await encryptVaultData(jsonData, vaultData.settings);
-        const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
-        downloadVault(`${name}_backup_${getTimestamp()}.json.oms00`, blob);
-        toast({ title: 'Backup created', description: 'Encrypted backup has been downloaded before import.' });
-        return;
-      } catch (err) {
-        console.error('Failed to encrypt backup:', err);
-      }
-    }
-
-    const blob = new Blob([jsonData], { type: 'application/json' });
-    downloadVault(`${name}_backup_${getTimestamp()}.json`, blob);
-    toast({ title: 'Backup created', description: 'Backup has been downloaded before import.' });
+    const timestamp = getTimestamp();
+    await downloadVaultSnapshot({
+      suffix: `_backup_${timestamp}`,
+      encryptedToast: { title: 'Backup created', description: 'Encrypted backup has been downloaded before import.' },
+      plainToast: { title: 'Backup created', description: 'Backup has been downloaded before import.' }
+    });
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
