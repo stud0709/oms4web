@@ -80,19 +80,14 @@ function DecryptQrDialogContent({
   hideCloseButton = false
 }: DecryptQrDialogProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialProcessing = useMemo(() => {
-    const hashQuery = window.location.hash.includes('?')
-      ? window.location.hash.split('?')[1]
-      : '';
-    const params = new URLSearchParams(window.location.search || hashQuery);
-    return params.has("data");
-  }, []);
+  const initialProcessing = useMemo(() => /[?&]data=/.test(window.location.href), []);
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [step, setStep] = useState<Step>('loading');
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [processingSearchParams, setProcessingSearchParams] = useState(initialProcessing);
+  const isAutoProcessing = processingSearchParams || searchParams.has("data");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyRequestContext = useRef<KeyRequestContext | null>(null);
   const env = useMemo(() => getEnvironment(), []);
@@ -108,7 +103,7 @@ function DecryptQrDialogContent({
   }, [env.android]);
 
   useEffect(() => {
-    if (processingSearchParams) return;
+    if (isAutoProcessing) return;
     if (open && encryptedData) {
       // Create KEY_REQUEST message
       createKeyRequest(
@@ -130,7 +125,7 @@ function DecryptQrDialogContent({
           setStep('error');
         });
     }
-  }, [open, encryptedData, env.android, env.pwaMode, persistKeyPair, processingSearchParams]);
+  }, [open, encryptedData, env.android, env.pwaMode, persistKeyPair, isAutoProcessing]);
 
   useEffect(() => {
     if (!open || chunks.length <= 1 || step !== 'display') return;
@@ -256,34 +251,34 @@ function DecryptQrDialogContent({
             Decrypt Vault Data
           </DialogTitle>
           <DialogDescription>
-            {processingSearchParams && 'Processing Key Response'}
-            {!processingSearchParams && step === 'loading' && 'Preparing decryption request...'}
-            {!processingSearchParams && step === 'display' && (env.android
+            {isAutoProcessing && 'Processing Key Response'}
+            {!isAutoProcessing && step === 'loading' && 'Preparing decryption request...'}
+            {!isAutoProcessing && step === 'display' && (env.android
               ? 'Send the key request to OneMoreSecret, then press UNLOCK or paste the key response below.'
               : 'Scan the QR code(s) with OneMoreSecret to get the decryption key')}
-            {!processingSearchParams && step === 'input' && 'Paste the key response from your device'}
-            {!processingSearchParams && step === 'processing' && 'Decrypting vault data...'}
-            {!processingSearchParams && step === 'success' && 'Decryption successful!'}
-            {!processingSearchParams && step === 'error' && 'Failed to prepare decryption request'}
+            {!isAutoProcessing && step === 'input' && 'Paste the key response from your device'}
+            {!isAutoProcessing && step === 'processing' && 'Decrypting vault data...'}
+            {!isAutoProcessing && step === 'success' && 'Decryption successful!'}
+            {!isAutoProcessing && step === 'error' && 'Failed to prepare decryption request'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-4">
-          {processingSearchParams && (
+          {isAutoProcessing && (
             <div className="flex flex-col items-center gap-3 py-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Processing Key Response</p>
             </div>
           )}
 
-          {!processingSearchParams && step === 'loading' && (
+          {!isAutoProcessing && step === 'loading' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Creating key request...</p>
             </div>
           )}
 
-          {!processingSearchParams && step === 'display' && currentChunk && (
+          {!isAutoProcessing && step === 'display' && currentChunk && (
             <>
               {env.android ? (
                 <div className="flex flex-col items-center gap-3 w-full">
@@ -348,7 +343,7 @@ function DecryptQrDialogContent({
             </>
           )}
 
-          {!processingSearchParams && step === 'input' && (
+          {!isAutoProcessing && step === 'input' && (
             <>
               <div className="w-full space-y-3">
                 <Textarea
@@ -381,14 +376,14 @@ function DecryptQrDialogContent({
             </>
           )}
 
-          {!processingSearchParams && step === 'processing' && (
+          {!isAutoProcessing && step === 'processing' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Decrypting vault data...</p>
             </div>
           )}
 
-          {!processingSearchParams && step === 'success' && (
+          {!isAutoProcessing && step === 'success' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
                 <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
@@ -398,7 +393,7 @@ function DecryptQrDialogContent({
             </div>
           )}
 
-          {!processingSearchParams && step === 'error' && (
+          {!isAutoProcessing && step === 'error' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30">
                 <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
