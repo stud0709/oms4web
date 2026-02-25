@@ -190,9 +190,10 @@ function DecryptQrDialogContent({
     (async () => {
       const db = await oms4webDbPromise;
       const dbEntry = await db.get(KEY_REQUEST_STORE, LATEST_CONTEXT);
-      if (!dbEntry){ 
+      if (!dbEntry) {
         setSearchParams({});
-        return;} 
+        return;
+      }
       db.delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
 
       keyRequestContext.current = dbEntry;
@@ -242,8 +243,8 @@ function DecryptQrDialogContent({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {env.android ?
-             (<KeyRound className="h-5 w-5" />) : 
-             (<QrCode className="h-5 w-5" />)}
+              (<KeyRound className="h-5 w-5" />) :
+              (<QrCode className="h-5 w-5" />)}
             Decrypt Vault Data
           </DialogTitle>
           <DialogDescription>
