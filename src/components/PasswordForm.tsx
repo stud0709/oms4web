@@ -301,38 +301,62 @@ export function PasswordForm({
         </div>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder={isReadOnly ? ' ' : 'e.g., Gmail, Netflix, Bank...'}
-              autoFocus
-              disabled={isReadOnly}
-            />
+          <div className="space-y-2">
+            <Label htmlFor="title">Title</Label>
+            <div className="flex gap-2">
+              <Input
+                id="title"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder={isReadOnly ? ' ' : 'e.g., Gmail, Netflix, Bank...'}
+                autoFocus
+                disabled={isReadOnly}
+                className="flex-1"
+              />
+              {isReadOnly && title && (
+                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(title)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="url">URL</Label>
-            <Input
-              id="url"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
-              placeholder={isReadOnly ? ' ' : 'https://example.com'}
-              disabled={isReadOnly}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="url"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                placeholder={isReadOnly ? ' ' : 'https://example.com'}
+                disabled={isReadOnly}
+                className="flex-1"
+              />
+              {isReadOnly && url && (
+                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(url)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="username">Username / Email</Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder={isReadOnly ? ' ' : 'your@email.com'}
-              disabled={isReadOnly}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder={isReadOnly ? ' ' : 'your@email.com'}
+                disabled={isReadOnly}
+                className="flex-1"
+              />
+              {isReadOnly && username && (
+                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(username)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -370,6 +394,11 @@ export function PasswordForm({
                     )}
                   </TooltipProvider>
                 )}
+                {isReadOnly && password && !passwordReadonly && (
+                  <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(password)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                )}
                 {!passwordReadonly && !isReadOnly && (
                   <Button
                     type="button"
@@ -386,7 +415,14 @@ export function PasswordForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Hashtags</Label>
+            <div className="flex items-center justify-between">
+              <Label>Hashtags</Label>
+              {isReadOnly && hashtags.length > 0 && (
+                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(hashtags.join(', '))}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {hashtags.map(tag => (
                 <Badge key={tag} variant="secondary" className="gap-1">
@@ -439,14 +475,22 @@ export function PasswordForm({
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder={isReadOnly ? ' ' : 'Additional notes, recovery codes, security questions...'}
-              rows={3}
-              disabled={isReadOnly}
-            />
+            <div className="flex gap-2">
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder={isReadOnly ? ' ' : 'Additional notes, recovery codes, security questions...'}
+                rows={3}
+                disabled={isReadOnly}
+                className="flex-1"
+              />
+              {isReadOnly && notes && (
+                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(notes)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -478,6 +522,11 @@ export function PasswordForm({
                       className="h-8 font-mono flex-1"
                       disabled={isReadOnly || field.readonly}
                     />
+                    {isReadOnly && field.value && !field.readonly && (
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(field.value)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
                     {field.readonly && (
                       <TooltipProvider>
                         <Tooltip>
