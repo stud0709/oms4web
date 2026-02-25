@@ -84,6 +84,7 @@ function DecryptQrDialogContent({
   const [step, setStep] = useState<Step>('loading');
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [processingSearchParams, setProcessingSearchParams] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyRequestContext = useRef<KeyRequestContext | null>(null);
   const env = useMemo(() => getEnvironment(), []);
@@ -138,7 +139,7 @@ function DecryptQrDialogContent({
     setTimeout(() => textareaRef.current?.focus(), 100);
   }, []);
 
-  const handleSubmitDecrypted = useCallback(async (keyResponse?: string) => {
+  const handleSubmitDecrypted = useCallback(async (keyResponse?: string, fromSearchParams = false) => {
     if (!keyResponse && !inputValue.trim()) {
       setError('Please paste the key response from your device');
       return;
@@ -151,6 +152,9 @@ function DecryptQrDialogContent({
 
     setStep('processing');
     setError(null);
+    if (fromSearchParams) {
+      setProcessingSearchParams(true);
+    }
 
     try {
       // Process the KEY_RESPONSE to decrypt the vault
@@ -166,13 +170,16 @@ function DecryptQrDialogContent({
       }, 1000);
     } catch (err) {
       console.error('Decryption failed:', err);
+      setProcessingSearchParams(false);
       setError(
         err instanceof Error
           ? `Decryption failed: ${err.message}`
           : 'Decryption failed. Please ensure you pasted the complete key response.'
       );
       setStep('input');
+      return;
     }
+    setProcessingSearchParams(false);
   }, [inputValue, onDecrypted, onOpenChange]);
 
   //decrypt when reloading
@@ -180,13 +187,17 @@ function DecryptQrDialogContent({
     if (!searchParams.has("data")) return;
 
     (async () => {
+      setProcessingSearchParams(true);
       const db = await oms4webDbPromise;
       const dbEntry = await db.get(KEY_REQUEST_STORE, LATEST_CONTEXT);
-      if (!dbEntry) return;
+      if (!dbEntry) {
+        setProcessingSearchParams(false);
+        return;
+      }
       db.delete(KEY_REQUEST_STORE, LATEST_CONTEXT);
 
       keyRequestContext.current = dbEntry;
-      handleSubmitDecrypted(searchParams.get("data"));
+      handleSubmitDecrypted(searchParams.get("data") ?? '', true);
       setSearchParams({});
     })();
 
@@ -232,26 +243,34 @@ function DecryptQrDialogContent({
             Decrypt Vault Data
           </DialogTitle>
           <DialogDescription>
-            {step === 'loading' && 'Preparing decryption request...'}
-            {step === 'display' && (env.android
+            {processingSearchParams && 'Processing Key Response'}
+            {!processingSearchParams && step === 'loading' && 'Preparing decryption request...'}
+            {!processingSearchParams && step === 'display' && (env.android
               ? 'Send the key request to OneMoreSecret, then press UNLOCK or paste the key response below.'
               : 'Scan the QR code(s) with OneMoreSecret to get the decryption key')}
-            {step === 'input' && 'Paste the key response from your device'}
-            {step === 'processing' && 'Decrypting vault data...'}
-            {step === 'success' && 'Decryption successful!'}
-            {step === 'error' && 'Failed to prepare decryption request'}
+            {!processingSearchParams && step === 'input' && 'Paste the key response from your device'}
+            {!processingSearchParams && step === 'processing' && 'Decrypting vault data...'}
+            {!processingSearchParams && step === 'success' && 'Decryption successful!'}
+            {!processingSearchParams && step === 'error' && 'Failed to prepare decryption request'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-4">
-          {step === 'loading' && (
+          {processingSearchParams && (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Processing Key Response</p>
+            </div>
+          )}
+
+          {!processingSearchParams && step === 'loading' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Creating key request...</p>
             </div>
           )}
 
-          {step === 'display' && currentChunk && (
+          {!processingSearchParams && step === 'display' && currentChunk && (
             <>
               {env.android ? (
                 <div className="flex flex-col items-center gap-3 w-full">
@@ -316,7 +335,7 @@ function DecryptQrDialogContent({
             </>
           )}
 
-          {step === 'input' && (
+          {!processingSearchParams && step === 'input' && (
             <>
               <div className="w-full space-y-3">
                 <Textarea
@@ -349,14 +368,14 @@ function DecryptQrDialogContent({
             </>
           )}
 
-          {step === 'processing' && (
+          {!processingSearchParams && step === 'processing' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Decrypting vault data...</p>
             </div>
           )}
 
-          {step === 'success' && (
+          {!processingSearchParams && step === 'success' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
                 <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
@@ -366,7 +385,7 @@ function DecryptQrDialogContent({
             </div>
           )}
 
-          {step === 'error' && (
+          {!processingSearchParams && step === 'error' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30">
                 <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
