@@ -147,10 +147,19 @@ export function PasswordForm({
   }, [entry]);
 
   const addTag = (tag: string) => {
-    const cleanTag = tag.trim().replace(/[^a-zA-Z0-9-]/g, '');
-    if (cleanTag && !hashtags.includes(cleanTag)) {
-      setHashtags([...hashtags, cleanTag]);
+    const parts = tag.split(/[\s,]+/).filter(Boolean);
+    if (parts.length === 0) {
+      setTagInput('');
+      return;
     }
+    const nextTags = new Set(hashtags);
+    parts.forEach(part => {
+      const cleanTag = part.replace(/^#/, '').trim().replace(/[^a-zA-Z0-9-]/g, '');
+      if (cleanTag) {
+        nextTags.add(cleanTag);
+      }
+    });
+    setHashtags(Array.from(nextTags));
     setTagInput('');
   };
 
