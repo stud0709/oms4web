@@ -1,7 +1,8 @@
 import {
   useState,
   useEffect,
-  useCallback
+  useCallback,
+  useMemo
 } from 'react';
 import {
   PasswordEntry,
@@ -55,10 +56,6 @@ interface PasswordFormProps {
   onSave: (entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => void;
   existingTags: string[];
   settings: AppSettings;
-  readOnly?: boolean;
-  historyItems?: PasswordEntryHistoryItem[];
-  onSelectHistory?: (historyEntry: PasswordEntryHistoryItem | null) => void;
-  selectedHistoryEntry?: PasswordEntryHistoryItem | null;
 }
 
 interface ProtectionOption {
@@ -72,11 +69,7 @@ export function PasswordForm({
   entry,
   onSave,
   existingTags,
-  settings,
-  readOnly = false,
-  historyItems,
-  onSelectHistory,
-  selectedHistoryEntry
+  settings
 }: PasswordFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,22 +88,36 @@ export function PasswordForm({
   const [tagInput, setTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [passwordReadonly, setPasswordReadonly] = useState(false);
-  const historyEntries = historyItems ?? [];
+  const [historyView, setHistoryView] = useState(false);
+  const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<PasswordEntryHistoryItem | null>(null);
+  const historyEntries = entry?.history ?? [];
   const formatTimestamp = (timestamp: Date) => new Date(timestamp).toLocaleString();
+  const isReadOnly = historyView;
+  const entryToDisplay = useMemo(() => (
+    historyView && selectedHistoryEntry
+      ? { ...selectedHistoryEntry.data, history: entry?.history ?? [] }
+      : entry
+  ), [historyView, selectedHistoryEntry, entry]);
 
   useEffect(() => {
-    if (entry) {
-      setTitle(entry.title);
-      setUsername(entry.username);
-      setPassword(entry.password);
-      setUrl(entry.url);
-      setNotes(entry.notes);
-      setHashtags(entry.hashtags);
-      setCustomFields(entry.customFields);
-      setPasswordReadonly(entry.passwordReadonly);
+    if (entryToDisplay) {
+      setTitle(entryToDisplay.title);
+      setUsername(entryToDisplay.username);
+      setPassword(entryToDisplay.password);
+      setUrl(entryToDisplay.url);
+      setNotes(entryToDisplay.notes);
+      setHashtags(entryToDisplay.hashtags);
+      setCustomFields(entryToDisplay.customFields);
+      setPasswordReadonly(entryToDisplay.passwordReadonly);
     } else {
       resetForm();
     }
+  }, [entryToDisplay, open]);
+
+  useEffect(() => {
+    if (!entry) return;
+    setHistoryView(false);
+    setSelectedHistoryEntry(null);
   }, [entry, open]);
 
   const resetForm = () => {
@@ -168,7 +175,7 @@ export function PasswordForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (readOnly) return;
+    if (isReadOnly) return;
     setIsSubmitting(true);
 
     try {
@@ -250,8 +257,8 @@ export function PasswordForm({
         <DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <DialogTitle>{readOnly ? 'Entry History' : entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
-            {readOnly && selectedHistoryEntry && (
+            <DialogTitle>{isReadOnly ? 'Entry History' : entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
+            {isReadOnly && selectedHistoryEntry && (
               <span className="text-sm text-muted-foreground">{formatTimestamp(selectedHistoryEntry.timestamp)}</span>
             )}
           </div>
@@ -264,7 +271,10 @@ export function PasswordForm({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>History</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onSelectHistory?.(null)}>
+                <DropdownMenuItem onClick={() => {
+                  setHistoryView(false);
+                  setSelectedHistoryEntry(null);
+                }}>
                   Current version
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -272,7 +282,10 @@ export function PasswordForm({
                   historyEntries.map((historyEntry, index) => (
                     <DropdownMenuItem
                       key={`${historyEntry.timestamp}-${index}`}
-                      onClick={() => onSelectHistory?.(historyEntry)}
+                      onClick={() => {
+                        setHistoryView(true);
+                        setSelectedHistoryEntry(historyEntry);
+                      }}
                       className="flex flex-col items-start"
                     >
                       <span className="text-sm">{formatTimestamp(historyEntry.timestamp)}</span>
@@ -294,11 +307,11 @@ export function PasswordForm({
               id="title"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder={readOnly ? ' ' : 'e.g., Gmail, Netflix, Bank...'}
+              placeholder={isReadOnly ? ' ' : 'e.g., Gmail, Netflix, Bank...'}
               autoFocus
-              disabled={readOnly}
+              disabled={isReadOnly}
             />
-        </div>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="url">URL</Label>
@@ -306,10 +319,10 @@ export function PasswordForm({
               id="url"
               value={url}
               onChange={e => setUrl(e.target.value)}
-              placeholder={readOnly ? ' ' : 'https://example.com'}
-              disabled={readOnly}
+              placeholder={isReadOnly ? ' ' : 'https://example.com'}
+              disabled={isReadOnly}
             />
-        </div>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="username">Username / Email</Label>
@@ -317,10 +330,10 @@ export function PasswordForm({
               id="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder={readOnly ? ' ' : 'your@email.com'}
-              disabled={readOnly}
+              placeholder={isReadOnly ? ' ' : 'your@email.com'}
+              disabled={isReadOnly}
             />
-        </div>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -331,9 +344,9 @@ export function PasswordForm({
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   type={showPassword ? 'text' : 'password'}
-                  placeholder={readOnly ? ' ' : '••••••••'}
+                  placeholder={isReadOnly ? ' ' : '••••••••'}
                   className="flex-1 font-mono"
-                  disabled={readOnly || passwordReadonly}
+                  disabled={isReadOnly || passwordReadonly}
                 />
                 {passwordReadonly && (
                   <TooltipProvider>
@@ -345,7 +358,7 @@ export function PasswordForm({
                       </TooltipTrigger>
                       <TooltipContent>Copy</TooltipContent>
                     </Tooltip>
-                    {!readOnly && (
+                    {!isReadOnly && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button type="button" variant="ghost" size="icon" onClick={() => erasePassword()}>
@@ -357,7 +370,7 @@ export function PasswordForm({
                     )}
                   </TooltipProvider>
                 )}
-                {!passwordReadonly && !readOnly && (
+                {!passwordReadonly && !isReadOnly && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -368,7 +381,7 @@ export function PasswordForm({
                   </Button>
                 )}
               </div>
-              {!readOnly && settings.encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
+              {!isReadOnly && settings.encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
             </div>
           </div>
 
@@ -378,7 +391,7 @@ export function PasswordForm({
               {hashtags.map(tag => (
                 <Badge key={tag} variant="secondary" className="gap-1">
                   #{tag}
-                  {!readOnly && (
+                  {!isReadOnly && (
                     <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
                       <X className="h-3 w-3" />
                     </button>
@@ -403,8 +416,8 @@ export function PasswordForm({
                     addTag(tagInput);
                   }
                 }}
-                placeholder={readOnly ? ' ' : 'Type and press Enter to add...'}
-                disabled={readOnly}
+                placeholder={isReadOnly ? ' ' : 'Type and press Enter to add...'}
+                disabled={isReadOnly}
               />
               {tagInput && suggestedTags.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-10 max-h-32 overflow-y-auto">
@@ -430,16 +443,16 @@ export function PasswordForm({
               id="notes"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder={readOnly ? ' ' : 'Additional notes, recovery codes, security questions...'}
+              placeholder={isReadOnly ? ' ' : 'Additional notes, recovery codes, security questions...'}
               rows={3}
-              disabled={readOnly}
+              disabled={isReadOnly}
             />
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>Custom Fields</Label>
-              {!readOnly && (
+              {!isReadOnly && (
                 <Button type="button" variant="outline" size="sm" onClick={addCustomField}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Field
@@ -452,18 +465,18 @@ export function PasswordForm({
                   <Input
                     value={field.label}
                     onChange={e => updateCustomField(field.id, { label: e.target.value })}
-                    placeholder={readOnly ? ' ' : 'Field name'}
+                    placeholder={isReadOnly ? ' ' : 'Field name'}
                     className="h-8"
-                    disabled={readOnly}
+                    disabled={isReadOnly}
                   />
                   <div className="flex gap-1">
                     <Input
                       value={field.value}
                       onChange={e => updateCustomField(field.id, { value: e.target.value })}
-                      placeholder={readOnly ? ' ' : 'Value'}
+                      placeholder={isReadOnly ? ' ' : 'Value'}
                       type={field.protection !== 'none' ? 'password' : 'text'}
                       className="h-8 font-mono flex-1"
-                      disabled={readOnly || field.readonly}
+                      disabled={isReadOnly || field.readonly}
                     />
                     {field.readonly && (
                       <TooltipProvider>
@@ -475,7 +488,7 @@ export function PasswordForm({
                           </TooltipTrigger>
                           <TooltipContent>Copy</TooltipContent>
                         </Tooltip>
-                        {!readOnly && (
+                        {!isReadOnly && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateCustomField(field.id, { value: '', readonly: false, protection: 'none' })}>
@@ -498,7 +511,7 @@ export function PasswordForm({
                       className="flex flex-row gap-1"
                       value={field.protection}
                       onValueChange={v => updateCustomField(field.id, { protection: v as CustomFieldProtection })}
-                      disabled={readOnly || field.readonly}
+                      disabled={isReadOnly || field.readonly}
                     >
                       {([
                         { id: 'none', Icon: Eye },
@@ -529,7 +542,7 @@ export function PasswordForm({
                     </RadioGroup>
                   </div>
                 </div>
-                {!readOnly && (
+                {!isReadOnly && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -548,7 +561,7 @@ export function PasswordForm({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || readOnly}>
+            <Button type="submit" disabled={isSubmitting || isReadOnly}>
               {isSubmitting ? 'Encrypting...' : entry ? 'Save Changes' : 'Create Entry'}
             </Button>
           </DialogFooter>

@@ -26,7 +26,7 @@ import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
-import { PasswordEntry, PasswordEntryHistoryItem, VaultData } from '@/types/types';
+import { PasswordEntry, VaultData } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
@@ -59,9 +59,6 @@ const Index = () => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
-  const [historyView, setHistoryView] = useState(false);
-  const [activeEntry, setActiveEntry] = useState<PasswordEntry | null>(null);
-  const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<PasswordEntryHistoryItem | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
   const allTags = getAllHashtags();
 
@@ -139,27 +136,7 @@ const Index = () => {
 
   const handleEdit = (entry: PasswordEntry) => {
     setEditingEntry(entry);
-    setHistoryView(false);
-    setActiveEntry(entry);
-    setSelectedHistoryEntry(null);
     setFormOpen(true);
-  };
-
-  const handleHistorySelect = (historyEntry: PasswordEntryHistoryItem | null) => {
-    if (!activeEntry) return;
-
-    if (historyEntry) {
-      setEditingEntry({
-        ...historyEntry.data,
-        history: activeEntry.history,
-      });
-      setHistoryView(true);
-      setSelectedHistoryEntry(historyEntry);
-    } else {
-      setEditingEntry(activeEntry);
-      setHistoryView(false);
-      setSelectedHistoryEntry(null);
-    }
   };
 
   const handleSoftDelete = (entry: PasswordEntry) => {
@@ -173,9 +150,6 @@ const Index = () => {
     setFormOpen(open);
     if (!open) {
       setEditingEntry(null);
-      setHistoryView(false);
-      setActiveEntry(null);
-      setSelectedHistoryEntry(null);
     }
   };
 
@@ -469,10 +443,6 @@ const Index = () => {
         onSave={handleSave}
         existingTags={allTags}
         settings={vaultData.settings}
-        readOnly={historyView}
-        historyItems={activeEntry?.history}
-        onSelectHistory={handleHistorySelect}
-        selectedHistoryEntry={selectedHistoryEntry}
       />
 
       {/* Decrypt dialog for importing encrypted files */}
