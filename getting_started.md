@@ -35,3 +35,4 @@ You might also want to have a look at the [README](./README.md) file.
 
 ## More docs
 - [Linking fields](reference_to_another_entry.md)
+- [Entry history](history.md) 
