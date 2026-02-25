@@ -28,7 +28,10 @@ You can use the app without public key as well. In this case, the in-place encry
 ## Note on password generator and encryption
 Technically, if you generate passwords in oms4web, they will be only encrypted on save. If you don't want that, do not enable password generator in the settings and generate your passwords in *OneMoreSecret*. 
 
-## One last tip
+## One last hint
 Consider installing *oms4web* as an [web app](https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DDesktop). This makes it more convenient to use and allows tighter integration with the operation system.
 
 You might also want to have a look at the [README](./README.md) file.
+
+## More docs
+- [Linking fields](reference_to_another_entry.md)
