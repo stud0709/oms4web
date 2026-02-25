@@ -327,42 +327,45 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container max-w-4xl px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-3 w-1/2 sm:w-[30%] min-w-0">
+              <div className="min-w-0">
                 <a href="https://github.com/stud0709/oms4web">
                   <h1 className="text-xl font-bold tracking-tight">oms4web</h1>
                 </a>
-                <p className="text-xs text-muted-foreground">{vaultData.settings.vaultName.trim() || 'Untitled'}</p>
+                <p className="text-xs text-muted-foreground truncate">{vaultData.settings.vaultName.trim() || 'Untitled'}</p>
               </div>
             </div>
-            <Button variant="outline" size="icon" onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleExport} title="Export">
-              <Download className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
-              <Upload className="h-4 w-4" />
-            </Button>
-            {//"Lock workspace" button to be shown only if workspace protection activated
-              vaultData.settings.workspaceProtection !== 'none' && (<>
-                <Button variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
-                  <LockKeyhole className="h-4 w-4" />
+            <div className="flex flex-1 items-center justify-end overflow-x-auto">
+              <div className="flex items-center gap-2 flex-nowrap pr-1">
+                <Button className="shrink-0" variant="outline" size="icon" onClick={() => setFormOpen(true)}>
+                  <Plus className="h-4 w-4" />
                 </Button>
-              </>
-              )}
-            <SettingsDialog
-              settings={vaultData.settings}
-              onSaveSettings={updateSettings}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,.oms00"
-              className="hidden"
-              onChange={handleImport}
-            />
+                <Button className="shrink-0" variant="outline" size="icon" onClick={handleExport} title="Export">
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button className="shrink-0" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
+                  <Upload className="h-4 w-4" />
+                </Button>
+                {//"Lock workspace" button to be shown only if workspace protection activated
+                  vaultData.settings.workspaceProtection !== 'none' && (
+                    <Button className="shrink-0" variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
+                      <LockKeyhole className="h-4 w-4" />
+                    </Button>
+                  )}
+                <SettingsDialog
+                  settings={vaultData.settings}
+                  onSaveSettings={updateSettings}
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,.oms00"
+                  className="hidden"
+                  onChange={handleImport}
+                />
+              </div>
+            </div>
           </div>
           <SearchBar value={search} onChange={handleSearchChange} />
           {allTags.length > 0 && (
