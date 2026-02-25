@@ -80,12 +80,19 @@ function DecryptQrDialogContent({
   hideCloseButton = false
 }: DecryptQrDialogProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialProcessing = useMemo(() => {
+    const hashQuery = window.location.hash.includes('?')
+      ? window.location.hash.split('?')[1]
+      : '';
+    const params = new URLSearchParams(window.location.search || hashQuery);
+    return params.has("data");
+  }, []);
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [step, setStep] = useState<Step>('loading');
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [processingSearchParams, setProcessingSearchParams] = useState(() => searchParams.has("data"));
+  const [processingSearchParams, setProcessingSearchParams] = useState(initialProcessing);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyRequestContext = useRef<KeyRequestContext | null>(null);
   const env = useMemo(() => getEnvironment(), []);
@@ -101,6 +108,7 @@ function DecryptQrDialogContent({
   }, [env.android]);
 
   useEffect(() => {
+    if (processingSearchParams) return;
     if (open && encryptedData) {
       // Create KEY_REQUEST message
       createKeyRequest(
@@ -122,7 +130,7 @@ function DecryptQrDialogContent({
           setStep('error');
         });
     }
-  }, [open, encryptedData, env.android, env.pwaMode, persistKeyPair]);
+  }, [open, encryptedData, env.android, env.pwaMode, persistKeyPair, processingSearchParams]);
 
   useEffect(() => {
     if (!open || chunks.length <= 1 || step !== 'display') return;
@@ -176,6 +184,11 @@ function DecryptQrDialogContent({
           ? `Decryption failed: ${err.message}`
           : 'Decryption failed. Please ensure you pasted the complete key response.'
       );
+      if (fromSearchParams && keyRequestContext.current?.message) {
+        const qrChunks = getQrSequence(keyRequestContext.current.message);
+        setChunks(qrChunks);
+        setCurrentIndex(0);
+      }
       setStep('input');
       return;
     }
