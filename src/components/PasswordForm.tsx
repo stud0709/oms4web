@@ -7,7 +7,8 @@ import {
   PasswordEntry,
   CustomField,
   CustomFieldProtection,
-  AppSettings
+  AppSettings,
+  PasswordEntryHistoryItem
 } from '@/types/types';
 import {
   Plus,
@@ -17,7 +18,8 @@ import {
   X,
   QrCode,
   Eraser,
-  Copy
+  Copy,
+  History
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -37,6 +39,14 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 
 interface PasswordFormProps {
   open: boolean;
@@ -46,6 +56,8 @@ interface PasswordFormProps {
   existingTags: string[];
   settings: AppSettings;
   readOnly?: boolean;
+  historyItems?: PasswordEntryHistoryItem[];
+  onSelectHistory?: (historyEntry: PasswordEntryHistoryItem | null) => void;
 }
 
 interface ProtectionOption {
@@ -53,7 +65,17 @@ interface ProtectionOption {
   Icon: React.ComponentType<{ className?: string }>;
 }
 
-export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, settings, readOnly = false }: PasswordFormProps) {
+export function PasswordForm({
+  open,
+  onOpenChange,
+  entry,
+  onSave,
+  existingTags,
+  settings,
+  readOnly = false,
+  historyItems,
+  onSelectHistory
+}: PasswordFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -71,6 +93,8 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
   const [tagInput, setTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [passwordReadonly, setPasswordReadonly] = useState(false);
+  const historyEntries = historyItems ?? [];
+  const formatTimestamp = (timestamp: Date) => new Date(timestamp).toLocaleString();
 
   useEffect(() => {
     if (entry) {
@@ -222,7 +246,39 @@ export function PasswordForm({ open, onOpenChange, entry, onSave, existingTags, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-        <DialogTitle>{readOnly ? 'Entry History' : entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
+        <div className="flex items-center justify-between gap-2">
+          <DialogTitle>{readOnly ? 'Entry History' : entry ? 'Edit Entry' : 'New Entry'}</DialogTitle>
+          {entry && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" title="Entry history">
+                  <History className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>History</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onSelectHistory?.(null)}>
+                  Current version
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {historyEntries.length > 0 ? (
+                  historyEntries.map((historyEntry, index) => (
+                    <DropdownMenuItem
+                      key={`${historyEntry.timestamp}-${index}`}
+                      onClick={() => onSelectHistory?.(historyEntry)}
+                      className="flex flex-col items-start"
+                    >
+                      <span className="text-sm">{formatTimestamp(historyEntry.timestamp)}</span>
+                      <span className="text-xs text-muted-foreground truncate w-full">{historyEntry.data.title}</span>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>No history yet</DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

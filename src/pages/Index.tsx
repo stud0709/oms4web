@@ -60,6 +60,7 @@ const Index = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [historyView, setHistoryView] = useState(false);
+  const [activeEntry, setActiveEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
   const allTags = getAllHashtags();
 
@@ -138,21 +139,23 @@ const Index = () => {
   const handleEdit = (entry: PasswordEntry) => {
     setEditingEntry(entry);
     setHistoryView(false);
+    setActiveEntry(entry);
     setFormOpen(true);
   };
 
-  const handleHistoryView = (entry: PasswordEntry, historyEntry: PasswordEntryHistoryItem | null) => {
+  const handleHistorySelect = (historyEntry: PasswordEntryHistoryItem | null) => {
+    if (!activeEntry) return;
+
     if (historyEntry) {
       setEditingEntry({
         ...historyEntry.data,
-        history: entry.history,
+        history: activeEntry.history,
       });
       setHistoryView(true);
     } else {
-      setEditingEntry(entry);
+      setEditingEntry(activeEntry);
       setHistoryView(false);
     }
-    setFormOpen(true);
   };
 
   const handleSoftDelete = (entry: PasswordEntry) => {
@@ -167,6 +170,7 @@ const Index = () => {
     if (!open) {
       setEditingEntry(null);
       setHistoryView(false);
+      setActiveEntry(null);
     }
   };
 
@@ -401,7 +405,6 @@ const Index = () => {
                 <PasswordCard
                   entry={entry}
                   onEdit={handleEdit}
-                  onViewHistory={handleHistoryView}
                   onDelete={deleteEntry}
                   onSoftDelete={handleSoftDelete}
                   onTagClick={setSelectedTag}
@@ -462,6 +465,8 @@ const Index = () => {
         existingTags={allTags}
         settings={vaultData.settings}
         readOnly={historyView}
+        historyItems={activeEntry?.history}
+        onSelectHistory={handleHistorySelect}
       />
 
       {/* Decrypt dialog for importing encrypted files */}
