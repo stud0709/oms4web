@@ -4,7 +4,7 @@
     "allowJs": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
@@ -19,7 +19,7 @@
     "skipLibCheck": true,
     "strict": false,
     "strictNullChecks": false,
-    "target": "ES2020",
+    "target": "ES2022",
     "useDefineForClassFields": true
   },
   "include": ["src"]
