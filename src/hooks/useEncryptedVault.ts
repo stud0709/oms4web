@@ -39,8 +39,9 @@ import {
   oms4webDbPromise,
   QUICK_UNLOCK_STORE,
   STORAGE_KEY,
-  VAULT_STORE as VAULT_STORE_OBSOLETE,
-  VAULT_STORE_V2
+  VAULT_STORE_V1,
+  VAULT_STORE_V2,
+  VAULT_STORE_V3,
 } from '@/lib/db';
 import { JSONPath } from 'jsonpath-plus';
 import { IDBPDatabase } from 'idb';
@@ -200,8 +201,8 @@ export function useEncryptedVault() {
 
   /** OLD FORMAT, REMOVE */
   const parseObsoleteStorage = useCallback(async (db: IDBPDatabase<OmsDbSchema>, quickUnlock: QuickUnlockData) => {
-    if (!db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) return false;
-    const stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+    if (!db.objectStoreNames.contains(VAULT_STORE_V1)) return false;
+    const stored = await db.get(VAULT_STORE_V1, STORAGE_KEY);
     if (!stored) return false;
 
     if (stored.startsWith(OMS_PREFIX)) {
@@ -313,8 +314,8 @@ export function useEncryptedVault() {
       }
 
       //OLD FORMAT, REMOVE >>>
-      if (db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) {
-        db.delete(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+      if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
+        db.delete(VAULT_STORE_V1, STORAGE_KEY);
       }
       //<<< OLD FORMAT, REMOVE
     })();
@@ -380,8 +381,8 @@ export function useEncryptedVault() {
       let binary: Uint8Array;
       //OLD FORMAT, REMOVE >>>
       let stored: string | undefined;
-      if (db.objectStoreNames.contains(VAULT_STORE_OBSOLETE)) {
-        stored = await db.get(VAULT_STORE_OBSOLETE, STORAGE_KEY);
+      if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
+        stored = await db.get(VAULT_STORE_V1, STORAGE_KEY);
       }
       if (stored) {
         const base64Data = stored.slice(OMS_PREFIX.length);
@@ -518,7 +519,7 @@ export function useEncryptedVault() {
           if (customField.value.startsWith(OMS4WEB_REF)) {
             //inherit protection mode as well
             const path = customField.value.substring(OMS4WEB_REF.length);
-            (copy as CustomField).protection = (query(path) as CustomField)?.protection || customField.protection;
+            copy[CUSTOM_FIELD_PROTECTION_PROPERTY_NAME] = (query(path) as CustomField)?.protection || customField.protection;
           }
         }
         return copy;
