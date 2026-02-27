@@ -17,7 +17,6 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   downloadVault,
   getTimestamp,
-  isBackupRequired,
   useEncryptedVault,
   validateJson
 } from '@/hooks/useEncryptedVault';
@@ -53,6 +52,7 @@ const Index = () => {
     unlockPin,
     applyRef,
     switchToQuickUnlock,
+    isBackupRequired,
   } = useEncryptedVault();
 
   const { toast } = useToast();
@@ -175,7 +175,7 @@ const Index = () => {
     plainToast: { title: string; description: string; variant?: 'destructive' };
     onEncryptError?: () => void;
   }) => {
-    const data = exportData();
+    const data = await exportData();
     const jsonData = JSON.stringify(data, null, 2);
     const name = vaultData.settings.vaultName.trim() || 'Untitled';
 
@@ -211,7 +211,7 @@ const Index = () => {
 
   const backupCurrentVault = async () => {
     if (vaultData.entries.length === 0) return; // nothing to back up
-    if (!isBackupRequired()) return; //contents have not changed since last export
+    if (!(await isBackupRequired())) return; //contents have not changed since last export
 
     const timestamp = getTimestamp();
     await downloadVaultSnapshot({
@@ -239,17 +239,15 @@ const Index = () => {
 
     // Handle unencrypted JSON 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string;
 
       // Handle plain JSON
       try {
         const data = validateJson(JSON.parse(content));
-
-        backupCurrentVault().then(() => {
-          importEntries(data);
-          toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
-        });
+        await backupCurrentVault();
+        await importEntries(data);
+        toast({ title: 'Imported', description: `${data.entries.length} entries loaded.` });
       } catch (err) {
         toast({ title: 'Import failed', description: 'Invalid JSON file format.', variant: 'destructive' });
       }
@@ -261,7 +259,7 @@ const Index = () => {
   const handleImportDecrypted = async (vaultData: VaultData) => {
     try {
       await backupCurrentVault();
-      importEntries(vaultData);
+      await importEntries(vaultData);
       toast({ title: 'Imported', description: `${vaultData.entries.length} entries loaded.` });
     } catch (err) {
       toast({ title: 'Import failed', description: 'Invalid decrypted data format.', variant: 'destructive' });

@@ -202,26 +202,14 @@ export const updateSha256 = async (setNull: boolean = false) => {
   if (vaultStoreEntry) {
     //update sha256 value
     vaultStoreEntry.sha256 = setNull ? null : new Uint8Array(await crypto.subtle.digest('SHA-256', vaultStoreEntry.vault.slice()));
-    db.put(VAULT_STORE_V3, vaultStoreEntry);
+    await db.put(VAULT_STORE_V3, vaultStoreEntry, STORAGE_KEY);
   }
 }
 
-export const isBackupRequired = async () => {
-  const db = await oms4webDbPromise;
-  const vaultStoreEntry = await db.get(VAULT_STORE_V3, STORAGE_KEY);
-
-  if (!vaultStoreEntry?.sha256) return true;
-
-  const sha256 = new Uint8Array(await crypto.subtle.digest('SHA-256', vaultStoreEntry.vault.slice()));
-
-  if (sha256.byteLength !== vaultStoreEntry.sha256.byteLength) return false;
-
-  for (let i = 0; i < sha256.length; i++) {
-    if (sha256[i] !== vaultStoreEntry.sha256[i]) return false;
-  }
-
-  return true;
-}
+const jsonToBytes = (json: object) => {
+  const jsonData = JSON.stringify(json);
+  return new TextEncoder().encode(jsonData);
+};
 
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
@@ -337,21 +325,39 @@ export function useEncryptedVault() {
     })();
   }, [parseObsoleteStorage, parseObsoleteStorageV2]);
 
+
+  const isBackupRequired = useCallback(async () => {
+    const db = await oms4webDbPromise;
+    const vaultStoreEntry = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+
+    if (!vaultStoreEntry?.sha256) return true;
+
+    const sha256 = new Uint8Array(await crypto.subtle.digest('SHA-256', jsonToBytes(vaultData)));
+
+    if (sha256.byteLength !== vaultStoreEntry.sha256.byteLength) return true;
+
+    for (let i = 0; i < sha256.length; i++) {
+      if (sha256[i] !== vaultStoreEntry.sha256[i]) return true;
+    }
+
+    return false;
+  }, [vaultData]);
+
   // Save vault when data changes 
   useEffect(() => {
     if (vaultState.status !== 'ready') return;
 
     (async () => {
-      const jsonData = JSON.stringify(vaultData);
-      const dataBytes = new TextEncoder().encode(jsonData);
-
+      const dataBytes = jsonToBytes(vaultData);
       const db = await oms4webDbPromise;
 
-      let savedSha256OnExport: Uint8Array | undefined;
+      let savedSha256: Uint8Array | undefined;
       const savedVault = await db.get(VAULT_STORE_V3, STORAGE_KEY);
       if (savedVault) {
-        savedSha256OnExport = savedVault.sha256;
+        savedSha256 = savedVault.sha256;
       }
+
+      const sha256 = new Uint8Array(await crypto.subtle.digest('SHA-256', dataBytes));
 
       // Only encrypt if we have a valid public key, and workspace protection is activated
       if (vaultData.settings.publicKey
@@ -363,9 +369,9 @@ export function useEncryptedVault() {
           );
           await db.put(VAULT_STORE_V3, {
             vault: encryptedBytes,
-            sha256: savedSha256OnExport === null ?
-            /* data has been imported, consider unmodified */ new Uint8Array(await crypto.subtle.digest('SHA-256', encryptedBytes.slice())) :
-            /* retain old value (considered modified) */ savedSha256OnExport
+            sha256: savedSha256 === null ?
+            /* data has been imported, consider unmodified */ sha256 :
+            /* retain old value (considered modified) */ savedSha256
           }, STORAGE_KEY);
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
@@ -375,9 +381,9 @@ export function useEncryptedVault() {
         // Save as plain JSON for 'none' and 'pin' modes, or as fallback
         await db.put(VAULT_STORE_V3, {
           vault: dataBytes,
-          sha256: savedSha256OnExport === null ?
-          /* data has been imported, consider unmodified */ new Uint8Array(await crypto.subtle.digest('SHA-256', dataBytes.slice())) :
-          /* retain old value (considered modified) */ savedSha256OnExport
+          sha256: savedSha256 === null ?
+          /* data has been imported, consider unmodified */ sha256 :
+          /* retain old value (considered modified) */ savedSha256
         }, STORAGE_KEY);
       }
 
@@ -391,6 +397,7 @@ export function useEncryptedVault() {
     }
     if (db.objectStoreNames.contains(VAULT_STORE_V2)) {
       db.delete(VAULT_STORE_V2, STORAGE_KEY);
+      db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
     }
   }
 
@@ -579,13 +586,13 @@ export function useEncryptedVault() {
     return Array.from(tags).sort();
   }, [vaultData.entries]);
 
-  const importEntries = useCallback((data: VaultData) => {
-    updateSha256(true);
+  const importEntries = useCallback(async (data: VaultData) => {
+    await updateSha256(true);
     setVaultData(data);
   }, []);
 
   const exportData = useCallback(async () => {
-    updateSha256();
+    await updateSha256();
     return vaultData;
   }, [vaultData]);
 
@@ -657,5 +664,6 @@ export function useEncryptedVault() {
     setSettings,
     applyRef,
     switchToQuickUnlock,
+    isBackupRequired
   };
 }
