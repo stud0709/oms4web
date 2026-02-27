@@ -1,8 +1,9 @@
 import { DBSchema } from "idb";
 
 import {
-  VAULT_STORE,
+  VAULT_STORE_V1,
   VAULT_STORE_V2,
+  VAULT_STORE_V3,
   KEY_REQUEST_STORE,
   QUICK_UNLOCK_STORE
 } from "@/lib/db";
@@ -65,7 +66,7 @@ export interface QuickUnlockData {
 }
 
 export interface OmsDbSchema extends DBSchema {
-  [VAULT_STORE]: {
+  [VAULT_STORE_V1]: {
     key: string;
     value: string;
   };
@@ -73,6 +74,14 @@ export interface OmsDbSchema extends DBSchema {
   [VAULT_STORE_V2]: {
     key: string;
     value: Uint8Array;
+  };
+
+  [VAULT_STORE_V3]: {
+    key: string;
+    value:{ 
+      vault: Uint8Array,
+      sha256Import: Uint8Array
+    };
   };
 
   [KEY_REQUEST_STORE]: {
