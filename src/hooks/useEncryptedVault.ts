@@ -195,6 +195,34 @@ const _encryptAndLock = (vaultData: VaultData, andThen: (vaultState: VaultState)
   });
 };
 
+export const updateSha256 = async (setNull: boolean = false) => {
+  const db = await oms4webDbPromise;
+  const vaultStoreEntry = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+
+  if (vaultStoreEntry) {
+    //update sha256 value
+    vaultStoreEntry.sha256 = setNull ? null : new Uint8Array(await crypto.subtle.digest('SHA-256', vaultStoreEntry.vault.slice()));
+    db.put(VAULT_STORE_V3, vaultStoreEntry);
+  }
+}
+
+export const isBackupRequired = async () => {
+  const db = await oms4webDbPromise;
+  const vaultStoreEntry = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+
+  if (!vaultStoreEntry?.sha256) return true;
+
+  const sha256 = new Uint8Array(await crypto.subtle.digest('SHA-256', vaultStoreEntry.vault.slice()));
+
+  if (sha256.byteLength !== vaultStoreEntry.sha256.byteLength) return false;
+
+  for (let i = 0; i < sha256.length; i++) {
+    if (sha256[i] !== vaultStoreEntry.sha256[i]) return false;
+  }
+
+  return true;
+}
+
 export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
@@ -282,24 +310,14 @@ export function useEncryptedVault() {
 
       //OLD FORMAT, REMOVE >>>
       if (await parseObsoleteStorage(db, quickUnlock)) return;
+      if (await parseObsoleteStorageV2(db, quickUnlock)) return;
       //<<< OLD FORMAT, REMOVE
 
-      const storedV3 = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+      const stored = await db.get(VAULT_STORE_V3, STORAGE_KEY);
 
-      if (!storedV3) {
-        //OLD FORMAT, REMOVE >>>
-        if (await parseObsoleteStorageV2(db, quickUnlock)) return;
-        //<<< OLD FORMAT, REMOVE
-        setVaultState({ status: 'ready' });
-        setVaultData(EMPTY_VAULT);
-        return;
-      }
-
-      const stored = storedV3.vault;
-
-      if (stored[0] === 123 /* ASCII 123 is opening curly brace, should be JSON object */) {
+      if (stored.vault[0] === 123 /* ASCII 123 is opening curly brace, should be JSON object */) {
         try {
-          const json = JSON.parse(new TextDecoder().decode(stored));
+          const json = JSON.parse(new TextDecoder().decode(stored.vault));
           setVaultData(validateJson(json));
           setVaultState({ status: 'ready' });
         } catch (e) {
@@ -312,7 +330,7 @@ export function useEncryptedVault() {
         //encrypted
         setVaultState({
           status: 'encrypted',
-          encryptedData: stored,
+          encryptedData: stored.vault,
           quickUnlock
         });
       }
@@ -329,6 +347,12 @@ export function useEncryptedVault() {
 
       const db = await oms4webDbPromise;
 
+      let savedSha256OnExport: Uint8Array | undefined;
+      const savedVault = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+      if (savedVault) {
+        savedSha256OnExport = savedVault.sha256;
+      }
+
       // Only encrypt if we have a valid public key, and workspace protection is activated
       if (vaultData.settings.publicKey
         && vaultData.settings.workspaceProtection !== 'none') {
@@ -339,7 +363,9 @@ export function useEncryptedVault() {
           );
           await db.put(VAULT_STORE_V3, {
             vault: encryptedBytes,
-            sha256OnSave: new Uint8Array()
+            sha256: savedSha256OnExport === null ?
+            /* data has been imported, consider unmodified */ new Uint8Array(await crypto.subtle.digest('SHA-256', encryptedBytes.slice())) :
+            /* retain old value (considered modified) */ savedSha256OnExport
           }, STORAGE_KEY);
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
@@ -349,20 +375,24 @@ export function useEncryptedVault() {
         // Save as plain JSON for 'none' and 'pin' modes, or as fallback
         await db.put(VAULT_STORE_V3, {
           vault: dataBytes,
-          sha256OnSave: new Uint8Array()
+          sha256: savedSha256OnExport === null ?
+          /* data has been imported, consider unmodified */ new Uint8Array(await crypto.subtle.digest('SHA-256', dataBytes.slice())) :
+          /* retain old value (considered modified) */ savedSha256OnExport
         }, STORAGE_KEY);
       }
 
-      //OLD FORMAT, REMOVE >>>
-      if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
-        db.delete(VAULT_STORE_V1, STORAGE_KEY);
-      }
-      if (db.objectStoreNames.contains(VAULT_STORE_V2)) {
-        db.delete(VAULT_STORE_V2, STORAGE_KEY);
-      }
-      //<<< OLD FORMAT, REMOVE
+      deleteFromObsoleteStore(db) //OLD FORMAT, REMOVE 
     })();
   }, [vaultData, vaultState.status]);
+
+  const deleteFromObsoleteStore = (db: IDBPDatabase<OmsDbSchema>) => {
+    if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
+      db.delete(VAULT_STORE_V1, STORAGE_KEY);
+    }
+    if (db.objectStoreNames.contains(VAULT_STORE_V2)) {
+      db.delete(VAULT_STORE_V2, STORAGE_KEY);
+    }
+  }
 
   const switchToQuickUnlock = async (vaultState: VaultState) => {
     if (vaultState.status !== 'encrypted') return;
@@ -417,34 +447,37 @@ export function useEncryptedVault() {
     setVaultState({ status: 'ready' });
   }, []);
 
+  const loadFromObsoleteStore = async (db: IDBPDatabase<OmsDbSchema>) => {
+    let binary: Uint8Array | undefined;
+
+    //VAULT_STORE_V1
+    let stored: string | undefined;
+    if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
+      stored = await db.get(VAULT_STORE_V1, STORAGE_KEY);
+    }
+
+    if (stored) {
+      const base64Data = stored.slice(OMS_PREFIX.length);
+      binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      return binary;
+    }
+
+    //VAULT_STORE_V2
+    if (!binary && db.objectStoreNames.contains(VAULT_STORE_V2)) {
+      binary = await db.get(VAULT_STORE_V2, STORAGE_KEY);
+      if (binary) return binary;
+    }
+
+    return undefined;
+  }
+
   const lockVault = useCallback(() => {
     (async () => {
       // Re-read from storage and reset state to trigger unlock flow
       const db = await oms4webDbPromise;
-      let binary: Uint8Array | undefined;
-      //OLD FORMAT, REMOVE >>>
-      let stored: string | undefined;
-      if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
-        stored = await db.get(VAULT_STORE_V1, STORAGE_KEY);
-      }
-      if (stored) {
-        const base64Data = stored.slice(OMS_PREFIX.length);
-        binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-      } else
-      //<<<OLD FORMAT, REMOVE 
-      if (!binary) {
-        const storedV3 = await db.get(VAULT_STORE_V3, STORAGE_KEY);
-        if (storedV3) {
-          binary = storedV3.vault;
-        }
-      }
-      if (!binary && db.objectStoreNames.contains(VAULT_STORE_V2)) {
-        binary = await db.get(VAULT_STORE_V2, STORAGE_KEY);
-      }
-      if (!binary) {
-        console.error('Failed to load vault data on lock');
-        return;
-      }
+      const binary =
+        (await loadFromObsoleteStore(db)) || //OLD FORMAT, REMOVE 
+        (await db.get(VAULT_STORE_V3, STORAGE_KEY)).vault;
 
       const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
 
@@ -547,10 +580,12 @@ export function useEncryptedVault() {
   }, [vaultData.entries]);
 
   const importEntries = useCallback((data: VaultData) => {
+    updateSha256(true);
     setVaultData(data);
   }, []);
 
-  const exportData = useCallback(() => {
+  const exportData = useCallback(async () => {
+    updateSha256();
     return vaultData;
   }, [vaultData]);
 

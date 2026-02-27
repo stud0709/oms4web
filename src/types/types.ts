@@ -78,9 +78,9 @@ export interface OmsDbSchema extends DBSchema {
 
   [VAULT_STORE_V3]: {
     key: string;
-    value:{ 
-      vault: Uint8Array,
-      sha256Import: Uint8Array
+    value: {
+      vault: Uint8Array;
+      sha256: Uint8Array;
     };
   };
 
@@ -88,7 +88,7 @@ export interface OmsDbSchema extends DBSchema {
     key: string;
     value: KeyRequestContext;
   };
-  
+
   [QUICK_UNLOCK_STORE]: {
     key: string;
     value: QuickUnlockData;

@@ -17,6 +17,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   downloadVault,
   getTimestamp,
+  isBackupRequired,
   useEncryptedVault,
   validateJson
 } from '@/hooks/useEncryptedVault';
@@ -210,6 +211,8 @@ const Index = () => {
 
   const backupCurrentVault = async () => {
     if (vaultData.entries.length === 0) return; // nothing to back up
+    if (!isBackupRequired()) return; //contents have not changed since last export
+
     const timestamp = getTimestamp();
     await downloadVaultSnapshot({
       suffix: `_backup_${timestamp}`,
