@@ -225,6 +225,35 @@ export function useEncryptedVault() {
     return true;
   }, []);
 
+  /** OLD FORMAT, REMOVE */
+  const parseObsoleteStorageV2 = useCallback(async (db: IDBPDatabase<OmsDbSchema>, quickUnlock: QuickUnlockData) => {
+    if (!db.objectStoreNames.contains(VAULT_STORE_V2)) return false;
+    const stored = await db.get(VAULT_STORE_V2, STORAGE_KEY);
+    if (!stored) return false;
+
+    if (stored[0] === 123 /* ASCII 123 is opening curly brace, should be JSON object */) {
+      try {
+        const json = JSON.parse(new TextDecoder().decode(stored));
+        setVaultData(validateJson(json));
+        setVaultState({ status: 'ready' });
+      } catch (e) {
+        console.error('Failed to parse stored data, starting with empty vault', e);
+        setVaultState({ status: 'ready' });
+        setVaultData(EMPTY_VAULT);
+        throw new Error('Failed to parse stored data, starting with empty vault', { cause: e });
+      }
+    } else {
+      //encrypted
+      setVaultState({
+        status: 'encrypted',
+        encryptedData: stored,
+        quickUnlock
+      });
+    }
+
+    return true;
+  }, []);
+
   const encryptAndLock = useCallback(() => {
     _encryptAndLock(vaultData, vaultState => {
       setVaultState(vaultState);
@@ -255,13 +284,18 @@ export function useEncryptedVault() {
       if (await parseObsoleteStorage(db, quickUnlock)) return;
       //<<< OLD FORMAT, REMOVE
 
-      const stored = await db.get(VAULT_STORE_V2, STORAGE_KEY);
+      const storedV3 = await db.get(VAULT_STORE_V3, STORAGE_KEY);
 
-      if (!stored) {
+      if (!storedV3) {
+        //OLD FORMAT, REMOVE >>>
+        if (await parseObsoleteStorageV2(db, quickUnlock)) return;
+        //<<< OLD FORMAT, REMOVE
         setVaultState({ status: 'ready' });
         setVaultData(EMPTY_VAULT);
         return;
       }
+
+      const stored = storedV3.vault;
 
       if (stored[0] === 123 /* ASCII 123 is opening curly brace, should be JSON object */) {
         try {
@@ -283,7 +317,7 @@ export function useEncryptedVault() {
         });
       }
     })();
-  }, [parseObsoleteStorage]);
+  }, [parseObsoleteStorage, parseObsoleteStorageV2]);
 
   // Save vault when data changes 
   useEffect(() => {
@@ -303,19 +337,28 @@ export function useEncryptedVault() {
             dataBytes,
             vaultData.settings
           );
-          await db.put(VAULT_STORE_V2, encryptedBytes, STORAGE_KEY);
+          await db.put(VAULT_STORE_V3, {
+            vault: encryptedBytes,
+            sha256OnSave: new Uint8Array()
+          }, STORAGE_KEY);
         } catch (e) {
           console.error('Failed to encrypt vault, saving as plain JSON', e);
           throw new Error('Failed to encrypt vault, saving as plain JSON', { cause: e });
         }
       } else {
         // Save as plain JSON for 'none' and 'pin' modes, or as fallback
-        await db.put(VAULT_STORE_V2, dataBytes, STORAGE_KEY);
+        await db.put(VAULT_STORE_V3, {
+          vault: dataBytes,
+          sha256OnSave: new Uint8Array()
+        }, STORAGE_KEY);
       }
 
       //OLD FORMAT, REMOVE >>>
       if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
         db.delete(VAULT_STORE_V1, STORAGE_KEY);
+      }
+      if (db.objectStoreNames.contains(VAULT_STORE_V2)) {
+        db.delete(VAULT_STORE_V2, STORAGE_KEY);
       }
       //<<< OLD FORMAT, REMOVE
     })();
@@ -378,7 +421,7 @@ export function useEncryptedVault() {
     (async () => {
       // Re-read from storage and reset state to trigger unlock flow
       const db = await oms4webDbPromise;
-      let binary: Uint8Array;
+      let binary: Uint8Array | undefined;
       //OLD FORMAT, REMOVE >>>
       let stored: string | undefined;
       if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
@@ -389,7 +432,19 @@ export function useEncryptedVault() {
         binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
       } else
       //<<<OLD FORMAT, REMOVE 
-      binary = await db.get(VAULT_STORE_V2, STORAGE_KEY);
+      if (!binary) {
+        const storedV3 = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+        if (storedV3) {
+          binary = storedV3.vault;
+        }
+      }
+      if (!binary && db.objectStoreNames.contains(VAULT_STORE_V2)) {
+        binary = await db.get(VAULT_STORE_V2, STORAGE_KEY);
+      }
+      if (!binary) {
+        console.error('Failed to load vault data on lock');
+        return;
+      }
 
       const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
 
