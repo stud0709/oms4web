@@ -197,9 +197,10 @@ export function PasswordCard({
                   href={entryToDisplay.url.startsWith('http') ? entryToDisplay.url : `https://${entryToDisplay.url}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors min-w-0"
+                  title={entryToDisplay.url}
+                  className="text-sm text-muted-foreground hover:text-primary flex flex-1 items-center gap-1 transition-colors min-w-0 overflow-hidden"
                 >
-                  <span className="truncate">{entryToDisplay.url}</span>
+                  <span className="truncate block">{entryToDisplay.url}</span>
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 </a>
                 {!referenceMode && (
