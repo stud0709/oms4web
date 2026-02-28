@@ -186,7 +186,7 @@ export function PasswordCard({
   };
 
   return (
-    <Card className="group transition-all duration-300 hover:shadow-glow hover:border-primary/30">
+    <Card className="group w-full min-w-0 overflow-hidden transition-all duration-300 hover:shadow-glow hover:border-primary/30">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
