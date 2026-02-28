@@ -591,6 +591,29 @@ export function useEncryptedVault() {
     setVaultData(data);
   }, []);
 
+  const mergeEntries = useCallback(async (data: VaultData, tag: string) => {
+    setEntries(prev => {
+      const existingIds = new Set(prev.map(e => e.id));
+
+      const merged = data.entries.map(entry => {
+        let id = entry.id;
+        while (existingIds.has(id)) {
+          id = crypto.randomUUID();
+        }
+        existingIds.add(id);
+
+        return {
+          ...entry,
+          id,
+          hashtags: Array.from(new Set([...(entry.hashtags ?? []), tag])),
+          history: entry.history ?? [],
+        };
+      });
+
+      return [...merged, ...prev];
+    });
+  }, [setEntries]);
+
   const exportData = useCallback(async () => {
     await updateSha256();
     return vaultData;
@@ -660,6 +683,7 @@ export function useEncryptedVault() {
     deleteEntry,
     getAllHashtags,
     importEntries,
+    mergeEntries,
     exportData,
     setSettings,
     applyRef,
