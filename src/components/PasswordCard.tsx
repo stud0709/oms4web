@@ -1,6 +1,7 @@
 import {
   useMemo,
-  useState
+  useState,
+  type ReactNode
 } from 'react';
 import { PasswordEntry } from '@/types/types';
 import {
@@ -133,6 +134,57 @@ export function PasswordCard({
   }
 
   const maskValue = (value: string) => '•'.repeat(Math.min(value.length, 16));
+
+  const renderTextWithLinks = (text: string): ReactNode[] => {
+    // Rough URL matcher. We still validate before turning into a link.
+    const urlRegex = /(https?:\/\/\S+|www\.\S+|\b[\w-]+(?:\.[\w-]+)+\S*)/g;
+
+    const nodes: ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = urlRegex.exec(text)) !== null) {
+      const raw = match[0];
+      const start = match.index;
+
+      if (start > lastIndex) {
+        nodes.push(text.slice(lastIndex, start));
+      }
+
+      const leading = raw.match(/^[([{"']+/)?.[0] ?? '';
+      const trailing = raw.match(/[)\]}>"'.,!?;:]+$/)?.[0] ?? '';
+      const core = raw.slice(leading.length, raw.length - trailing.length);
+
+      if (leading) nodes.push(leading);
+
+      if (isValidHttpUrl(core)) {
+        nodes.push(
+          <a
+            key={`note-url-${start}`}
+            href={toExternalUrl(core)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-primary transition-colors"
+          >
+            {core}
+          </a>
+        );
+      } else {
+        nodes.push(core);
+      }
+
+      if (trailing) nodes.push(trailing);
+
+      lastIndex = start + raw.length;
+    }
+
+    if (lastIndex < text.length) {
+      nodes.push(text.slice(lastIndex));
+    }
+
+    return nodes;
+  };
+
   return (
     <Card className="group transition-all duration-300 hover:shadow-glow hover:border-primary/30">
       <CardHeader className="pb-3">
@@ -368,7 +420,7 @@ export function PasswordCard({
           <div className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/50">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground mb-1">Notes</p>
-              <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">{entryToDisplay.notes}</p>
+              <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">{renderTextWithLinks(entryToDisplay.notes)}</p>
             </div>
             {referenceMode && (
               <>
