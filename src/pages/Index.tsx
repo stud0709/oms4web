@@ -595,11 +595,6 @@ const Index = () => {
     );
   }
 
-  const clearAllFilters = () => {
-    setSearch('');
-    setSelectedTags(new Set());
-  };
-
   const handleToggleTag = (tag: string) => {
     if (search?.startsWith(OMS4WEB_REF)) {
       setSearch('');
@@ -675,8 +670,7 @@ const Index = () => {
           <SearchBar
             value={search}
             onChange={handleSearchChange}
-            showClear={selectedTags.size > 0}
-            onClear={clearAllFilters}
+            onClear={()=>setSearch('')}
           />
           {visibleTags.length > 0 && (
             <div className="mt-6">
@@ -684,7 +678,7 @@ const Index = () => {
                 tags={visibleTags}
                 selectedTags={selectedTags}
                 onToggleTag={handleToggleTag}
-                onClear={clearAllFilters}
+                onClear={()=>setSelectedTags(new Set())}
               />
             </div>
           )}
