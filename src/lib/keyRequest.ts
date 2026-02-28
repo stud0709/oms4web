@@ -19,6 +19,7 @@ import {
   writeString,
   toFormattedHex,
 } from './crypto';
+import { bytesToBase64 } from './base64';
 import {
   DEFAULT_SETTINGS,
   RSA_TRANSFORMATIONS
@@ -87,7 +88,7 @@ export async function createKeyRequest(
   console.log(`encrypted AES key (encrypted file): ${toFormattedHex(envelope.encryptedAesKey)}`);
 
   // Encode as OMS text format
-  const message = OMS_PREFIX + btoa(String.fromCharCode(...messageBytes));
+  const message = OMS_PREFIX + bytesToBase64(messageBytes);
 
   return {
     keyPair,

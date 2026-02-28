@@ -15,6 +15,7 @@ import {
   OMS_PREFIX,
   RSA_TRANSFORMATIONS
 } from "./constants";
+import { bytesToBase64 } from './base64';
 
 /**
  * Parse a base64-encoded X509 public key
@@ -361,7 +362,7 @@ export async function createEncryptedMessage(
   console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
 
   // Encode as OMS text format
-  return OMS_PREFIX + btoa(String.fromCharCode(...finalMessage));
+  return OMS_PREFIX + bytesToBase64(finalMessage);
 }
 
 /**

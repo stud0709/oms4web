@@ -215,6 +215,11 @@ export function useEncryptedVault() {
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
 
+  const startWithEmptyVault = useCallback(() => {
+    setVaultData(EMPTY_VAULT);
+    setVaultState({ status: 'ready' });
+  }, []);
+
   /** OLD FORMAT, REMOVE */
   const parseObsoleteStorage = useCallback(async (db: IDBPDatabase<OmsDbSchema>, quickUnlock: QuickUnlockData) => {
     if (!db.objectStoreNames.contains(VAULT_STORE_V1)) return false;
@@ -449,11 +454,6 @@ startWithEmptyVault();
       console.error('Failed to parse decrypted data', e);
       throw new Error('Invalid decrypted data format', { cause: e });
     }
-  }, []);
-
-  const startWithEmptyVault = useCallback(() => {
-    setVaultData(EMPTY_VAULT);
-    setVaultState({ status: 'ready' });
   }, []);
 
   const loadFromObsoleteStore = async (db: IDBPDatabase<OmsDbSchema>) => {

@@ -46,7 +46,7 @@ import { Input } from '@/components/ui/input';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { OMS4WEB_REF, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
+import { OMS4WEB_REF, OMS_FILETYPE, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
 import { JSONPath } from 'jsonpath-plus';
 import { createEncryptedMessage } from '@/lib/crypto';
 import { normalizeTag } from '@/lib/tagUtils';
@@ -247,7 +247,7 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     // Handle .oms00 files as binary
-    if (file.name.endsWith('.oms00')) {
+    if (file.name.endsWith(OMS_FILETYPE)) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const arrayBuffer = e.target?.result as ArrayBuffer;
@@ -459,7 +459,7 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.name.endsWith('.oms00')) {
+    if (file.name.endsWith(OMS_FILETYPE)) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const arrayBuffer = e.target?.result as ArrayBuffer;
