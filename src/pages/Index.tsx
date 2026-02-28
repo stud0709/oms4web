@@ -49,6 +49,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { OMS4WEB_REF, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
 import { JSONPath } from 'jsonpath-plus';
 import { createEncryptedMessage } from '@/lib/crypto';
+import { normalizeTag } from '@/lib/tagUtils';
 
 const Index = () => {
   const {
@@ -315,7 +316,7 @@ const Index = () => {
       return child?.textContent ?? '';
     };
 
-    const normalizeTag = (tag: string) => tag.replace(/^#/, '').trim().replace(/\s+/g, '_');
+    
 
     const parseBool = (v: string | null) => v?.toLowerCase() === 'true';
 
