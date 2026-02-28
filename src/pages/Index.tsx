@@ -76,7 +76,7 @@ const Index = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mergeFileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
@@ -122,13 +122,16 @@ const Index = () => {
         if (result.length && PASSWORD_READONLY_PROPERTY_NAME in result[0]) {
           return result;
         }
-        throw "Result is not PasswordEntry[]"
+        throw "Result is not PasswordEntry[]";
       } catch (err) {
         console.log(err);
         toast({ title: 'Invalid JSONPath query', description: `${err}` });
 
       }
     }
+
+    const selectedTagsArr = Array.from(selectedTags);
+
     return vaultData.entries.filter(entry => {
       const matchesSearch = !search ||
         entry.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -136,15 +139,37 @@ const Index = () => {
         entry.url.toLowerCase().includes(search.toLowerCase()) ||
         entry.hashtags.some(tag => tag.includes(search.toLowerCase()));
 
-      const matchesTag = !selectedTag || entry.hashtags.includes(selectedTag);
+      const matchesTags = selectedTagsArr.length === 0 || selectedTagsArr.every(tag => entry.hashtags.includes(tag));
 
       // Hide deleted entries unless #deleted tag is explicitly selected
       const isDeleted = entry.hashtags.includes(DELETED_TAG);
-      const showDeleted = selectedTag === DELETED_TAG;
+      const showDeleted = selectedTags.has(DELETED_TAG);
 
-      return matchesSearch && matchesTag && (!isDeleted || showDeleted);
+      return matchesSearch && matchesTags && (!isDeleted || showDeleted);
     });
-  }, [vaultData, search, selectedTag, toast]);
+  }, [vaultData, search, selectedTags, toast]);
+
+  const visibleTags = useMemo(() => {
+    if (selectedTags.size === 0) return allTags;
+
+    const tagsInResults = new Set<string>();
+    for (const entry of filteredEntries) {
+      for (const tag of entry.hashtags) {
+        tagsInResults.add(tag);
+      }
+    }
+
+    for (const tag of selectedTags) {
+      tagsInResults.add(tag);
+    }
+
+    const ordered = allTags.filter(t => tagsInResults.has(t));
+    for (const tag of selectedTags) {
+      if (!ordered.includes(tag)) ordered.unshift(tag);
+    }
+
+    return ordered;
+  }, [allTags, filteredEntries, selectedTags]);
 
   const handleSave = (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => {
     if (editingEntry) {
@@ -153,7 +178,7 @@ const Index = () => {
       addEntry(data);
       // Ensure the newly created entry is visible immediately
       setSearch('');
-      setSelectedTag(null);
+      setSelectedTags(new Set());
     }
     setEditingEntry(null);
   };
@@ -180,11 +205,11 @@ const Index = () => {
   const handleSearchChange = (value: string) => {
     if (value.startsWith(OMS4WEB_REF)) {
       //clear tag selection
-      setSelectedTag(null)
+      setSelectedTags(new Set());
     }
 
-    setSearch(value)
-  }
+    setSearch(value);
+  };
 
   const downloadVaultSnapshot = async ({
     suffix,
@@ -570,12 +595,26 @@ const Index = () => {
     );
   }
 
-  const handleSelectedTag = (tag: string) => {
+  const clearAllFilters = () => {
+    setSearch('');
+    setSelectedTags(new Set());
+  };
+
+  const handleToggleTag = (tag: string) => {
     if (search?.startsWith(OMS4WEB_REF)) {
       setSearch('');
     }
-    setSelectedTag(tag);
-  }
+
+    setSelectedTags(prev => {
+      const next = new Set(prev);
+      if (next.has(tag)) {
+        next.delete(tag);
+      } else {
+        next.add(tag);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden">
@@ -633,13 +672,19 @@ const Index = () => {
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </div>
-          <SearchBar value={search} onChange={handleSearchChange} />
-          {allTags.length > 0 && (
+          <SearchBar
+            value={search}
+            onChange={handleSearchChange}
+            showClear={selectedTags.size > 0}
+            onClear={clearAllFilters}
+          />
+          {visibleTags.length > 0 && (
             <div className="mt-6">
               <HashtagFilter
-                tags={allTags}
-                selectedTag={selectedTag}
-                onSelectTag={handleSelectedTag}
+                tags={visibleTags}
+                selectedTags={selectedTags}
+                onToggleTag={handleToggleTag}
+                onClear={clearAllFilters}
               />
             </div>
           )}
@@ -662,7 +707,7 @@ const Index = () => {
                   onEdit={handleEdit}
                   onDelete={deleteEntry}
                   onSoftDelete={handleSoftDelete}
-                  onTagClick={setSelectedTag}
+                  onTagClick={handleToggleTag}
                   applyRef={applyRef}
                   setSearch={setSearch}
                 />
@@ -707,7 +752,7 @@ const Index = () => {
         {filteredEntries.length > 0 && (
           <p className="text-center text-sm text-muted-foreground mt-8">
             {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
-            {selectedTag && ` tagged #${selectedTag}`}
+            {selectedTags.size > 0 && ` tagged ${Array.from(selectedTags).map(t => `#${t}`).join(' ')}`}
           </p>
         )}
       </div>

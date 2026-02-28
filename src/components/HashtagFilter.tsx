@@ -1,26 +1,27 @@
 import { Hash, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ScrollArea, 
+import {
+  ScrollArea,
   ScrollBar } from '@/components/ui/scroll-area';
 
 interface HashtagFilterProps {
   tags: string[];
-  selectedTag: string | null;
-  onSelectTag: (tag: string | null) => void;
+  selectedTags: Set<string>;
+  onToggleTag: (tag: string) => void;
+  onClear: () => void;
 }
 
-export function HashtagFilter({ tags, selectedTag, onSelectTag }: HashtagFilterProps) {
+export function HashtagFilter({ tags, selectedTags, onToggleTag, onClear }: HashtagFilterProps) {
   if (tags.length === 0) return null;
 
   return (
     <ScrollArea className="w-full whitespace-nowrap">
       <div className="flex gap-2 pb-2">
-        {selectedTag && (
+        {selectedTags.size > 0 && (
           <Badge
             variant="outline"
             className="cursor-pointer hover:bg-destructive/10 border-destructive/50 text-destructive"
-            onClick={() => onSelectTag(null)}
+            onClick={onClear}
           >
             <X className="h-3 w-3 mr-1" />
             Clear filter
@@ -28,8 +29,8 @@ export function HashtagFilter({ tags, selectedTag, onSelectTag }: HashtagFilterP
         )}
         {tags.map(tag => {
           const isDeletedTag = tag === 'deleted';
-          const isSelected = selectedTag === tag;
-          
+          const isSelected = selectedTags.has(tag);
+
           return (
             <Badge
               key={tag}
@@ -37,7 +38,7 @@ export function HashtagFilter({ tags, selectedTag, onSelectTag }: HashtagFilterP
               className={`cursor-pointer transition-all hover:scale-105 ${
                 isDeletedTag && !isSelected ? 'opacity-70' : ''
               }`}
-              onClick={() => onSelectTag(isSelected ? null : tag)}
+              onClick={() => onToggleTag(tag)}
             >
               <Hash className="h-3 w-3 mr-0.5" />
               {tag}

@@ -8,9 +8,13 @@ import { Button } from '@/components/ui/button';
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
+  showClear?: boolean;
+  onClear?: () => void;
 }
 
-export function SearchBar({ value, onChange }: SearchBarProps) {
+export function SearchBar({ value, onChange, showClear, onClear }: SearchBarProps) {
+  const shouldShowClear = Boolean(value) || Boolean(showClear);
+
   return (
     <div className="relative">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -20,12 +24,18 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
         placeholder="Search entries..."
         className="pl-10 pr-10 h-12 text-base bg-card border-border/50 focus:border-primary/50"
       />
-      {value && (
+      {shouldShowClear && (
         <Button
           variant="ghost"
           size="icon"
           className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-          onClick={() => onChange('')}
+          onClick={() => {
+            if (onClear) {
+              onClear();
+              return;
+            }
+            onChange('');
+          }}
         >
           <X className="h-4 w-4" />
         </Button>
