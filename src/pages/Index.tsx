@@ -1,7 +1,9 @@
 import {
   useState,
   useMemo,
-  useRef, useEffect
+  useRef,
+  useEffect,
+  useCallback
 } from 'react';
 import {
   Plus,
@@ -44,8 +46,9 @@ import { Input } from '@/components/ui/input';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { OMS4WEB_REF, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
+import { OMS4WEB_REF, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
 import { JSONPath } from 'jsonpath-plus';
+import { createEncryptedMessage } from '@/lib/crypto';
 
 const Index = () => {
   const {
@@ -299,6 +302,112 @@ const Index = () => {
     setMergeDialogOpen(true);
   };
 
+  const parseKeePassXml = useCallback(async (xml: string): Promise<VaultData> => {
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const parserError = doc.getElementsByTagName('parsererror')[0];
+    if (parserError) throw new Error('Invalid XML');
+
+    const root = doc.getElementsByTagName('KeePassFile')[0];
+    if (!root) throw new Error('Not a KeePass XML file');
+
+    const getChildText = (el: Element, tagName: string) => {
+      const child = el.getElementsByTagName(tagName)[0];
+      return child?.textContent ?? '';
+    };
+
+    const parseBool = (v: string | null) => v?.toLowerCase() === 'true';
+
+    const maybeEncrypt = async (value: string, protectInMemory: boolean) => {
+      if (!value) {
+        return { value: '', readonly: false };
+      }
+      if (value.startsWith(OMS_PREFIX) || value.startsWith(OMS4WEB_REF)) {
+        return { value, readonly: value.startsWith(OMS_PREFIX) };
+      }
+      if (!protectInMemory) {
+        return { value, readonly: false };
+      }
+
+      if (!vaultData.settings.encryptionEnabled) {
+        throw new Error('Encryption required');
+      }
+
+      const encrypted = await createEncryptedMessage(value, vaultData.settings);
+      return { value: encrypted, readonly: true };
+    };
+
+    const entries: PasswordEntry[] = [];
+
+    const entryEls = Array.from(doc.getElementsByTagName('Entry'));
+    for (const entryEl of entryEls) {
+      const stringEls = Array.from(entryEl.getElementsByTagName('String'));
+
+      const kv = new Map<string, { value: string; protectInMemory: boolean }>();
+      for (const stringEl of stringEls) {
+        const key = getChildText(stringEl, 'Key');
+        if (!key) continue;
+        const valueEl = stringEl.getElementsByTagName('Value')[0];
+        const value = valueEl?.textContent ?? '';
+        const protectInMemory = parseBool(valueEl?.getAttribute('ProtectInMemory') ?? null);
+        kv.set(key, { value, protectInMemory });
+      }
+
+      const title = kv.get('Title')?.value ?? 'Untitled';
+      const usernameRes = await maybeEncrypt(kv.get('UserName')?.value ?? '', kv.get('UserName')?.protectInMemory ?? false);
+      const urlRes = await maybeEncrypt(kv.get('URL')?.value ?? '', kv.get('URL')?.protectInMemory ?? false);
+      const notesRes = await maybeEncrypt(kv.get('Notes')?.value ?? '', kv.get('Notes')?.protectInMemory ?? false);
+      const passwordRes = await maybeEncrypt(kv.get('Password')?.value ?? '', kv.get('Password')?.protectInMemory ?? false);
+
+      const tagsRaw = getChildText(entryEl, 'Tags') || kv.get('Tags')?.value || '';
+      const hashtags = tagsRaw
+        .split(/[,;\s]+/)
+        .map(t => t.replace(/^#/, '').trim())
+        .filter(Boolean);
+
+      const timesEl = entryEl.getElementsByTagName('Times')[0];
+      const createdAtStr = timesEl ? getChildText(timesEl, 'CreationTime') : '';
+      const updatedAtStr = timesEl ? getChildText(timesEl, 'LastModificationTime') : '';
+      const createdAt = createdAtStr ? new Date(createdAtStr) : new Date();
+      const updatedAt = updatedAtStr ? new Date(updatedAtStr) : new Date();
+
+      const standardKeys = new Set(['Title', 'UserName', 'Password', 'URL', 'Notes', 'Tags']);
+      const customFields = await Promise.all(
+        Array.from(kv.entries())
+          .filter(([key]) => !standardKeys.has(key))
+          .map(async ([key, { value, protectInMemory }]) => {
+            const res = await maybeEncrypt(value, protectInMemory);
+            return {
+              id: crypto.randomUUID(),
+              label: key,
+              value: res.value,
+              protection: res.value.startsWith(OMS_PREFIX) ? 'encrypted' : protectInMemory ? 'encrypted' : 'none',
+              readonly: res.readonly,
+            };
+          })
+      );
+
+      entries.push({
+        id: crypto.randomUUID(),
+        title: title.trim() || 'Untitled',
+        username: usernameRes.value,
+        password: passwordRes.value,
+        passwordReadonly: passwordRes.value.startsWith(OMS_PREFIX),
+        url: urlRes.value,
+        notes: notesRes.value,
+        hashtags,
+        customFields,
+        createdAt,
+        updatedAt,
+        history: [],
+      });
+    }
+
+    return {
+      entries,
+      settings: vaultData.settings,
+    };
+  }, [vaultData.settings]);
+
   const handleMerge = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -315,14 +424,33 @@ const Index = () => {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string;
+
       try {
         const data = validateJson(JSON.parse(content));
         openMergeDialog(data);
+        return;
       } catch {
-        toast({ title: 'unknown file format, cannot merge', variant: 'destructive' });
+        // ignore and try other formats
       }
+
+      try {
+        const data = await parseKeePassXml(content);
+        openMergeDialog(data);
+        return;
+      } catch (err) {
+        if (`${err}`.includes('Encryption required')) {
+          toast({
+            title: 'Cannot merge KeePass XML',
+            description: 'Enable "password generator & encryption" in Settings to import protected KeePass fields.',
+            variant: 'destructive'
+          });
+          return;
+        }
+      }
+
+      toast({ title: 'unknown file format, cannot merge', variant: 'destructive' });
     };
     reader.readAsText(file);
     if (mergeFileInputRef.current) mergeFileInputRef.current.value = '';
@@ -450,7 +578,7 @@ const Index = () => {
                 <input
                   ref={mergeFileInputRef}
                   type="file"
-                  accept=".json,.oms00"
+                  accept=".json,.oms00,.xml"
                   className="hidden"
                   onChange={handleMerge}
                 />
