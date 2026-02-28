@@ -4,7 +4,7 @@ The **Merge** action lets you **add entries from another file into your currentl
 
 ## Where to find it
 
-On the main vault screen, click the **Merge** button (the *Git merge* icon) in the top toolbar.
+On the main vault screen, click the **Merge** button ![git-merge](readme_images/git-merge.png) in the top toolbar.
 
 ## What you can merge
 
