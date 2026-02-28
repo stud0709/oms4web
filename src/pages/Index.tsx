@@ -315,6 +315,8 @@ const Index = () => {
       return child?.textContent ?? '';
     };
 
+    const normalizeTag = (tag: string) => tag.replace(/^#/, '').trim().replace(/\s+/g, '_');
+
     const parseBool = (v: string | null) => v?.toLowerCase() === 'true';
 
     const maybeEncryptProtected = async (value: string, protectInMemory: boolean) => {
@@ -336,7 +338,19 @@ const Index = () => {
       return { value: encrypted, readonly: true };
     };
 
-    const parseEntryData = async (entryEl: Element, entryId: string) => {
+    const getParentGroupTags = (entryEl: Element) => {
+      const tags: string[] = [];
+      let groupEl: Element | null = entryEl.closest('Group');
+      while (groupEl) {
+        const name = getChildText(groupEl, 'Name');
+        const normalized = normalizeTag(name);
+        if (normalized) tags.push(normalized);
+        groupEl = groupEl.parentElement?.closest('Group') ?? null;
+      }
+      return tags;
+    };
+
+    const parseEntryData = async (entryEl: Element, entryId: string, extraHashtags: string[] = []) => {
       const stringEls = Array.from(entryEl.getElementsByTagName('String'));
 
       const kv = new Map<string, { value: string; protectInMemory: boolean }>();
@@ -356,10 +370,13 @@ const Index = () => {
       const passwordRes = await maybeEncryptProtected(kv.get('Password')?.value ?? '', kv.get('Password')?.protectInMemory ?? false);
 
       const tagsRaw = getChildText(entryEl, 'Tags') || kv.get('Tags')?.value || '';
-      const hashtags = tagsRaw
-        .split(/[,;\s]+/)
-        .map(t => t.replace(/^#/, '').trim())
-        .filter(Boolean);
+      const hashtags = Array.from(new Set([
+        ...tagsRaw
+          .split(/[,;\s]+/)
+          .map(normalizeTag)
+          .filter(Boolean),
+        ...extraHashtags.map(normalizeTag).filter(Boolean),
+      ]));
 
       const timesEl = entryEl.getElementsByTagName('Times')[0];
       const createdAtStr = timesEl ? getChildText(timesEl, 'CreationTime') : '';
@@ -407,14 +424,15 @@ const Index = () => {
     for (const entryEl of entryEls) {
       const id = crypto.randomUUID();
 
-      const data = await parseEntryData(entryEl, id);
+      const groupTags = getParentGroupTags(entryEl);
+      const data = await parseEntryData(entryEl, id, groupTags);
 
       const historyEl = entryEl.getElementsByTagName('History')[0];
       const historyEntryEls = historyEl ? Array.from(historyEl.getElementsByTagName('Entry')) : [];
 
       const history = (await Promise.all(
         historyEntryEls.map(async (historyEntryEl) => {
-          const historyData = await parseEntryData(historyEntryEl, id);
+          const historyData = await parseEntryData(historyEntryEl, id, groupTags);
           return {
             timestamp: historyData.updatedAt,
             data: historyData,
