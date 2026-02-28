@@ -343,6 +343,15 @@ export function useEncryptedVault() {
     return false;
   }, [vaultData]);
 
+  function deleteFromObsoleteStore(db: IDBPDatabase<OmsDbSchema>) {
+    if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
+      db.delete(VAULT_STORE_V1, STORAGE_KEY);
+    }
+    if (db.objectStoreNames.contains(VAULT_STORE_V2)) {
+      db.delete(VAULT_STORE_V2, STORAGE_KEY);
+    }
+  }
+
   // Save vault when data changes 
   useEffect(() => {
     if (vaultState.status !== 'ready') return;
@@ -390,15 +399,6 @@ export function useEncryptedVault() {
       deleteFromObsoleteStore(db) //OLD FORMAT, REMOVE 
     })();
   }, [vaultData, vaultState.status]);
-
-  const deleteFromObsoleteStore = (db: IDBPDatabase<OmsDbSchema>) => {
-    if (db.objectStoreNames.contains(VAULT_STORE_V1)) {
-      db.delete(VAULT_STORE_V1, STORAGE_KEY);
-    }
-    if (db.objectStoreNames.contains(VAULT_STORE_V2)) {
-      db.delete(VAULT_STORE_V2, STORAGE_KEY);
-    }
-  }
 
   const switchToQuickUnlock = async (vaultState: VaultState) => {
     if (vaultState.status !== 'encrypted') return;
