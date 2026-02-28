@@ -32,6 +32,7 @@ import { PasswordGenerator } from '@/components/PasswordGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { createEncryptedMessage } from '@/lib/crypto';
 import { OMS4WEB_REF, OMS_PREFIX } from "@/lib/constants";
+import { normalizeTag } from '@/lib/tagUtils';
 import {
   Dialog,
   DialogContent,
@@ -154,7 +155,7 @@ export function PasswordForm({
     }
     const nextTags = new Set(hashtags);
     parts.forEach(part => {
-      const cleanTag = part.replace(/^#/, '').trim().replace(/[^a-zA-Z0-9-]/g, '');
+      const cleanTag = normalizeTag(part);
       if (cleanTag) {
         nextTags.add(cleanTag);
       }
