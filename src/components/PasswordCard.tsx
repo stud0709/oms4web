@@ -368,7 +368,7 @@ export function PasswordCard({
           <div className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/50">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground mb-1">Notes</p>
-              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{entryToDisplay.notes}</p>
+              <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">{entryToDisplay.notes}</p>
             </div>
             {referenceMode && (
               <>
