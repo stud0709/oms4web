@@ -30,7 +30,7 @@ import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
-import { PasswordEntry, VaultData } from '@/types/types';
+import { CustomFieldProtection, PasswordEntry, VaultData } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -380,7 +380,7 @@ const Index = () => {
               id: crypto.randomUUID(),
               label: key,
               value: res.value,
-              protection: res.value.startsWith(OMS_PREFIX) ? 'encrypted' : 'none',
+              protection: (res.value.startsWith(OMS_PREFIX) ? 'encrypted' : 'none') as CustomFieldProtection,
               readonly: res.readonly,
             };
           })
