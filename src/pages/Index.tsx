@@ -336,10 +336,7 @@ const Index = () => {
       return { value: encrypted, readonly: true };
     };
 
-    const entries: PasswordEntry[] = [];
-
-    const entryEls = Array.from(doc.getElementsByTagName('Entry'));
-    for (const entryEl of entryEls) {
+    const parseEntryData = async (entryEl: Element, entryId: string) => {
       const stringEls = Array.from(entryEl.getElementsByTagName('String'));
 
       const kv = new Map<string, { value: string; protectInMemory: boolean }>();
@@ -386,8 +383,8 @@ const Index = () => {
           })
       );
 
-      entries.push({
-        id: crypto.randomUUID(),
+      return {
+        id: entryId,
         title: title.trim() || 'Untitled',
         username,
         password: passwordRes.value,
@@ -398,7 +395,38 @@ const Index = () => {
         customFields,
         createdAt,
         updatedAt,
-        history: [],
+      };
+    };
+
+    const entries: PasswordEntry[] = [];
+
+    // Important: <History> itself contains <Entry> tags. We only want "real" entries here,
+    // and map the historical <Entry> versions into `history`.
+    const entryEls = Array.from(doc.getElementsByTagName('Entry')).filter(el => !el.closest('History'));
+
+    for (const entryEl of entryEls) {
+      const id = crypto.randomUUID();
+
+      const data = await parseEntryData(entryEl, id);
+
+      const historyEl = entryEl.getElementsByTagName('History')[0];
+      const historyEntryEls = historyEl ? Array.from(historyEl.getElementsByTagName('Entry')) : [];
+
+      const history = (await Promise.all(
+        historyEntryEls.map(async (historyEntryEl) => {
+          const historyData = await parseEntryData(historyEntryEl, id);
+          return {
+            timestamp: historyData.updatedAt,
+            data: historyData,
+          };
+        })
+      ))
+        .filter(h => !Number.isNaN(h.timestamp.getTime()))
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+      entries.push({
+        ...data,
+        history,
       });
     }
 
