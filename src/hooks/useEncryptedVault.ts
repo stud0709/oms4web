@@ -397,7 +397,6 @@ export function useEncryptedVault() {
     }
     if (db.objectStoreNames.contains(VAULT_STORE_V2)) {
       db.delete(VAULT_STORE_V2, STORAGE_KEY);
-      db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
     }
   }
 
