@@ -32,6 +32,7 @@ Technically, if you generate passwords in oms4web, they will be only encrypted o
 ## Other topics
 - [Linking fields](reference_to_another_entry.md)
 - [Entry history](history.md) 
+- [Importing other formats / Merging](merge.md)
 
 ## One last hint
 Consider installing *oms4web* as a [web app](https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DDesktop). This makes it more convenient to use and allows tighter integration with the operation system.
