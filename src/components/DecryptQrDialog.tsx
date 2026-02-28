@@ -33,6 +33,7 @@ import {
 import { QrChunk, VaultData } from "@/types/types";
 import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
 import { KeyRequestContext } from '@/types/types';
+import { bytesToBase64 } from '@/lib/base64';
 import { toast } from '@/hooks/use-toast';
 import {
   downloadVault,
@@ -208,7 +209,7 @@ function DecryptQrDialogContent({
     // Download backup of encrypted vault data before replacing
     if (encryptedData) {
       // Convert raw binary to OMS format (oms00_ prefix + base64)
-      const base64 = btoa(String.fromCharCode(...encryptedData));
+      const base64 = bytesToBase64(encryptedData);
       const dataUrl = `data:application/octet-stream;base64,${base64}`;
       (async () => {
         try {
