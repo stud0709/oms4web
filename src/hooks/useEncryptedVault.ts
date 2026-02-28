@@ -302,25 +302,28 @@ export function useEncryptedVault() {
       //<<< OLD FORMAT, REMOVE
 
       const stored = await db.get(VAULT_STORE_V3, STORAGE_KEY);
-
-      if (stored.vault[0] === 123 /* ASCII 123 is opening curly brace, should be JSON object */) {
-        try {
-          const json = JSON.parse(new TextDecoder().decode(stored.vault));
-          setVaultData(validateJson(json));
-          setVaultState({ status: 'ready' });
-        } catch (e) {
-          console.error('Failed to parse stored data, starting with empty vault', e);
-          setVaultState({ status: 'ready' });
-          setVaultData(EMPTY_VAULT);
-          throw new Error('Failed to parse stored data, starting with empty vault', { cause: e });
+      if (stored) {
+        if (stored.vault[0] === 123 /* ASCII 123 is opening curly brace, should be JSON object */) {
+          try {
+            const json = JSON.parse(new TextDecoder().decode(stored.vault));
+            setVaultData(validateJson(json));
+            setVaultState({ status: 'ready' });
+          } catch (e) {
+            console.error('Failed to parse stored data, starting with empty vault', e);
+            setVaultState({ status: 'ready' });
+            setVaultData(EMPTY_VAULT);
+            throw new Error('Failed to parse stored data, starting with empty vault', { cause: e });
+          }
+        } else {
+          //encrypted
+          setVaultState({
+            status: 'encrypted',
+            encryptedData: stored.vault,
+            quickUnlock
+          });
         }
       } else {
-        //encrypted
-        setVaultState({
-          status: 'encrypted',
-          encryptedData: stored.vault,
-          quickUnlock
-        });
+startWithEmptyVault();
       }
     })();
   }, [parseObsoleteStorage, parseObsoleteStorageV2]);
