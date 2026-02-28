@@ -693,7 +693,7 @@ const Index = () => {
             {filteredEntries.map((entry, index) => (
               <div
                 key={entry.id}
-                className="animate-slide-up"
+                className="animate-slide-up min-w-0"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <PasswordCard

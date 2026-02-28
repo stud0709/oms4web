@@ -198,9 +198,9 @@ export function PasswordCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   title={entryToDisplay.url}
-                  className="text-sm text-muted-foreground hover:text-primary flex flex-1 items-center gap-1 transition-colors min-w-0 overflow-hidden"
+                  className="text-sm text-muted-foreground hover:text-primary flex flex-1 items-center gap-1 transition-colors min-w-0 max-w-full overflow-hidden"
                 >
-                  <span className="truncate flex-1 min-w-0">{entryToDisplay.url}</span>
+                  <span className="block truncate flex-1 min-w-0">{entryToDisplay.url}</span>
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 </a>
                 {!referenceMode && (
@@ -358,9 +358,9 @@ export function PasswordCard({
                         href={toExternalUrl(field.value)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 hover:text-primary transition-colors min-w-0 max-w-full"
+                        className="inline-flex items-center gap-1 hover:text-primary transition-colors min-w-0 max-w-full overflow-hidden"
                       >
-                        <span className="truncate flex-1 min-w-0">{field.value}</span>
+                        <span className="block truncate flex-1 min-w-0">{field.value}</span>
                         <ExternalLink className="h-3 w-3 flex-shrink-0" />
                       </a>
                     )
