@@ -84,6 +84,19 @@ export function PasswordCard({
   };
   const isAirGapField = (value: string) => value?.startsWith(OMS_PREFIX);
 
+  const toExternalUrl = (value: string) =>
+    value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
+
+  const isValidHttpUrl = (value: string) => {
+    if (!value || isAirGapField(value)) return false;
+    try {
+      const url = new URL(toExternalUrl(value));
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
   const copyReference = (path: string, value: string) => {
     const ref = value.startsWith(OMS4WEB_REF) ?
       value /* is already a ref to another object */ :
@@ -286,7 +299,19 @@ export function PasswordCard({
               <p className="text-sm font-mono truncate">
                 {field.protection !== 'none' && !visibleFields.has(field.id)
                   ? maskValue(field.value)
-                  : field.value}
+                  : isValidHttpUrl(field.value)
+                    ? (
+                      <a
+                        href={toExternalUrl(field.value)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                      >
+                        <span className="truncate">{field.value}</span>
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                      </a>
+                    )
+                    : field.value}
               </p>
             </div>
             <div className="flex gap-1 flex-shrink-0">
