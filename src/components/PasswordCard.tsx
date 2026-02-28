@@ -192,7 +192,7 @@ export function PasswordCard({
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-lg truncate text-foreground">{entryToDisplay.title}</h3>
             {entryToDisplay.url && (
-              <div className="flex items-center gap-1 max-w-full">
+              <div className="flex items-center gap-1 max-w-full min-w-0 overflow-hidden">
                 <a
                   href={entryToDisplay.url.startsWith('http') ? entryToDisplay.url : `https://${entryToDisplay.url}`}
                   target="_blank"
@@ -200,7 +200,7 @@ export function PasswordCard({
                   title={entryToDisplay.url}
                   className="text-sm text-muted-foreground hover:text-primary flex flex-1 items-center gap-1 transition-colors min-w-0 overflow-hidden"
                 >
-                  <span className="truncate block">{entryToDisplay.url}</span>
+                  <span className="truncate flex-1 min-w-0">{entryToDisplay.url}</span>
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 </a>
                 {!referenceMode && (
@@ -358,9 +358,9 @@ export function PasswordCard({
                         href={toExternalUrl(field.value)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                        className="inline-flex items-center gap-1 hover:text-primary transition-colors min-w-0 max-w-full"
                       >
-                        <span className="truncate">{field.value}</span>
+                        <span className="truncate flex-1 min-w-0">{field.value}</span>
                         <ExternalLink className="h-3 w-3 flex-shrink-0" />
                       </a>
                     )

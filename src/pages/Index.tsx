@@ -578,9 +578,9 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="h-dvh flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <header className="shrink-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container max-w-4xl px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-3 min-w-0 max-w-[50%] sm:max-w-[30%]">
@@ -647,7 +647,8 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container max-w-4xl px-4 py-6">
+      <main className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="container max-w-4xl px-4 py-6">
         {filteredEntries.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredEntries.map((entry, index) => (
@@ -709,7 +710,9 @@ const Index = () => {
             {selectedTag && ` tagged #${selectedTag}`}
           </p>
         )}
+      </div>
       </main>
+
 
       <PasswordForm
         open={formOpen}
