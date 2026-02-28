@@ -317,7 +317,7 @@ const Index = () => {
 
     const parseBool = (v: string | null) => v?.toLowerCase() === 'true';
 
-    const maybeEncrypt = async (value: string, protectInMemory: boolean) => {
+    const maybeEncryptProtected = async (value: string, protectInMemory: boolean) => {
       if (!value) {
         return { value: '', readonly: false };
       }
@@ -353,10 +353,10 @@ const Index = () => {
       }
 
       const title = kv.get('Title')?.value ?? 'Untitled';
-      const usernameRes = await maybeEncrypt(kv.get('UserName')?.value ?? '', kv.get('UserName')?.protectInMemory ?? false);
-      const urlRes = await maybeEncrypt(kv.get('URL')?.value ?? '', kv.get('URL')?.protectInMemory ?? false);
-      const notesRes = await maybeEncrypt(kv.get('Notes')?.value ?? '', kv.get('Notes')?.protectInMemory ?? false);
-      const passwordRes = await maybeEncrypt(kv.get('Password')?.value ?? '', kv.get('Password')?.protectInMemory ?? false);
+      const username = kv.get('UserName')?.value ?? '';
+      const url = kv.get('URL')?.value ?? '';
+      const notes = kv.get('Notes')?.value ?? '';
+      const passwordRes = await maybeEncryptProtected(kv.get('Password')?.value ?? '', kv.get('Password')?.protectInMemory ?? false);
 
       const tagsRaw = getChildText(entryEl, 'Tags') || kv.get('Tags')?.value || '';
       const hashtags = tagsRaw
@@ -375,12 +375,12 @@ const Index = () => {
         Array.from(kv.entries())
           .filter(([key]) => !standardKeys.has(key))
           .map(async ([key, { value, protectInMemory }]) => {
-            const res = await maybeEncrypt(value, protectInMemory);
+            const res = await maybeEncryptProtected(value, protectInMemory);
             return {
               id: crypto.randomUUID(),
               label: key,
               value: res.value,
-              protection: res.value.startsWith(OMS_PREFIX) ? 'encrypted' : protectInMemory ? 'encrypted' : 'none',
+              protection: res.value.startsWith(OMS_PREFIX) ? 'encrypted' : 'none',
               readonly: res.readonly,
             };
           })
@@ -389,11 +389,11 @@ const Index = () => {
       entries.push({
         id: crypto.randomUUID(),
         title: title.trim() || 'Untitled',
-        username: usernameRes.value,
+        username,
         password: passwordRes.value,
         passwordReadonly: passwordRes.value.startsWith(OMS_PREFIX),
-        url: urlRes.value,
-        notes: notesRes.value,
+        url,
+        notes,
         hashtags,
         customFields,
         createdAt,
