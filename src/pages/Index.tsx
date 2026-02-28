@@ -10,7 +10,8 @@ import {
   Upload,
   Loader2,
   LockKeyhole,
-  ExternalLink
+  ExternalLink,
+  GitMerge
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -29,6 +30,17 @@ import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
 import { PasswordEntry, VaultData } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -44,6 +56,7 @@ const Index = () => {
     deleteEntry,
     getAllHashtags,
     importEntries,
+    mergeEntries,
     exportData,
     setSettings: updateSettings,
     loadDecryptedData,
@@ -57,11 +70,16 @@ const Index = () => {
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mergeFileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
+  const [mergeDecryptData, setMergeDecryptData] = useState<Uint8Array | null>(null);
+  const [mergeCandidateData, setMergeCandidateData] = useState<VaultData | null>(null);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [mergeTag, setMergeTag] = useState('');
   const allTags = getAllHashtags();
 
   const {
@@ -267,6 +285,66 @@ const Index = () => {
     setImportDecryptData(null);
   };
 
+  const getMergeTagSuggestion = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `merged_${yyyy}_${mm}_${dd}`;
+  };
+
+  const openMergeDialog = (data: VaultData) => {
+    setMergeCandidateData(data);
+    setMergeTag(getMergeTagSuggestion());
+    setMergeDialogOpen(true);
+  };
+
+  const handleMerge = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.name.endsWith('.oms00')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        setMergeDecryptData(new Uint8Array(arrayBuffer));
+      };
+      reader.readAsArrayBuffer(file);
+      if (mergeFileInputRef.current) mergeFileInputRef.current.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      try {
+        const data = validateJson(JSON.parse(content));
+        openMergeDialog(data);
+      } catch {
+        toast({ title: 'unknown file format, cannot merge', variant: 'destructive' });
+      }
+    };
+    reader.readAsText(file);
+    if (mergeFileInputRef.current) mergeFileInputRef.current.value = '';
+  };
+
+  const handleMergeDecrypted = async (vaultData: VaultData) => {
+    try {
+      openMergeDialog(vaultData);
+    } catch {
+      toast({ title: 'unknown file format, cannot merge', variant: 'destructive' });
+    }
+    setMergeDecryptData(null);
+  };
+
+  const confirmMerge = async () => {
+    if (!mergeCandidateData) return;
+    await mergeEntries(mergeCandidateData, mergeTag || getMergeTagSuggestion());
+    setMergeDialogOpen(false);
+    setMergeCandidateData(null);
+    toast({ title: 'merge successful' });
+  };
+
   // Show loading state
   if (vaultState.status === 'loading') {
     return (
@@ -349,6 +427,9 @@ const Index = () => {
                 <Button className="shrink-0" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
                   <Upload className="h-4 w-4" />
                 </Button>
+                <Button className="shrink-0" variant="outline" size="icon" onClick={() => mergeFileInputRef.current?.click()} title="Merge">
+                  <GitMerge className="h-4 w-4" />
+                </Button>
                 {//"Lock workspace" button to be shown only if workspace protection activated
                   vaultData.settings.workspaceProtection !== 'none' && (
                     <Button className="shrink-0" variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
@@ -365,6 +446,13 @@ const Index = () => {
                   accept=".json,.oms00"
                   className="hidden"
                   onChange={handleImport}
+                />
+                <input
+                  ref={mergeFileInputRef}
+                  type="file"
+                  accept=".json,.oms00"
+                  className="hidden"
+                  onChange={handleMerge}
                 />
               </div>
               <ScrollBar orientation="horizontal" />
@@ -457,6 +545,31 @@ const Index = () => {
         settings={vaultData.settings}
       />
 
+      <AlertDialog open={mergeDialogOpen} onOpenChange={(open) => {
+        setMergeDialogOpen(open);
+        if (!open) setMergeCandidateData(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ready to merge</AlertDialogTitle>
+            <AlertDialogDescription>
+              {mergeCandidateData ? `${mergeCandidateData.entries.length} entries will be added to the current vault.` : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Tag for merged entries</label>
+            <Input value={mergeTag} onChange={(e) => setMergeTag(e.target.value)} placeholder={getMergeTagSuggestion()} />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setMergeCandidateData(null);
+              setMergeDialogOpen(false);
+            }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmMerge}>Merge</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Decrypt dialog for importing encrypted files */}
       {importDecryptData && (
         <DecryptQrDialog
@@ -465,6 +578,17 @@ const Index = () => {
           encryptedData={importDecryptData}
           onDecrypted={handleImportDecrypted}
           onSkip={() => setImportDecryptData(null)}
+        />
+      )}
+
+      {/* Decrypt dialog for merging encrypted files */}
+      {mergeDecryptData && (
+        <DecryptQrDialog
+          open={true}
+          onOpenChange={(open) => !open && setMergeDecryptData(null)}
+          encryptedData={mergeDecryptData}
+          onDecrypted={handleMergeDecrypted}
+          onSkip={() => setMergeDecryptData(null)}
         />
       )}
     </div>
