@@ -89,8 +89,6 @@ export function SettingsDialog({
     setOpen(false);
   };
 
-  const tooltipEnabled = env.android;
-
   const TriggerButton = (
     <span className="inline-flex">
       <DialogTrigger asChild>
@@ -104,7 +102,7 @@ export function SettingsDialog({
   return (
     <TooltipProvider>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <Tooltip open={tooltipEnabled ? undefined : false}>
+        <Tooltip>
           <TooltipTrigger asChild>
             {TriggerButton}
           </TooltipTrigger>
