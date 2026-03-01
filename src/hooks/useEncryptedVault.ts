@@ -585,7 +585,11 @@ startWithEmptyVault();
   const getAllHashtags = useCallback(() => {
     const tags = new Set<string>();
     vaultData.entries.forEach(entry => entry.hashtags.forEach(tag => tags.add(tag)));
-    return Array.from(tags).sort();
+    return Array.from(tags).sort((a, b) => {
+      const byInsensitive = a.localeCompare(b, undefined, { sensitivity: 'base' });
+      if (byInsensitive !== 0) return byInsensitive;
+      return a.localeCompare(b);
+    });
   }, [vaultData.entries]);
 
   const renameTag = useCallback((from: string, to: string) => {
