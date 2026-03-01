@@ -177,7 +177,7 @@ function DecryptQrDialogContent({
     } finally {
       setSearchParams({});
     }
-  }, [inputValue, onDecrypted, onOpenChange]);
+  }, [inputValue, onDecrypted, onOpenChange, setSearchParams]);
 
   //decrypt when reloading
   useEffect(() => {
@@ -196,7 +196,7 @@ function DecryptQrDialogContent({
       handleSubmitDecrypted(searchParams.get("data"));
     })();
 
-  }, [searchParams, handleSubmitDecrypted]);
+  }, [searchParams, handleSubmitDecrypted, setSearchParams]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {

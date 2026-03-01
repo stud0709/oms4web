@@ -165,7 +165,7 @@ const Index = () => {
 
         return matchesSearch && matchesTags && (!isDeleted || showDeleted);
       });
-  }, [vaultData, search, selectedTags, toast]);
+  }, [vaultData, search, selectedTags, toast, applyRef]);
 
   const visibleTags = useMemo(() => {
     if (selectedTags.size === 0) return allTags;
