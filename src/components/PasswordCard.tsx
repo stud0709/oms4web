@@ -136,14 +136,20 @@ export function PasswordCard({
   const maskValue = (value: string) => '•'.repeat(Math.min(value.length, 16));
 
   const renderTextWithLinks = (text: string): ReactNode[] => {
-    // Rough URL matcher. We still validate before turning into a link.
-    const urlRegex = /(https?:\/\/\S+|www\.\S+|\b[\w-]+(?:\.[\w-]+)+\S*)/g;
+    const emailRegex = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+
+    // Rough matcher for URL-ish tokens. We still validate before turning into a link.
+    // Note: exclude "@" so email addresses don't become https:// links.
+    const urlRegex = /(https?:\/\/\S+|www\.\S+|\b[\w-]+(?:\.[\w-]+)+[^\s@]*)/g;
+
+    // Match either full email address or URL-ish token (email first to avoid partial matches).
+    const tokenRegex = new RegExp(`(${emailRegex.source})|(${urlRegex.source})`, 'gi');
 
     const nodes: ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
-    while ((match = urlRegex.exec(text)) !== null) {
+    while ((match = tokenRegex.exec(text)) !== null) {
       const raw = match[0];
       const start = match.index;
 
@@ -157,7 +163,19 @@ export function PasswordCard({
 
       if (leading) nodes.push(leading);
 
-      if (isValidHttpUrl(core)) {
+      const isEmail = emailRegex.test(core);
+
+      if (isEmail) {
+        nodes.push(
+          <a
+            key={`note-email-${start}`}
+            href={`mailto:${core}`}
+            className="underline underline-offset-2 hover:text-primary transition-colors"
+          >
+            {core}
+          </a>
+        );
+      } else if (isValidHttpUrl(core) && text[start - 1] !== '@') {
         nodes.push(
           <a
             key={`note-url-${start}`}
