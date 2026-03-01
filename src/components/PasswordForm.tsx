@@ -275,16 +275,16 @@ export function PasswordForm({
           </div>
           {entry && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Tooltip>
-                  <TooltipTrigger asChild>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
                       <History className="h-4 w-4" />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>History</TooltipContent>
-                </Tooltip>
-              </DropdownMenuTrigger>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>History</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>History</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => {
