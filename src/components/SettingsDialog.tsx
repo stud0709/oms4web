@@ -89,19 +89,25 @@ export function SettingsDialog({
     setOpen(false);
   };
 
+  const TriggerButton = (
+    <span className="inline-flex">
+      <DialogTrigger asChild>
+        <Button variant="outline" size="icon">
+          <Settings className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+    </span>
+  );
+
   return (
     <TooltipProvider>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger asChild>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Settings</TooltipContent>
-          </Tooltip>
-        </DialogTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {TriggerButton}
+          </TooltipTrigger>
+          <TooltipContent>Settings</TooltipContent>
+        </Tooltip>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>

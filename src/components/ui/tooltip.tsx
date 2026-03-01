@@ -2,10 +2,15 @@ import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
 import { cn } from "@/lib/utils";
+import { getEnvironment } from "@/hooks/useEncryptedVault";
 
 const TooltipProvider = TooltipPrimitive.Provider;
 
-const Tooltip = TooltipPrimitive.Root;
+const env = getEnvironment();
+
+const Tooltip = ({ open, ...props }: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>) => (
+  <TooltipPrimitive.Root open={env.android ? open : false} {...props} />
+);
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 
