@@ -172,7 +172,7 @@ const Index = () => {
 
         return matchesSearch && matchesTags && (!isDeleted || showDeleted);
       });
-  }, [vaultData, search, selectedTags, toast]);
+  }, [vaultData, search, selectedTags, toast, applyRef]);
 
   useEffect(() => {
     setVisibleResultsCount(Math.min(INITIAL_RESULTS_RENDER, filteredEntries.length));

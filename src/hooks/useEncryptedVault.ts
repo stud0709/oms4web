@@ -331,7 +331,7 @@ export function useEncryptedVault() {
 startWithEmptyVault();
       }
     })();
-  }, [parseObsoleteStorage, parseObsoleteStorageV2]);
+  }, [parseObsoleteStorage, parseObsoleteStorageV2, startWithEmptyVault]);
 
 
   const isBackupRequired = useCallback(async () => {
