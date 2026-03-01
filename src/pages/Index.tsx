@@ -258,6 +258,23 @@ const Index = () => {
     }
   };
 
+  const [purgeDeletedOpen, setPurgeDeletedOpen] = useState(false);
+
+  const deletedEntryIds = useMemo(
+    () => vaultData.entries.filter(e => e.hashtags.includes(DELETED_TAG)).map(e => e.id),
+    [vaultData.entries]
+  );
+
+  const permanentlyDeleteAllDeleted = () => {
+    for (const id of deletedEntryIds) {
+      deleteEntry(id);
+    }
+    setPurgeDeletedOpen(false);
+    if (deletedEntryIds.length > 0) {
+      toast({ title: 'Deleted', description: `${deletedEntryIds.length} entries permanently deleted.` });
+    }
+  };
+
   const handleSearchChange = (value: string) => {
     if (value.startsWith(OMS4WEB_REF)) {
       //clear tag selection
@@ -802,6 +819,42 @@ const Index = () => {
                 onToggleTag={handleToggleTag}
                 onClear={() => setSelectedTags(new Set())}
               />
+
+              {selectedTags.has(DELETED_TAG) && (
+                <div className="mt-3">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setPurgeDeletedOpen(true)}
+                    disabled={deletedEntryIds.length === 0}
+                  >
+                    Permanently delete all
+                  </Button>
+
+                  <AlertDialog open={purgeDeletedOpen} onOpenChange={setPurgeDeletedOpen}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Permanently delete all</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {deletedEntryIds.length === 0
+                            ? 'There are no deleted entries.'
+                            : `Are you sure you want to permanently delete ${deletedEntryIds.length} deleted ${deletedEntryIds.length === 1 ? 'entry' : 'entries'}? This action cannot be undone.`}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={permanentlyDeleteAllDeleted}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deletedEntryIds.length === 0}
+                        >
+                          Delete permanently
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
             </div>
           )}
         </div>
