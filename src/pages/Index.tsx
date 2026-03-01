@@ -146,9 +146,12 @@ const Index = () => {
     const searchLower = search.toLowerCase().trim();
 
     return vaultData.entries
-      .map(e => applyRef(e))
       .filter(entry => {
-        const matchesCustomFields = entry.customFields?.some(field => {
+        // applyRef() creates a deep-copied view for resolving OMS4WEB_REF.
+        // We must NOT return that copy because it breaks non-plain objects (e.g. Date in history entries).
+        const view = applyRef(entry);
+
+        const matchesCustomFields = view.customFields?.some(field => {
           if (field.label.toLowerCase().includes(searchLower)) return true;
 
           // For encrypted custom fields we can't search by plaintext value.
@@ -157,17 +160,17 @@ const Index = () => {
         }) ?? false;
 
         const matchesSearch = !search ||
-          entry.title.toLowerCase().includes(searchLower) ||
-          entry.username.toLowerCase().includes(searchLower) ||
-          entry.url.toLowerCase().includes(searchLower) ||
-          entry.notes.toLowerCase().includes(searchLower) ||
-          entry.hashtags.some(tag => tag.includes(searchLower)) ||
+          view.title.toLowerCase().includes(searchLower) ||
+          view.username.toLowerCase().includes(searchLower) ||
+          view.url.toLowerCase().includes(searchLower) ||
+          view.notes.toLowerCase().includes(searchLower) ||
+          view.hashtags.some(tag => tag.includes(searchLower)) ||
           matchesCustomFields;
 
-        const matchesTags = selectedTagsArr.length === 0 || selectedTagsArr.every(tag => entry.hashtags.includes(tag));
+        const matchesTags = selectedTagsArr.length === 0 || selectedTagsArr.every(tag => view.hashtags.includes(tag));
 
         // Hide deleted entries unless #deleted tag is explicitly selected
-        const isDeleted = entry.hashtags.includes(DELETED_TAG);
+        const isDeleted = view.hashtags.includes(DELETED_TAG);
         const showDeleted = selectedTags.has(DELETED_TAG);
 
         return matchesSearch && matchesTags && (!isDeleted || showDeleted);
