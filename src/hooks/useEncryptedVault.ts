@@ -493,7 +493,7 @@ startWithEmptyVault();
       // Encrypt on Lock
       if (vaultData.settings.workspaceProtection === 'encrypt' ||
         //enforce this mode on android device if PIN has been configured
-        (vaultData.settings.workspaceProtection === 'pin' && getEnvironment().android)
+        (['pin', 'quickUnlock'].includes(vaultData.settings.workspaceProtection) && getEnvironment().android)
       ) {
         setVaultState({
           status: 'encrypted',
