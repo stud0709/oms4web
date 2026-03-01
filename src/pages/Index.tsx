@@ -302,7 +302,7 @@ const Index = () => {
     const jsonData = JSON.stringify(data, null, 2);
     const name = vaultData.settings.vaultName.trim() || 'Untitled';
 
-    if (vaultData.settings.publicKey) {
+    if (vaultData.settings.publicKey && vaultData.settings.workspaceProtection !== 'none') {
       try {
         const encryptedBytes = await encryptVaultData(new TextEncoder().encode(jsonData), vaultData.settings);
         const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
