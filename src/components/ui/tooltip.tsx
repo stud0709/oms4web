@@ -9,7 +9,7 @@ const TooltipProvider = TooltipPrimitive.Provider;
 const env = getEnvironment();
 
 const Tooltip = ({ open, ...props }: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>) => (
-  <TooltipPrimitive.Root open={env.android ? open : false} {...props} />
+  <TooltipPrimitive.Root open={env.android ? false : open} {...props} />
 );
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
