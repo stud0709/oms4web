@@ -89,18 +89,24 @@ export function SettingsDialog({
     setOpen(false);
   };
 
+  const tooltipEnabled = env.android;
+
+  const TriggerButton = (
+    <span className="inline-flex">
+      <DialogTrigger asChild>
+        <Button variant="outline" size="icon">
+          <Settings className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+    </span>
+  );
+
   return (
     <TooltipProvider>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <Tooltip>
+        <Tooltip open={tooltipEnabled ? undefined : false}>
           <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <DialogTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-            </span>
+            {TriggerButton}
           </TooltipTrigger>
           <TooltipContent>Settings</TooltipContent>
         </Tooltip>
