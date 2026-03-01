@@ -140,6 +140,7 @@ const Index = () => {
         entry.title.toLowerCase().includes(search.toLowerCase()) ||
         entry.username.toLowerCase().includes(search.toLowerCase()) ||
         entry.url.toLowerCase().includes(search.toLowerCase()) ||
+        entry.notes.toLowerCase().includes(search.toLowerCase()) ||
         entry.hashtags.some(tag => tag.includes(search.toLowerCase()));
 
       const matchesTags = selectedTagsArr.length === 0 || selectedTagsArr.every(tag => entry.hashtags.includes(tag));
