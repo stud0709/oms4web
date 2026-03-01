@@ -588,6 +588,50 @@ startWithEmptyVault();
     return Array.from(tags).sort();
   }, [vaultData.entries]);
 
+  const renameTag = useCallback((from: string, to: string) => {
+    if (!from || !to || from === to) return;
+
+    setEntries(prev => prev.map(entry => {
+      if (!entry.hashtags.includes(from)) return entry;
+
+      const { history, ...entryData } = entry;
+      const historyEntry: PasswordEntryHistoryItem = {
+        timestamp: new Date(),
+        data: entryData,
+      };
+
+      const hashtags = Array.from(new Set(entry.hashtags.map(t => (t === from ? to : t))));
+
+      return {
+        ...entry,
+        hashtags,
+        updatedAt: new Date(),
+        history: [historyEntry, ...(history ?? [])],
+      };
+    }));
+  }, [setEntries]);
+
+  const deleteTagEverywhere = useCallback((tag: string) => {
+    if (!tag) return;
+
+    setEntries(prev => prev.map(entry => {
+      if (!entry.hashtags.includes(tag)) return entry;
+
+      const { history, ...entryData } = entry;
+      const historyEntry: PasswordEntryHistoryItem = {
+        timestamp: new Date(),
+        data: entryData,
+      };
+
+      return {
+        ...entry,
+        hashtags: entry.hashtags.filter(t => t !== tag),
+        updatedAt: new Date(),
+        history: [historyEntry, ...(history ?? [])],
+      };
+    }));
+  }, [setEntries]);
+
   const importEntries = useCallback(async (data: VaultData) => {
     await updateSha256(true);
     setVaultData(data);
@@ -684,6 +728,8 @@ startWithEmptyVault();
     updateEntry,
     deleteEntry,
     getAllHashtags,
+    renameTag,
+    deleteTagEverywhere,
     importEntries,
     mergeEntries,
     exportData,
