@@ -52,14 +52,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const
+  DELETED_TAG = 'deleted',
   OMS_FILETYPE = '.oms00',
   OMS_PREFIX = 'oms00_',
   SW_BASE = '/oms4web/',
   OMS4WEB_REF = 'oms4web://',
   CUSTOM_FIELD_PROTECTION_PROPERTY_NAME = 'protection',
-  PASSWORD_READONLY_PROPERTY_NAME = "passwordReadonly", 
+  PASSWORD_READONLY_PROPERTY_NAME = "passwordReadonly",
   ENTRIES_PROPERTY_NAME = "entries",
-  SETTINGS_PROPERTY_NAME ="settings";
+  SETTINGS_PROPERTY_NAME = "settings";
 
 
 

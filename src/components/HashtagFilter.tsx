@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   ScrollArea,
   ScrollBar } from '@/components/ui/scroll-area';
+import { DELETED_TAG } from '@/lib/constants';
 
 interface HashtagFilterProps {
   tags: string[];
@@ -28,7 +29,7 @@ export function HashtagFilter({ tags, selectedTags, onToggleTag, onClear }: Hash
           </Badge>
         )}
         {tags.map(tag => {
-          const isDeletedTag = tag === 'deleted';
+          const isDeletedTag = tag === DELETED_TAG;
           const isSelected = selectedTags.has(tag);
 
           return (
