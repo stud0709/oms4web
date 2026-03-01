@@ -136,7 +136,7 @@ const Index = () => {
 
     const selectedTagsArr = Array.from(selectedTags);
 
-    const searchLower = search.toLowerCase();
+    const searchLower = search.toLowerCase().trim();
 
     return vaultData.entries
       .map(e => applyRef(e))
