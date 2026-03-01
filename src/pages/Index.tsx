@@ -48,7 +48,7 @@ import { Input } from '@/components/ui/input';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { OMS4WEB_REF, OMS_FILETYPE, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
+import { DELETED_TAG, OMS4WEB_REF, OMS_FILETYPE, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
 import { JSONPath } from 'jsonpath-plus';
 import { createEncryptedMessage } from '@/lib/crypto';
 import { normalizeTag } from '@/lib/tagUtils';
@@ -114,7 +114,7 @@ const Index = () => {
     }
   }, [needRefresh, updateServiceWorker, setNeedRefresh]);
 
-  const DELETED_TAG = 'deleted';
+  
 
   const filteredEntries = useMemo(() => {
     if (search?.startsWith(OMS4WEB_REF)) {
@@ -801,6 +801,7 @@ const Index = () => {
         open={manageTagsOpen}
         onOpenChange={setManageTagsOpen}
         tags={allTags}
+        protectedTags={new Set([DELETED_TAG])}
         onRename={handleRenameTag}
         onDelete={handleDeleteTag}
       />

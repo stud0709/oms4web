@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { OMS_PREFIX, OMS4WEB_REF } from "@/lib/constants";
+import { DELETED_TAG, OMS_PREFIX, OMS4WEB_REF } from "@/lib/constants";
 import {
   handleIntent,
   getEnvironment
@@ -47,7 +47,7 @@ import {
   ScrollBar
 } from '@/components/ui/scroll-area';
 
-const DELETED_TAG = 'deleted';
+
 
 interface PasswordCardProps {
   entry: PasswordEntry;

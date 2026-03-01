@@ -59,7 +59,8 @@ export const
   CUSTOM_FIELD_PROTECTION_PROPERTY_NAME = 'protection',
   PASSWORD_READONLY_PROPERTY_NAME = "passwordReadonly", 
   ENTRIES_PROPERTY_NAME = "entries",
-  SETTINGS_PROPERTY_NAME ="settings";
+  SETTINGS_PROPERTY_NAME ="settings",
+  DELETED_TAG = 'deleted';
 
 
 

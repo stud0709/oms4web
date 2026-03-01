@@ -26,6 +26,7 @@ interface ManageTagsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tags: string[];
+  protectedTags?: Set<string>;
   onRename: (from: string, to: string) => void;
   onDelete: (tag: string) => void;
 }
@@ -34,6 +35,7 @@ export function ManageTagsDialog({
   open,
   onOpenChange,
   tags,
+  protectedTags,
   onRename,
   onDelete,
 }: ManageTagsDialogProps) {
@@ -71,6 +73,7 @@ export function ManageTagsDialog({
                   const rawDraft = drafts[tag] ?? tag;
                   const normalized = normalizeTag(rawDraft);
                   const canRename = normalized.length > 0 && normalized !== tag;
+                  const isProtected = protectedTags?.has(tag) ?? false;
 
                   return (
                     <div key={tag} className="flex items-center gap-2">
@@ -108,7 +111,8 @@ export function ManageTagsDialog({
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:text-destructive"
-                        title="Delete tag"
+                        title={isProtected ? 'This tag cannot be deleted' : 'Delete tag'}
+                        disabled={isProtected}
                         onClick={() => setConfirmDeleteTag(tag)}
                       >
                         <Trash2 className="h-4 w-4" />
