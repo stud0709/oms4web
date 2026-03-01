@@ -17,6 +17,7 @@ import {
   Tags
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   downloadVault,
@@ -669,47 +670,84 @@ const Index = () => {
               </div>
             </div>
             <ScrollArea className="flex-1">
-              <div className="flex items-center gap-2 flex-nowrap justify-end pr-1">
-                <Button className="shrink-0" variant="outline" size="icon" onClick={() => setFormOpen(true)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-                <Button className="shrink-0" variant="outline" size="icon" onClick={handleExport} title="Export">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button className="shrink-0" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} title="Import">
-                  <Upload className="h-4 w-4" />
-                </Button>
-                <Button className="shrink-0" variant="outline" size="icon" onClick={() => mergeFileInputRef.current?.click()} title="Merge">
-                  <GitMerge className="h-4 w-4" />
-                </Button>
-                <Button className="shrink-0 gap-2" variant="outline" size="sm" onClick={() => setManageTagsOpen(true)}>
-                  <Tags className="h-4 w-4" />
-                </Button>
-                {//"Lock workspace" button to be shown only if workspace protection activated
-                  vaultData.settings.workspaceProtection !== 'none' && (
-                    <Button className="shrink-0" variant="outline" size="icon" onClick={lockVault} title="Lock Workspace">
-                      <LockKeyhole className="h-4 w-4" />
-                    </Button>
-                  )}
-                <SettingsDialog
-                  settings={vaultData.settings}
-                  onSaveSettings={updateSettings}
-                />
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json,.oms00"
-                  className="hidden"
-                  onChange={handleImport}
-                />
-                <input
-                  ref={mergeFileInputRef}
-                  type="file"
-                  accept=".json,.oms00,.xml"
-                  className="hidden"
-                  onChange={handleMerge}
-                />
-              </div>
+              <TooltipProvider>
+                <div className="flex items-center gap-2 flex-nowrap justify-end pr-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button className="shrink-0" variant="outline" size="icon" onClick={() => setFormOpen(true)}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>New entry</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button className="shrink-0" variant="outline" size="icon" onClick={handleExport}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Export</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button className="shrink-0" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Import</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button className="shrink-0" variant="outline" size="icon" onClick={() => mergeFileInputRef.current?.click()}>
+                        <GitMerge className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Merge</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button className="shrink-0 gap-2" variant="outline" size="sm" onClick={() => setManageTagsOpen(true)}>
+                        <Tags className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Manage tags</TooltipContent>
+                  </Tooltip>
+
+                  {//"Lock workspace" button to be shown only if workspace protection activated
+                    vaultData.settings.workspaceProtection !== 'none' && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button className="shrink-0" variant="outline" size="icon" onClick={lockVault}>
+                            <LockKeyhole className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Lock workspace</TooltipContent>
+                      </Tooltip>
+                    )}
+                  <SettingsDialog
+                    settings={vaultData.settings}
+                    onSaveSettings={updateSettings}
+                  />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,.oms00"
+                    className="hidden"
+                    onChange={handleImport}
+                  />
+                  <input
+                    ref={mergeFileInputRef}
+                    type="file"
+                    accept=".json,.oms00,.xml"
+                    className="hidden"
+                    onChange={handleMerge}
+                  />
+                </div>
+              </TooltipProvider>
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </div>

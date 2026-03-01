@@ -264,6 +264,7 @@ export function PasswordForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <TooltipProvider>
         <DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -275,9 +276,14 @@ export function PasswordForm({
           {entry && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" title="Entry history">
-                  <History className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <History className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>History</TooltipContent>
+                </Tooltip>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>History</DropdownMenuLabel>
@@ -324,9 +330,14 @@ export function PasswordForm({
                 className="flex-1"
               />
               {isReadOnly && title && (
-                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(title)}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(title)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy title</TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -343,9 +354,14 @@ export function PasswordForm({
                 className="flex-1"
               />
               {isReadOnly && url && (
-                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(url)}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(url)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy URL</TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -362,9 +378,14 @@ export function PasswordForm({
                 className="flex-1"
               />
               {isReadOnly && username && (
-                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(username)}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(username)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy username</TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -405,19 +426,29 @@ export function PasswordForm({
                   </TooltipProvider>
                 )}
                 {isReadOnly && password && !passwordReadonly && (
-                  <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(password)}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(password)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy password</TooltipContent>
+                  </Tooltip>
                 )}
                 {!passwordReadonly && !isReadOnly && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{showPassword ? 'Hide password' : 'Show password'}</TooltipContent>
+                  </Tooltip>
                 )}
               </div>
               {!isReadOnly && settings.encryptionEnabled && <PasswordGenerator onGenerate={handlePasswordGenerated} />}
@@ -428,9 +459,14 @@ export function PasswordForm({
             <div className="flex items-center justify-between">
               <Label>Hashtags</Label>
               {isReadOnly && hashtags.length > 0 && (
-                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(hashtags.join(', '))}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(hashtags.join(', '))}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy hashtags</TooltipContent>
+                </Tooltip>
               )}
             </div>
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -496,9 +532,14 @@ export function PasswordForm({
                 className="flex-1"
               />
               {isReadOnly && notes && (
-                <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(notes)}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => copyToClipboard(notes)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy notes</TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -533,9 +574,14 @@ export function PasswordForm({
                       disabled={isReadOnly || field.readonly}
                     />
                     {isReadOnly && field.value && !field.readonly && (
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(field.value)}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(field.value)}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy</TooltipContent>
+                      </Tooltip>
                     )}
                     {field.readonly && (
                       <TooltipProvider>
@@ -602,15 +648,20 @@ export function PasswordForm({
                   </div>
                 </div>
                 {!isReadOnly && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeCustomField(field.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeCustomField(field.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Remove field</TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             ))}
@@ -625,6 +676,7 @@ export function PasswordForm({
             </Button>
           </DialogFooter>
         </form>
+      </TooltipProvider>
       </DialogContent>
     </Dialog>
   );
