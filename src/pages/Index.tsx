@@ -13,7 +13,8 @@ import {
   Loader2,
   LockKeyhole,
   ExternalLink,
-  GitMerge
+  GitMerge,
+  Tags
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -28,6 +29,7 @@ import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
 import { HashtagFilter } from '@/components/HashtagFilter';
 import { SettingsDialog } from '@/components/SettingsDialog';
+import { ManageTagsDialog } from '@/components/ManageTagsDialog';
 import { DecryptQrDialog } from '@/components/DecryptQrDialog';
 import { PinUnlockDialog } from '@/components/PinUnlockDialog';
 import { CustomFieldProtection, PasswordEntry, VaultData } from '@/types/types';
@@ -59,6 +61,8 @@ const Index = () => {
     updateEntry,
     deleteEntry,
     getAllHashtags,
+    renameTag,
+    deleteTagEverywhere,
     importEntries,
     mergeEntries,
     exportData,
@@ -84,6 +88,7 @@ const Index = () => {
   const [mergeCandidateData, setMergeCandidateData] = useState<VaultData | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [mergeTag, setMergeTag] = useState('');
+  const [manageTagsOpen, setManageTagsOpen] = useState(false);
   const allTags = getAllHashtags();
 
   const {
@@ -611,6 +616,32 @@ const Index = () => {
     });
   };
 
+  const handleRenameTag = (from: string, to: string) => {
+    const normalized = normalizeTag(to);
+    if (!normalized || normalized === from) return;
+
+    renameTag(from, normalized);
+
+    setSelectedTags(prev => {
+      if (!prev.has(from)) return prev;
+      const next = new Set(prev);
+      next.delete(from);
+      next.add(normalized);
+      return next;
+    });
+  };
+
+  const handleDeleteTag = (tag: string) => {
+    deleteTagEverywhere(tag);
+
+    setSelectedTags(prev => {
+      if (!prev.has(tag)) return prev;
+      const next = new Set(prev);
+      next.delete(tag);
+      return next;
+    });
+  };
+
   return (
     <div className="h-dvh flex flex-col overflow-hidden">
       {/* Header */}
@@ -638,6 +669,10 @@ const Index = () => {
                 </Button>
                 <Button className="shrink-0" variant="outline" size="icon" onClick={() => mergeFileInputRef.current?.click()} title="Merge">
                   <GitMerge className="h-4 w-4" />
+                </Button>
+                <Button className="shrink-0 gap-2" variant="outline" size="sm" onClick={() => setManageTagsOpen(true)}>
+                  <Tags className="h-4 w-4" />
+                  Manage tags
                 </Button>
                 {//"Lock workspace" button to be shown only if workspace protection activated
                   vaultData.settings.workspaceProtection !== 'none' && (
@@ -760,6 +795,14 @@ const Index = () => {
         onSave={handleSave}
         existingTags={allTags}
         settings={vaultData.settings}
+      />
+
+      <ManageTagsDialog
+        open={manageTagsOpen}
+        onOpenChange={setManageTagsOpen}
+        tags={allTags}
+        onRename={handleRenameTag}
+        onDelete={handleDeleteTag}
       />
 
       <AlertDialog open={mergeDialogOpen} onOpenChange={(open) => {
