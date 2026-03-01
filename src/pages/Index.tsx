@@ -414,8 +414,13 @@ const Index = () => {
       return child?.textContent ?? '';
     };
 
-    const getDirectChildren = (el: Element, tagName: string) =>
-      Array.from(el.children).filter(child => child.tagName === tagName);
+    const getDirectChildren = (el: Element, tagName: string) => {
+      const expected = tagName.toLowerCase();
+      return Array.from(el.children).filter(child => {
+        const name = (child.localName || child.tagName).toLowerCase();
+        return name === expected;
+      });
+    };
 
     const getDirectChild = (el: Element, tagName: string) =>
       getDirectChildren(el, tagName)[0] ?? null;
@@ -533,8 +538,8 @@ const Index = () => {
       const groupTags = getParentGroupTags(entryEl);
       const data = await parseEntryData(entryEl, id, groupTags);
 
-      const historyEl = entryEl.getElementsByTagName('History')[0];
-      const historyEntryEls = historyEl ? Array.from(historyEl.getElementsByTagName('Entry')) : [];
+      const historyEl = getDirectChild(entryEl, 'History');
+      const historyEntryEls = historyEl ? getDirectChildren(historyEl, 'Entry') : [];
 
       const history = (await Promise.all(
         historyEntryEls.map(async (historyEntryEl) => {
