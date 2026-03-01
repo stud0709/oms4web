@@ -135,15 +135,26 @@ const Index = () => {
 
     const selectedTagsArr = Array.from(selectedTags);
 
+    const searchLower = search.toLowerCase();
+
     return vaultData.entries
       .map(e => applyRef(e))
       .filter(entry => {
+        const matchesCustomFields = entry.customFields?.some(field => {
+          if (field.label.toLowerCase().includes(searchLower)) return true;
+
+          // For encrypted custom fields we can't search by plaintext value.
+          if (!field.value || field.value.startsWith(OMS_PREFIX)) return false;
+          return field.value.toLowerCase().includes(searchLower);
+        }) ?? false;
+
         const matchesSearch = !search ||
-          entry.title.toLowerCase().includes(search.toLowerCase()) ||
-          entry.username.toLowerCase().includes(search.toLowerCase()) ||
-          entry.url.toLowerCase().includes(search.toLowerCase()) ||
-          entry.notes.toLowerCase().includes(search.toLowerCase()) ||
-          entry.hashtags.some(tag => tag.includes(search.toLowerCase()));
+          entry.title.toLowerCase().includes(searchLower) ||
+          entry.username.toLowerCase().includes(searchLower) ||
+          entry.url.toLowerCase().includes(searchLower) ||
+          entry.notes.toLowerCase().includes(searchLower) ||
+          entry.hashtags.some(tag => tag.includes(searchLower)) ||
+          matchesCustomFields;
 
         const matchesTags = selectedTagsArr.length === 0 || selectedTagsArr.every(tag => entry.hashtags.includes(tag));
 
