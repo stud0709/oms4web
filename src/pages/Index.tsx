@@ -672,7 +672,6 @@ const Index = () => {
                 </Button>
                 <Button className="shrink-0 gap-2" variant="outline" size="sm" onClick={() => setManageTagsOpen(true)}>
                   <Tags className="h-4 w-4" />
-                  Manage tags
                 </Button>
                 {//"Lock workspace" button to be shown only if workspace protection activated
                   vaultData.settings.workspaceProtection !== 'none' && (
