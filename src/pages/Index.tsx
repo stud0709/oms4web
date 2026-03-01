@@ -135,22 +135,24 @@ const Index = () => {
 
     const selectedTagsArr = Array.from(selectedTags);
 
-    return vaultData.entries.filter(entry => {
-      const matchesSearch = !search ||
-        entry.title.toLowerCase().includes(search.toLowerCase()) ||
-        entry.username.toLowerCase().includes(search.toLowerCase()) ||
-        entry.url.toLowerCase().includes(search.toLowerCase()) ||
-        entry.notes.toLowerCase().includes(search.toLowerCase()) ||
-        entry.hashtags.some(tag => tag.includes(search.toLowerCase()));
+    return vaultData.entries
+      .map(e => applyRef(e))
+      .filter(entry => {
+        const matchesSearch = !search ||
+          entry.title.toLowerCase().includes(search.toLowerCase()) ||
+          entry.username.toLowerCase().includes(search.toLowerCase()) ||
+          entry.url.toLowerCase().includes(search.toLowerCase()) ||
+          entry.notes.toLowerCase().includes(search.toLowerCase()) ||
+          entry.hashtags.some(tag => tag.includes(search.toLowerCase()));
 
-      const matchesTags = selectedTagsArr.length === 0 || selectedTagsArr.every(tag => entry.hashtags.includes(tag));
+        const matchesTags = selectedTagsArr.length === 0 || selectedTagsArr.every(tag => entry.hashtags.includes(tag));
 
-      // Hide deleted entries unless #deleted tag is explicitly selected
-      const isDeleted = entry.hashtags.includes(DELETED_TAG);
-      const showDeleted = selectedTags.has(DELETED_TAG);
+        // Hide deleted entries unless #deleted tag is explicitly selected
+        const isDeleted = entry.hashtags.includes(DELETED_TAG);
+        const showDeleted = selectedTags.has(DELETED_TAG);
 
-      return matchesSearch && matchesTags && (!isDeleted || showDeleted);
-    });
+        return matchesSearch && matchesTags && (!isDeleted || showDeleted);
+      });
   }, [vaultData, search, selectedTags, toast]);
 
   const visibleTags = useMemo(() => {
@@ -345,7 +347,7 @@ const Index = () => {
       return child?.textContent ?? '';
     };
 
-    
+
 
     const parseBool = (v: string | null) => v?.toLowerCase() === 'true';
 
@@ -703,7 +705,7 @@ const Index = () => {
           <SearchBar
             value={search}
             onChange={handleSearchChange}
-            onClear={()=>setSearch('')}
+            onClear={() => setSearch('')}
           />
           {visibleTags.length > 0 && (
             <div className="mt-6">
@@ -711,7 +713,7 @@ const Index = () => {
                 tags={visibleTags}
                 selectedTags={selectedTags}
                 onToggleTag={handleToggleTag}
-                onClear={()=>setSelectedTags(new Set())}
+                onClear={() => setSelectedTags(new Set())}
               />
             </div>
           )}
@@ -721,68 +723,68 @@ const Index = () => {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto overscroll-contain">
         <div className="container max-w-4xl px-4 py-6">
-        {filteredEntries.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {filteredEntries.map((entry, index) => (
-              <div
-                key={entry.id}
-                className="animate-slide-up min-w-0"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <PasswordCard
-                  entry={entry}
-                  onEdit={handleEdit}
-                  onDelete={deleteEntry}
-                  onSoftDelete={handleSoftDelete}
-                  onTagClick={handleToggleTag}
-                  applyRef={applyRef}
-                  setSearch={setSearch}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-            <div className="p-4 rounded-2xl bg-muted/50 mb-4">
-              <Lock className="h-12 w-12 text-muted-foreground" />
+          {filteredEntries.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {filteredEntries.map((entry, index) => (
+                <div
+                  key={entry.id}
+                  className="animate-slide-up min-w-0"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <PasswordCard
+                    entry={entry}
+                    onEdit={handleEdit}
+                    onDelete={deleteEntry}
+                    onSoftDelete={handleSoftDelete}
+                    onTagClick={handleToggleTag}
+                    applyRef={applyRef}
+                    setSearch={setSearch}
+                  />
+                </div>
+              ))}
             </div>
-            <h2 className="text-xl font-semibold mb-2">
-              {vaultData.entries.length === 0 ? 'Your vault is empty' : 'No results found'}
-            </h2>
-            {vaultData.entries.length === 0 && (
-              <>
-                <p className="text-muted-foreground mb-6 max-w-sm text-justify">
-                  ⚠️ Your data is stored locally in your browser, so export it regularly. It may be lost when clearling browser cache.
-                </p>
-                <p className="text-muted-foreground mb-6 max-w-sm">
-                  🚀 To start, follow the <a
-                    target="_blank"
-                    className="inline-flex items-center gap-1 text-primary hover:opacity-80 transition-opacity"
-                    href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide<ExternalLink className="h-5 w-5" /></a>
-                </p>
-                <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
-                  <Plus className="h-5 w-5" />
-                  Create First Entry
-                </Button>
-              </>
-            )}
-            {vaultData.entries.length > 0 && (
-              <>
-                <p className="text-muted-foreground mb-6 max-w-sm">
-                  Try adjusting your search or filters to find what you\'re looking for.
-                </p>
-              </>
-            )}
-          </div>
-        )}
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+              <div className="p-4 rounded-2xl bg-muted/50 mb-4">
+                <Lock className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">
+                {vaultData.entries.length === 0 ? 'Your vault is empty' : 'No results found'}
+              </h2>
+              {vaultData.entries.length === 0 && (
+                <>
+                  <p className="text-muted-foreground mb-6 max-w-sm text-justify">
+                    ⚠️ Your data is stored locally in your browser, so export it regularly. It may be lost when clearling browser cache.
+                  </p>
+                  <p className="text-muted-foreground mb-6 max-w-sm">
+                    🚀 To start, follow the <a
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-primary hover:opacity-80 transition-opacity"
+                      href="https://github.com/stud0709/oms4web/blob/main/getting_started.md">Getting Started Guide<ExternalLink className="h-5 w-5" /></a>
+                  </p>
+                  <Button onClick={() => setFormOpen(true)} size="lg" className="gap-2">
+                    <Plus className="h-5 w-5" />
+                    Create First Entry
+                  </Button>
+                </>
+              )}
+              {vaultData.entries.length > 0 && (
+                <>
+                  <p className="text-muted-foreground mb-6 max-w-sm">
+                    Try adjusting your search or filters to find what you\'re looking for.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
-        {filteredEntries.length > 0 && (
-          <p className="text-center text-sm text-muted-foreground mt-8">
-            {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
-            {selectedTags.size > 0 && ` tagged ${Array.from(selectedTags).map(t => `#${t}`).join(' ')}`}
-          </p>
-        )}
-      </div>
+          {filteredEntries.length > 0 && (
+            <p className="text-center text-sm text-muted-foreground mt-8">
+              {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+              {selectedTags.size > 0 && ` tagged ${Array.from(selectedTags).map(t => `#${t}`).join(' ')}`}
+            </p>
+          )}
+        </div>
       </main>
 
 
