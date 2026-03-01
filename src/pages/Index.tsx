@@ -82,6 +82,13 @@ const Index = () => {
   const mergeFileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+
+  const INITIAL_RESULTS_RENDER = 50;
+  const RESULTS_BATCH_SIZE = 50;
+  const [visibleResultsCount, setVisibleResultsCount] = useState(INITIAL_RESULTS_RENDER);
+  const resultsScrollRootRef = useRef<HTMLElement | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [importDecryptData, setImportDecryptData] = useState<Uint8Array | null>(null);
@@ -166,6 +173,37 @@ const Index = () => {
         return matchesSearch && matchesTags && (!isDeleted || showDeleted);
       });
   }, [vaultData, search, selectedTags, toast]);
+
+  useEffect(() => {
+    setVisibleResultsCount(Math.min(INITIAL_RESULTS_RENDER, filteredEntries.length));
+  }, [filteredEntries.length]);
+
+  useEffect(() => {
+    const rootEl = resultsScrollRootRef.current;
+    const targetEl = loadMoreSentinelRef.current;
+
+    if (!rootEl || !targetEl) return;
+    if (visibleResultsCount >= filteredEntries.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setVisibleResultsCount(prev => Math.min(prev + RESULTS_BATCH_SIZE, filteredEntries.length));
+      },
+      {
+        root: rootEl,
+        rootMargin: '400px',
+      }
+    );
+
+    observer.observe(targetEl);
+    return () => observer.disconnect();
+  }, [filteredEntries.length, visibleResultsCount]);
+
+  const visibleEntries = useMemo(
+    () => filteredEntries.slice(0, visibleResultsCount),
+    [filteredEntries, visibleResultsCount]
+  );
 
   const visibleTags = useMemo(() => {
     if (selectedTags.size === 0) return allTags;
@@ -770,28 +808,36 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto overscroll-contain">
+      <main ref={resultsScrollRootRef} className="flex-1 overflow-y-auto overscroll-contain">
         <div className="container max-w-4xl px-4 py-6">
           {filteredEntries.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {filteredEntries.map((entry, index) => (
-                <div
-                  key={entry.id}
-                  className="animate-slide-up min-w-0"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <PasswordCard
-                    entry={entry}
-                    onEdit={handleEdit}
-                    onDelete={deleteEntry}
-                    onSoftDelete={handleSoftDelete}
-                    onTagClick={handleToggleTag}
-                    applyRef={applyRef}
-                    setSearch={setSearch}
-                  />
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {visibleEntries.map((entry, index) => (
+                  <div
+                    key={entry.id}
+                    className="animate-slide-up min-w-0"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <PasswordCard
+                      entry={entry}
+                      onEdit={handleEdit}
+                      onDelete={deleteEntry}
+                      onSoftDelete={handleSoftDelete}
+                      onTagClick={handleToggleTag}
+                      applyRef={applyRef}
+                      setSearch={setSearch}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {visibleResultsCount < filteredEntries.length && (
+                <div ref={loadMoreSentinelRef} className="py-8 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
               <div className="p-4 rounded-2xl bg-muted/50 mb-4">
