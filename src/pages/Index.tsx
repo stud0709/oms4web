@@ -66,7 +66,7 @@ const Index = () => {
     importEntries,
     mergeEntries,
     exportData,
-    setSettings: updateSettings,
+    updateSettings,
     loadDecryptedData,
     startWithEmptyVault,
     lockVault,

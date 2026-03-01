@@ -542,7 +542,7 @@ startWithEmptyVault();
     }));
   }, []);
 
-  const setSettings = useCallback((settings: AppSettings) => {
+  const updateSettings = useCallback((settings: AppSettings) => {
     setVaultData(prev => ({ ...prev, settings }));
   }, []);
 
@@ -733,7 +733,7 @@ startWithEmptyVault();
     importEntries,
     mergeEntries,
     exportData,
-    setSettings,
+    updateSettings,
     applyRef,
     switchToQuickUnlock,
     isBackupRequired
