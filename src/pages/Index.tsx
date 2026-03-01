@@ -414,7 +414,11 @@ const Index = () => {
       return child?.textContent ?? '';
     };
 
+    const getDirectChildren = (el: Element, tagName: string) =>
+      Array.from(el.children).filter(child => child.tagName === tagName);
 
+    const getDirectChild = (el: Element, tagName: string) =>
+      getDirectChildren(el, tagName)[0] ?? null;
 
     const parseBool = (v: string | null) => v?.toLowerCase() === 'true';
 
@@ -450,7 +454,9 @@ const Index = () => {
     };
 
     const parseEntryData = async (entryEl: Element, entryId: string, extraHashtags: string[] = []) => {
-      const stringEls = Array.from(entryEl.getElementsByTagName('String'));
+      // Important: Entry contains nested <History><Entry>...</Entry></History>.
+      // We must only parse *direct* children here, otherwise history fields may overwrite the main entry.
+      const stringEls = getDirectChildren(entryEl, 'String');
 
       const kv = new Map<string, { value: string; protectInMemory: boolean }>();
       for (const stringEl of stringEls) {
@@ -468,7 +474,8 @@ const Index = () => {
       const notes = kv.get('Notes')?.value ?? '';
       const passwordRes = await maybeEncryptProtected(kv.get('Password')?.value ?? '', kv.get('Password')?.protectInMemory ?? false);
 
-      const tagsRaw = getChildText(entryEl, 'Tags') || kv.get('Tags')?.value || '';
+      const tagsEl = getDirectChild(entryEl, 'Tags');
+      const tagsRaw = (tagsEl?.textContent ?? '') || kv.get('Tags')?.value || '';
       const hashtags = Array.from(new Set([
         ...tagsRaw
           .split(/[,;\s]+/)
@@ -477,7 +484,7 @@ const Index = () => {
         ...extraHashtags.map(normalizeTag).filter(Boolean),
       ]));
 
-      const timesEl = entryEl.getElementsByTagName('Times')[0];
+      const timesEl = getDirectChild(entryEl, 'Times');
       const createdAtStr = timesEl ? getChildText(timesEl, 'CreationTime') : '';
       const updatedAtStr = timesEl ? getChildText(timesEl, 'LastModificationTime') : '';
       const createdAt = createdAtStr ? new Date(createdAtStr) : new Date();
