@@ -18,6 +18,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Card,
   CardContent,
@@ -202,7 +203,8 @@ export function PasswordCard({
   };
 
   return (
-    <Card className="group w-full min-w-0 overflow-hidden transition-all duration-300 hover:shadow-glow hover:border-primary/30">
+    <TooltipProvider>
+      <Card className="group w-full min-w-0 overflow-hidden transition-all duration-300 hover:shadow-glow hover:border-primary/30">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -220,9 +222,14 @@ export function PasswordCard({
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 </a>
                 {!referenceMode && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entryToDisplay.url!, 'URL')}>
-                    <Copy className="h-3 w-3" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entryToDisplay.url!, 'URL')}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy URL</TooltipContent>
+                  </Tooltip>
                 )}
                 {referenceMode && (
                   <>
@@ -242,15 +249,25 @@ export function PasswordCard({
           <div className="flex items-center gap-1 self-end sm:self-start">
             {!referenceMode && (
               <div className={`flex gap-1 ${env.android ? 'opacity-100' : "opacity-0 group-hover:opacity-100 transition-opacity"}`}>
-                <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                  </AlertDialogTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit</TooltipContent>
+                </Tooltip>
+                <AlertDialog>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Delete</TooltipContent>
+                  </Tooltip>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
@@ -293,9 +310,14 @@ export function PasswordCard({
             </div>
             <div className="flex gap-1 flex-shrink-0">
               {!referenceMode && (
-                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.username, 'Username')}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.username, 'Username')}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy username</TooltipContent>
+                </Tooltip>
               )}
               {referenceMode && (
                 <>
@@ -333,15 +355,25 @@ export function PasswordCard({
                   </Button>)}
                   {env.android && (
                     <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleIntent(entryToDisplay.password)}>
-                        <Webhook className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.password, 'Password')}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleIntent(entryToDisplay.password)}>
+                            <Webhook className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Open in app</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.password, 'Password')}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy password</TooltipContent>
+                      </Tooltip>
                     </>
                   )}
                 </>)}
@@ -397,23 +429,38 @@ export function PasswordCard({
                           <QrCode className="h-4 w-4" />
                         </Button>)}
                       {env.android && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleIntent(field.value)}>
-                          <Webhook className="h-4 w-4" />
-                        </Button>)}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleIntent(field.value)}>
+                              <Webhook className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Open in app</TooltipContent>
+                        </Tooltip>)}
                     </>
                   )}
                   {field.protection === 'secret' && (
-                    <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
-                      {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
+                          {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{visibleFields.has(field.id) ? 'Hide' : 'Show'}</TooltipContent>
+                    </Tooltip>
                   )}
                   {(!isAirGapField(field.value) || env.android) && (
-                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Copy</TooltipContent>
+                    </Tooltip>
                   )}
                 </>
               )}
@@ -485,5 +532,6 @@ export function PasswordCard({
         password={qrDialogValue || ''}
       />
     </Card>
+    </TooltipProvider>
   );
 }
