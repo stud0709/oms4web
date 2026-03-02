@@ -1,7 +1,8 @@
 import { OmsDbSchema } from "@/types/types";
 import { openDB } from "idb";
+import { ENTRY_ID_PROPERTY_NAME } from "./constants";
 
-export const DB_VERSION = 8;
+export const DB_VERSION = 9
 export const STORAGE_KEY = 'current';
 export const DB_NAME = 'oms4web';
 export const KEY_REQUEST_STORE = 'key_request_store';
@@ -11,6 +12,7 @@ export const VAULT_STORE_V1 = 'vault_data';
 export const VAULT_STORE_V2 = 'vault_store';
 export const VAULT_STORE_V3 = 'vault_store_v3';
 export const QUICK_UNLOCK_STORE = 'quick_unlock_store';
+export const LAST_ACCESS_STORE = 'last_access';
 
 export const oms4webDbPromise = openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
     upgrade(db) {
@@ -33,6 +35,11 @@ export const oms4webDbPromise = openDB<OmsDbSchema>(DB_NAME, DB_VERSION, {
         }
         if(!db.objectStoreNames.contains(QUICK_UNLOCK_STORE)){
             db.createObjectStore(QUICK_UNLOCK_STORE);
+        }
+
+        if(!db.objectStoreNames.contains(LAST_ACCESS_STORE)){
+            const store = db.createObjectStore(LAST_ACCESS_STORE, { keyPath: ENTRY_ID_PROPERTY_NAME });
+            store.createIndex("entryID_index", ENTRY_ID_PROPERTY_NAME, { unique: true });
         }
 
         //TODO: remove old storage at some point

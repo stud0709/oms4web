@@ -5,7 +5,8 @@ import {
   VAULT_STORE_V2,
   VAULT_STORE_V3,
   KEY_REQUEST_STORE,
-  QUICK_UNLOCK_STORE
+  QUICK_UNLOCK_STORE,
+  LAST_ACCESS_STORE
 } from "@/lib/db";
 
 import {
@@ -93,6 +94,15 @@ export interface OmsDbSchema extends DBSchema {
     key: string;
     value: QuickUnlockData;
   };
+
+  [LAST_ACCESS_STORE]: {
+    key: number; // timestamp
+    value: {
+      last_access: number;
+      entryId: string; // entry ID
+    };
+    indexes: { "entryID_index": string };
+  }
 }
 
 export interface VaultData {

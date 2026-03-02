@@ -55,6 +55,7 @@ interface PasswordCardProps {
   onSoftDelete: (entry: PasswordEntry) => void;
   onTagClick: (tag: string) => void;
   applyRef: (entry: PasswordEntry) => PasswordEntry;
+  onAccess: (entryId: string) => void;
   setSearch: React.Dispatch<React.SetStateAction<string>>
 }
 
@@ -65,6 +66,7 @@ export function PasswordCard({
   onSoftDelete,
   onTagClick,
   applyRef,
+  onAccess,
   setSearch }: PasswordCardProps) {
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
@@ -202,336 +204,346 @@ export function PasswordCard({
     return nodes;
   };
 
+  const buttonClickListener = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const clickedButton = target.closest('button, a');
+
+    if (clickedButton) {
+      onAccess(entry.id);
+    }
+  }
+
   return (
     <TooltipProvider>
-      <Card className="group w-full min-w-0 overflow-hidden transition-all duration-300 hover:shadow-glow hover:border-primary/30">
-      <CardHeader className="pb-3">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-lg truncate text-foreground">{entryToDisplay.title}</h3>
-            {entryToDisplay.url && (
-              <div className="flex items-center gap-1 max-w-full min-w-0 overflow-hidden">
-                <a
-                  href={entryToDisplay.url.startsWith('http') ? entryToDisplay.url : `https://${entryToDisplay.url}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={entryToDisplay.url}
-                  className="text-sm text-muted-foreground hover:text-primary flex flex-1 items-center gap-1 transition-colors min-w-0 max-w-full overflow-hidden"
+      <Card className="group w-full min-w-0 overflow-hidden transition-all duration-300 hover:shadow-glow hover:border-primary/30"
+        onClick={buttonClickListener}>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-lg truncate text-foreground">{entryToDisplay.title}</h3>
+              {entryToDisplay.url && (
+                <div className="flex items-center gap-1 max-w-full min-w-0 overflow-hidden">
+                  <a
+                    href={entryToDisplay.url.startsWith('http') ? entryToDisplay.url : `https://${entryToDisplay.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={entryToDisplay.url}
+                    className="text-sm text-muted-foreground hover:text-primary flex flex-1 items-center gap-1 transition-colors min-w-0 max-w-full overflow-hidden"
+                  >
+                    <span className="block truncate flex-1 min-w-0">{entryToDisplay.url}</span>
+                    <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                  </a>
+                  {!referenceMode && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entryToDisplay.url!, 'URL')}>
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Copy URL</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {referenceMode && (
+                    <>
+                      {entry.url.startsWith(OMS4WEB_REF) && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => locateSource(entry.url)} title="Locate source">
+                          <MapPin className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyReference('url', entry.url)} title="Copy reference">
+                        <Link className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1 self-end sm:self-start">
+              {!referenceMode && (
+                <div className={`flex gap-1 ${env.android ? 'opacity-100' : "opacity-0 group-hover:opacity-100 transition-opacity"}`}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Edit</TooltipContent>
+                  </Tooltip>
+                  <AlertDialog>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete</TooltipContent>
+                    </Tooltip>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {isDeleted
+                            ? `Are you sure you want to permanently delete "${entryToDisplay.title}"? This action cannot be undone.`
+                            : `"${entryToDisplay.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={e => { e.stopPropagation(); handleDelete(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          {isDeleted ? 'Delete Permanently' : 'Move to Deleted'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+              <div className={`transition-opacity ${(referenceMode || env.android) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setReferenceMode(prev => !prev)}
+                  className={referenceMode ? 'text-primary' : ''}
+                  title="Toggle reference mode"
                 >
-                  <span className="block truncate flex-1 min-w-0">{entryToDisplay.url}</span>
-                  <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                </a>
+                  <Link className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {entryToDisplay.username && (
+            <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Username</p>
+                <p className="text-sm font-mono truncate">{entryToDisplay.username}</p>
+              </div>
+              <div className="flex gap-1 flex-shrink-0">
                 {!referenceMode && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyToClipboard(entryToDisplay.url!, 'URL')}>
-                        <Copy className="h-3 w-3" />
+                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.username, 'Username')}>
+                        <Copy className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Copy URL</TooltipContent>
+                    <TooltipContent>Copy username</TooltipContent>
                   </Tooltip>
                 )}
                 {referenceMode && (
                   <>
-                    {entry.url.startsWith(OMS4WEB_REF) && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => locateSource(entry.url)} title="Locate source">
-                        <MapPin className="h-3 w-3" />
+                    {entry.username.startsWith(OMS4WEB_REF) && (
+                      <Button variant="ghost" size="icon" onClick={e => locateSource(entry.username)} title="Locate source">
+                        <MapPin className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => copyReference('url', entry.url)} title="Copy reference">
-                      <Link className="h-3 w-3" />
+                    <Button variant="ghost" size="icon" onClick={() => copyReference('username', entry.username)} title="Copy reference">
+                      <Link className="h-4 w-4" />
                     </Button>
                   </>
                 )}
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-1 self-end sm:self-start">
-            {!referenceMode && (
-              <div className={`flex gap-1 ${env.android ? 'opacity-100' : "opacity-0 group-hover:opacity-100 transition-opacity"}`}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Edit</TooltipContent>
-                </Tooltip>
-                <AlertDialog>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>Delete</TooltipContent>
-                  </Tooltip>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{isDeleted ? 'Permanently Delete Entry' : 'Delete Entry'}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {isDeleted
-                          ? `Are you sure you want to permanently delete "${entryToDisplay.title}"? This action cannot be undone.`
-                          : `"${entryToDisplay.title}" will be marked as deleted. You can restore it later or delete it permanently.`}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        {isDeleted ? 'Delete Permanently' : 'Move to Deleted'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+            </div>
+          )}
+
+          {entryToDisplay.password && (
+            <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Password</p>
+                <p className="text-sm font-mono truncate">
+                  {maskValue(entryToDisplay.password)}
+                </p>
               </div>
-            )}
-            <div className={`transition-opacity ${(referenceMode || env.android) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setReferenceMode(prev => !prev)}
-                className={referenceMode ? 'text-primary' : ''}
-                title="Toggle reference mode"
-              >
-                <Link className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {entryToDisplay.username && (
-          <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">Username</p>
-              <p className="text-sm font-mono truncate">{entryToDisplay.username}</p>
-            </div>
-            <div className="flex gap-1 flex-shrink-0">
-              {!referenceMode && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.username, 'Username')}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copy username</TooltipContent>
-                </Tooltip>
-              )}
-              {referenceMode && (
-                <>
-                  {entry.username.startsWith(OMS4WEB_REF) && (
-                    <Button variant="ghost" size="icon" onClick={e => locateSource(entry.username)} title="Locate source">
-                      <MapPin className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="icon" onClick={() => copyReference('username', entry.username)} title="Copy reference">
-                    <Link className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {entryToDisplay.password && (
-          <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">Password</p>
-              <p className="text-sm font-mono truncate">
-                {maskValue(entryToDisplay.password)}
-              </p>
-            </div>
-            <div className="flex gap-1 flex-shrink-0">
-              {!referenceMode && (
-                <>
-                  {!env.android && (<Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setQrDialogValue(entryToDisplay.password)}
-                    title="Air Gap - Show QR Code">
-                    <QrCode className="h-4 w-4" />
-                  </Button>)}
-                  {env.android && (
-                    <>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleIntent(entryToDisplay.password)}>
-                            <Webhook className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Open in app</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.password, 'Password')}>
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Copy password</TooltipContent>
-                      </Tooltip>
-                    </>
-                  )}
-                </>)}
-              {referenceMode && (
-                <>
-                  {entry.password.startsWith(OMS4WEB_REF) && (
-                    <Button variant="ghost" size="icon" onClick={e => locateSource(entry.password)} title="Locate source">
-                      <MapPin className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="icon" onClick={() => copyReference('password', entry.password)} title="Copy reference">
-                    <Link className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {entryToDisplay.customFields.map((field, i) => (
-          <div key={field.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">{field.label}</p>
-              <p className="text-sm font-mono truncate">
-                {field.protection !== 'none' && !visibleFields.has(field.id)
-                  ? maskValue(field.value)
-                  : isValidHttpUrl(field.value)
-                    ? (
-                      <a
-                        href={toExternalUrl(field.value)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 hover:text-primary transition-colors min-w-0 max-w-full overflow-hidden"
-                      >
-                        <span className="block truncate flex-1 min-w-0">{field.value}</span>
-                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                      </a>
-                    )
-                    : field.value}
-              </p>
-            </div>
-            <div className="flex gap-1 flex-shrink-0">
-              {!referenceMode && (
-                <>
-                  {isAirGapField(field.value) && (
-                    <>
-                      {!env.android && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setQrDialogValue(field.value)}
-                          title="Air Gap - Show QR Code">
-                          <QrCode className="h-4 w-4" />
-                        </Button>)}
-                      {env.android && (
+              <div className="flex gap-1 flex-shrink-0">
+                {!referenceMode && (
+                  <>
+                    {!env.android && (<Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setQrDialogValue(entryToDisplay.password)}
+                      title="Air Gap - Show QR Code">
+                      <QrCode className="h-4 w-4" />
+                    </Button>)}
+                    {env.android && (
+                      <>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleIntent(field.value)}>
+                              onClick={() => handleIntent(entryToDisplay.password)}>
                               <Webhook className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>Open in app</TooltipContent>
-                        </Tooltip>)}
-                    </>
-                  )}
-                  {field.protection === 'secret' && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
-                          {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{visibleFields.has(field.id) ? 'Hide' : 'Show'}</TooltipContent>
-                    </Tooltip>
-                  )}
-                  {(!isAirGapField(field.value) || env.android) && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Copy</TooltipContent>
-                    </Tooltip>
-                  )}
-                </>
-              )}
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(entryToDisplay.password, 'Password')}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Copy password</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                  </>)}
+                {referenceMode && (
+                  <>
+                    {entry.password.startsWith(OMS4WEB_REF) && (
+                      <Button variant="ghost" size="icon" onClick={e => locateSource(entry.password)} title="Locate source">
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => copyReference('password', entry.password)} title="Copy reference">
+                      <Link className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {entryToDisplay.customFields.map((field, i) => (
+            <div key={field.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">{field.label}</p>
+                <p className="text-sm font-mono truncate">
+                  {field.protection !== 'none' && !visibleFields.has(field.id)
+                    ? maskValue(field.value)
+                    : isValidHttpUrl(field.value)
+                      ? (
+                        <a
+                          href={toExternalUrl(field.value)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 hover:text-primary transition-colors min-w-0 max-w-full overflow-hidden"
+                        >
+                          <span className="block truncate flex-1 min-w-0">{field.value}</span>
+                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        </a>
+                      )
+                      : field.value}
+                </p>
+              </div>
+              <div className="flex gap-1 flex-shrink-0">
+                {!referenceMode && (
+                  <>
+                    {isAirGapField(field.value) && (
+                      <>
+                        {!env.android && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setQrDialogValue(field.value)}
+                            title="Air Gap - Show QR Code">
+                            <QrCode className="h-4 w-4" />
+                          </Button>)}
+                        {env.android && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleIntent(field.value)}>
+                                <Webhook className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Open in app</TooltipContent>
+                          </Tooltip>)}
+                      </>
+                    )}
+                    {field.protection === 'secret' && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => toggleFieldVisibility(field.id)}>
+                            {visibleFields.has(field.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{visibleFields.has(field.id) ? 'Hide' : 'Show'}</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {(!isAirGapField(field.value) || env.android) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => copyToClipboard(field.value, field.label)}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </>
+                )}
+                {referenceMode && (
+                  <>
+                    {entry.customFields[i].value.startsWith(OMS4WEB_REF) && (
+                      <Button variant="ghost" size="icon" onClick={e => locateSource(entry.customFields[i].value)} title="Locate source">
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => copyReference(`customFields[?(@.id == '${field.id}')]`, entry.customFields[i].value)} title="Copy reference">
+                      <Link className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {entryToDisplay.notes && (
+            <div className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/50">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">{renderTextWithLinks(entryToDisplay.notes)}</p>
+              </div>
               {referenceMode && (
                 <>
-                  {entry.customFields[i].value.startsWith(OMS4WEB_REF) && (
-                    <Button variant="ghost" size="icon" onClick={e => locateSource(entry.customFields[i].value)} title="Locate source">
+                  {entry.notes.startsWith(OMS4WEB_REF) && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => locateSource(entry.notes)} title="Locate source">
                       <MapPin className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon" onClick={() => copyReference(`customFields[?(@.id == '${field.id}')]`, entry.customFields[i].value)} title="Copy reference">
+                  <Button variant="ghost" size="icon" onClick={() => copyReference('notes', entry.notes)} title="Copy reference">
                     <Link className="h-4 w-4" />
                   </Button>
                 </>
               )}
             </div>
-          </div>
-        ))}
+          )}
 
-        {entryToDisplay.notes && (
-          <div className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/50">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground mb-1">Notes</p>
-              <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">{renderTextWithLinks(entryToDisplay.notes)}</p>
-            </div>
-            {referenceMode && (
-              <>
-                {entry.notes.startsWith(OMS4WEB_REF) && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => locateSource(entry.notes)} title="Locate source">
-                    <MapPin className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" onClick={() => copyReference('notes', entry.notes)} title="Copy reference">
-                  <Link className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        )}
+          {entryToDisplay.hashtags.length > 0 && (
+            <ScrollArea className="w-px min-w-full whitespace-nowrap pt-2">
+              <div className="flex w-max space-x-2 pb-3">
+                {entryToDisplay.hashtags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant={tag === DELETED_TAG ? 'destructive' : 'secondary'}
+                    className={`cursor-pointer transition-colors ${tag === DELETED_TAG
+                      ? 'hover:bg-destructive/80'
+                      : 'hover:bg-primary hover:text-primary-foreground'
+                      }`}
+                    onClick={() => onTagClick(tag)}
+                  >
+                    <Hash className="h-3 w-3 mr-0.5" />
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+              {/* orientation="horizontal" is the key here */}
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          )}
+        </CardContent>
 
-        {entryToDisplay.hashtags.length > 0 && (
-          <ScrollArea className="w-px min-w-full whitespace-nowrap pt-2">
-            <div className="flex w-max space-x-2 pb-3">
-              {entryToDisplay.hashtags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant={tag === DELETED_TAG ? 'destructive' : 'secondary'}
-                  className={`cursor-pointer transition-colors ${tag === DELETED_TAG
-                    ? 'hover:bg-destructive/80'
-                    : 'hover:bg-primary hover:text-primary-foreground'
-                    }`}
-                  onClick={() => onTagClick(tag)}
-                >
-                  <Hash className="h-3 w-3 mr-0.5" />
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-            {/* orientation="horizontal" is the key here */}
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        )}
-      </CardContent>
-
-      {/* Air Gap QR Code Dialog */}
-      <AirGapQrDialog
-        open={qrDialogValue !== null}
-        onOpenChange={(open) => !open && setQrDialogValue(null)}
-        password={qrDialogValue || ''}
-      />
-    </Card>
+        {/* Air Gap QR Code Dialog */}
+        <AirGapQrDialog
+          open={qrDialogValue !== null}
+          onOpenChange={(open) => !open && setQrDialogValue(null)}
+          password={qrDialogValue || ''}
+        />
+      </Card>
     </TooltipProvider>
   );
 }

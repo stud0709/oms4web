@@ -49,10 +49,11 @@ import { Input } from '@/components/ui/input';
 import { encryptVaultData } from '@/lib/fileEncryption';
 import { toast as sonnerToast } from 'sonner';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { DELETED_TAG, OMS4WEB_REF, OMS_FILETYPE, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
+import { DELETED_TAG, ENTRY_ID_PROPERTY_NAME, OMS4WEB_REF, OMS_FILETYPE, OMS_PREFIX, PASSWORD_READONLY_PROPERTY_NAME } from '@/lib/constants';
 import { JSONPath } from 'jsonpath-plus';
 import { createEncryptedMessage } from '@/lib/crypto';
 import { normalizeTag } from '@/lib/tagUtils';
+import { LAST_ACCESS_STORE, oms4webDbPromise } from '@/lib/db';
 
 const Index = () => {
   const {
@@ -98,6 +99,7 @@ const Index = () => {
   const [mergeTag, setMergeTag] = useState('');
   const [manageTagsOpen, setManageTagsOpen] = useState(false);
   const allTags = getAllHashtags();
+  const [lastAccessMap, setLastAccessMap] = useState<Record<string, number>>({});
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -122,6 +124,55 @@ const Index = () => {
     }
   }, [needRefresh, updateServiceWorker, setNeedRefresh]);
 
+  useEffect(() => {
+    const fetchLastAccess = async () => {
+      const db = await oms4webDbPromise;
+      const tx = db.transaction(LAST_ACCESS_STORE, 'readonly');
+      const store = tx.objectStore(LAST_ACCESS_STORE);
+      const allRecords = await store.getAll();
+
+      const map: Record<string, number> = {};
+      allRecords.forEach(record => {
+        // Mapping entryID to the timestamp
+        map[record[ENTRY_ID_PROPERTY_NAME]] = record.last_access;
+      });
+      setLastAccessMap(map);
+    };
+
+    if (vaultState.status === 'ready') {
+      fetchLastAccess();
+    }
+  }, [vaultState.status]);
+
+  const onAccess = async (entryID: string) => {
+    const tx = (await oms4webDbPromise).transaction(LAST_ACCESS_STORE, 'readwrite');
+    const store = tx.objectStore(LAST_ACCESS_STORE);
+    const index = store.index("entryID_index");
+
+    const existingAccessEntry = await index.get(entryID);
+
+    if (existingAccessEntry) {
+      await store.delete(existingAccessEntry.last_access);
+      console.log("Deleted entry at timestamp:", existingAccessEntry);
+    }
+
+    const timestamp = Date.now();
+    store.put({ last_access: timestamp, entryId: entryID });
+    setLastAccessMap(prev => ({ ...prev, [entryID]: timestamp }));
+    //Smooth follow to top
+    requestAnimationFrame(() => {
+      // Radix ScrollArea uses this specific attribute for its viewport
+      const scrollViewport = document.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollViewport) {
+        scrollViewport.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }
+    });
+    return tx.done;
+  }
+
   const filteredEntries = useMemo(() => {
     if (search?.startsWith(OMS4WEB_REF)) {
       const path = search.substring(OMS4WEB_REF.length);
@@ -145,7 +196,7 @@ const Index = () => {
 
     const searchLower = search.toLowerCase().trim();
 
-    return vaultData.entries
+    const results = vaultData.entries
       .filter(entry => {
         // applyRef() creates a deep-copied view for resolving OMS4WEB_REF.
         // We must NOT return that copy because it breaks non-plain objects (e.g. Date in history entries).
@@ -175,7 +226,19 @@ const Index = () => {
 
         return matchesSearch && matchesTags && (!isDeleted || showDeleted);
       });
-  }, [vaultData, search, selectedTags, toast, applyRef]);
+
+    return results.sort((a, b) => {
+      const timeA = lastAccessMap[a.id] || 0;
+      const timeB = lastAccessMap[b.id] || 0;
+
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+
+      // Secondary sort: alphabetical by title 
+      return a.title.localeCompare(b.title);
+    });
+  }, [vaultData, search, selectedTags, toast, applyRef, lastAccessMap]);
 
   useEffect(() => {
     setVisibleResultsCount(Math.min(INITIAL_RESULTS_RENDER, filteredEntries.length));
@@ -896,6 +959,7 @@ const Index = () => {
                       onTagClick={handleToggleTag}
                       applyRef={applyRef}
                       setSearch={setSearch}
+                      onAccess={onAccess}
                     />
                   </div>
                 ))}
