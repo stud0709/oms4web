@@ -4,7 +4,7 @@ import {
   useCallback
 } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Lock, QrCode, Loader2 } from 'lucide-react';
+import { Lock, QrCode, Loader2, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -17,8 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getQrSequence } from '@/lib/qrUtil';
 import { INTERVAL_QR_SEQUENCE } from "@/lib/constants";
-import { QrChunk } from "@/types/types";
-import { VaultState } from '@/types/types';
+import { QrChunk, VaultState } from "@/types/types";
+import { oms4webDbPromise, QUICK_UNLOCK_STORE, STORAGE_KEY } from '@/lib/db';
 
 interface PinUnlockDialogProps {
   open: boolean;
@@ -36,6 +36,7 @@ export function PinUnlockDialog({
   onUnlock,
   hideCloseButton,
 }: PinUnlockDialogProps) {
+  const preventClose = hideCloseButton === true;
   const [chunks, setChunks] = useState<QrChunk[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [inputValue, setInputValue] = useState('');
@@ -89,16 +90,31 @@ export function PinUnlockDialog({
     }
   };
 
+  const handleClose = useCallback(async () => {
+    const db = await oms4webDbPromise;
+    await db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
+    window.location.reload();
+  }, []);
+
   const currentChunk = chunks[currentIndex];
 
   return (
-    <Dialog open={open} onOpenChange={hideCloseButton ? undefined : onOpenChange}>
+    <Dialog open={open} onOpenChange={preventClose ? undefined : onOpenChange}>
       <DialogContent
         className="sm:max-w-md"
-        onPointerDownOutside={(e) => hideCloseButton && e.preventDefault()}
-        onEscapeKeyDown={(e) => hideCloseButton && e.preventDefault()}
-        hideCloseButton={hideCloseButton}
+        onPointerDownOutside={(e) => preventClose && e.preventDefault()}
+        onEscapeKeyDown={(e) => preventClose && e.preventDefault()}
+        hideCloseButton
       >
+        <button
+          type="button"
+          onClick={handleClose}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </button>
+
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
