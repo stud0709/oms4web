@@ -18,6 +18,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TruncatedTooltip } from '@/components/TruncatedTooltip'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Card,
@@ -220,7 +221,7 @@ export function PasswordCard({
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg truncate text-foreground">{entryToDisplay.title}</h3>
+              <TruncatedTooltip text={entryToDisplay.title} />
               {entryToDisplay.url && (
                 <div className="flex items-center gap-1 max-w-full min-w-0 overflow-hidden">
                   <a
