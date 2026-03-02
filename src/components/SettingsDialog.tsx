@@ -172,124 +172,127 @@ export function SettingsDialog({
                 className="font-mono text-sm"
               />
             </div>
-            {keyValid && (<>
-              <div className="space-y-3 p-3 rounded-lg bg-muted/50">
-                <Label className="font-medium">Workspace Protection</Label>
-                <RadioGroup
-                  value={newSettings.workspaceProtection}
-                  onValueChange={(v) => setNewSettings({ ...newSettings, workspaceProtection: v as WorkspaceProtection })}>
-                  <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="none" id="protection-none" className="mt-1" />
-                    <div>
-                      <Label htmlFor="protection-none" className="font-normal cursor-pointer">⚠️ None</Label>
-                      <p className="text-xs text-muted-foreground">Local storage file not encrypted</p>
-                    </div>
-                  </div>
-                  {(env.android === false || newSettings.workspaceProtection === 'quickUnlock') && (
+            {keyValid && (
+              <>
+                <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+                  <Label className="font-medium">Workspace Protection</Label>
+                  <RadioGroup
+                    value={newSettings.workspaceProtection}
+                    onValueChange={(v) => setNewSettings({ ...newSettings, workspaceProtection: v as WorkspaceProtection })}>
                     <div className="flex items-start space-x-3">
-                      <RadioGroupItem value="quickUnlock" id="protection-qu" className="mt-1" />
+                      <RadioGroupItem value="none" id="protection-none" className="mt-1" />
                       <div>
-                        <Label htmlFor="protection-qu" className="font-normal cursor-pointer">Quick Unlock</Label>
-                        <p className="text-xs text-muted-foreground">{env.android ? "On Android, Encrypt mode is used instead" : "PIN on startup and to unlock workspace"}</p>
+                        <Label htmlFor="protection-none" className="font-normal cursor-pointer">⚠️ None</Label>
+                        <p className="text-xs text-muted-foreground">Local storage file not encrypted</p>
                       </div>
-                    </div>)}
-                  {(env.android === false || newSettings.workspaceProtection === 'pin') && (
-                    <div className="flex items-start space-x-3">
-                      <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
-                      <div>
-                        <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
-                        <p className="text-xs text-muted-foreground">{env.android ? "On Android, Encrypt mode ist used instead" : "Decryption on start, PIN to unlock workspace"}</p>
-                      </div>
-                    </div>)}
-                  <div className="flex items-start space-x-3">
-                    <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
-                    <div>
-                      <Label htmlFor="protection-encrypt" className="font-normal cursor-pointer">Encrypt Local Storage</Label>
-                      <p className="text-xs text-muted-foreground">Decryption on start and to unlock workspace</p>
                     </div>
-                  </div>
-                </RadioGroup>
-              </div>
+                    {(env.android === false || newSettings.workspaceProtection === 'quickUnlock') && (
+                      <div className="flex items-start space-x-3">
+                        <RadioGroupItem value="quickUnlock" id="protection-qu" className="mt-1" />
+                        <div>
+                          <Label htmlFor="protection-qu" className="font-normal cursor-pointer">Quick Unlock</Label>
+                          <p className="text-xs text-muted-foreground">{env.android ? "On Android, Encrypt mode is used instead" : "PIN on startup and to unlock workspace"}</p>
+                        </div>
+                      </div>)}
+                    {(env.android === false || newSettings.workspaceProtection === 'pin') && (
+                      <div className="flex items-start space-x-3">
+                        <RadioGroupItem value="pin" id="protection-pin" className="mt-1" />
+                        <div>
+                          <Label htmlFor="protection-pin" className="font-normal cursor-pointer">Lock Workspace</Label>
+                          <p className="text-xs text-muted-foreground">{env.android ? "On Android, Encrypt mode ist used instead" : "Decryption on start, PIN to unlock workspace"}</p>
+                        </div>
+                      </div>)}
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="encrypt" id="protection-encrypt" className="mt-1" />
+                      <div>
+                        <Label htmlFor="protection-encrypt" className="font-normal cursor-pointer">Encrypt Local Storage</Label>
+                        <p className="text-xs text-muted-foreground">Decryption on start and to unlock workspace</p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
 
-              <div className="flex items-center justify-between p-3">
-                <Label htmlFor="encryptionEnabled" className="font-medium">
-                  Password generator & encryption
-                </Label>
-                <Switch
-                  id="encryptionEnabled"
-                  checked={newSettings.encryptionEnabled}
-                  onCheckedChange={encryptionEnabled => setNewSettings({ ...newSettings, encryptionEnabled })}
-                />
-              </div>
+                <div className="flex items-center justify-between p-3">
+                  <Label htmlFor="encryptionEnabled" className="font-medium">
+                    Password generator & encryption
+                  </Label>
+                  <Switch
+                    id="encryptionEnabled"
+                    checked={newSettings.encryptionEnabled}
+                    onCheckedChange={encryptionEnabled => setNewSettings({ ...newSettings, encryptionEnabled })}
+                  />
+                </div>
 
-              <div className="flex items-center justify-between p-3">
-                <Label htmlFor="encryptionEnabled" className="font-medium">
-                  Expert Mode
-                </Label>
-                <Switch
-                  id="expertModeEnabled"
-                  checked={newSettings.expertMode}
-                  onCheckedChange={expertMode => setNewSettings({ ...newSettings, expertMode })}
-                />
-              </div>
-            </>)
+                <div className="flex items-center justify-between p-3">
+                  <Label htmlFor="encryptionEnabled" className="font-medium">
+                    Expert Mode
+                  </Label>
+                  <Switch
+                    id="expertModeEnabled"
+                    checked={newSettings.expertMode}
+                    onCheckedChange={expertMode => setNewSettings({ ...newSettings, expertMode })}
+                  />
+                </div>
+              </>
+            )}
 
-            {//Expert Mode Settings
-              keyValid && newSettings.expertMode && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="rsaTransformation">RSA Transformation</Label>
-                    <Select
-                      value={String(newSettings.rsaTransformationIdx)}
-                      onValueChange={v => setNewSettings({ ...newSettings, rsaTransformationIdx: Number(v) })}>
-                      <SelectTrigger id="rsaTransformation">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.values(RSA_TRANSFORMATIONS).map((t) => (
-                          <SelectItem key={t.idx} value={String(t.idx)}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            {keyValid && newSettings.expertMode && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="rsaTransformation">RSA Transformation</Label>
+                  <Select
+                    value={String(newSettings.rsaTransformationIdx)}
+                    onValueChange={v => setNewSettings({ ...newSettings, rsaTransformationIdx: Number(v) })}>
+                    <SelectTrigger id="rsaTransformation">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(RSA_TRANSFORMATIONS).map((t) => (
+                        <SelectItem key={t.idx} value={String(t.idx)}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="aesKeyLength">AES Key Length</Label>
-                    <Select
-                      value={String(newSettings.aesKeyLength)}
-                      onValueChange={v => setNewSettings({ ...newSettings, aesKeyLength: Number(v) })}>
-                      <SelectTrigger id="aesKeyLength">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AES_KEY_LENGTHS.map((len) => (
-                          <SelectItem key={len} value={String(len)}>
-                            {len} bits
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="aesKeyLength">AES Key Length</Label>
+                  <Select
+                    value={String(newSettings.aesKeyLength)}
+                    onValueChange={v => setNewSettings({ ...newSettings, aesKeyLength: Number(v) })}>
+                    <SelectTrigger id="aesKeyLength">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AES_KEY_LENGTHS.map((len) => (
+                        <SelectItem key={len} value={String(len)}>
+                          {len} bits
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="aesTransformation">AES Transformation</Label>
-                    <Select
-                      value={String(newSettings.aesTransformationIdx)}
-                      onValueChange={v => setNewSettings({ ...newSettings, aesTransformationIdx: Number(v) })}>
-                      <SelectTrigger id="aesTransformation">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AES_TRANSFORMATIONS.map((t) => (
-                          <SelectItem key={t.idx} value={String(t.idx)}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div></>) }
+                <div className="space-y-2">
+                  <Label htmlFor="aesTransformation">AES Transformation</Label>
+                  <Select
+                    value={String(newSettings.aesTransformationIdx)}
+                    onValueChange={v => setNewSettings({ ...newSettings, aesTransformationIdx: Number(v) })}>
+                    <SelectTrigger id="aesTransformation">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AES_TRANSFORMATIONS.map((t) => (
+                        <SelectItem key={t.idx} value={String(t.idx)}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
               <div>
