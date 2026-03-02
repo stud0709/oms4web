@@ -99,6 +99,16 @@ export const downloadVault = (vaultName: string, blob: Blob) => {
   URL.revokeObjectURL(url);
 }
 
+export const downloadVaultBackupFromBytes = (vaultBytes: Uint8Array) => {
+  const isJson = vaultBytes[0] === 123; // ASCII '{'
+  const filename = `Vault backup_${getTimestamp()}.json${isJson ? '' : '.oms00'}`;
+  const blob = new Blob([vaultBytes], {
+    type: isJson ? 'application/json' : 'application/octet-stream'
+  });
+  downloadVault(filename, blob);
+  return { filename, isJson };
+}
+
 export const setQuickUnlock = async (
   vaultAesKeyRaw: Uint8Array,
   workspaceProtection: WorkspaceProtection) => {

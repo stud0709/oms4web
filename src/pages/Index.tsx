@@ -801,6 +801,7 @@ const Index = () => {
                   <SettingsDialog
                     settings={vaultData.settings}
                     onSaveSettings={updateSettings}
+                    onNewEmptyVault={startWithEmptyVault}
                   />
                   <input
                     ref={fileInputRef}

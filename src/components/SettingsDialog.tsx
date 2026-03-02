@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -39,22 +49,26 @@ import {
   RadioGroup,
   RadioGroupItem
 } from '@/components/ui/radio-group';
-import { getEnvironment, validateSettings } from '@/hooks/useEncryptedVault';
+import { downloadVaultBackupFromBytes, getEnvironment, validateSettings } from '@/hooks/useEncryptedVault';
+import { oms4webDbPromise, STORAGE_KEY, VAULT_STORE_V3 } from '@/lib/db';
 
 interface SettingsDialogProps {
   settings: AppSettings;
   onSaveSettings: (settings: AppSettings) => void;
+  onNewEmptyVault: () => void;
 }
 
 export function SettingsDialog({
   settings,
   onSaveSettings,
+  onNewEmptyVault,
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [newSettings, setNewSettings] = useState(settings);
   const { toast } = useToast();
   const [keyValid, setKeyValid] = useState(false);
   const env = useMemo(() => getEnvironment(), []);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) setNewSettings(settings);
@@ -86,6 +100,28 @@ export function SettingsDialog({
 
     onSaveSettings(newSettings);
     toast({ title: 'Settings saved', description: 'Settings have been updated.' });
+    setOpen(false);
+  };
+
+  const resetVault = async () => {
+    try {
+      const db = await oms4webDbPromise;
+      const stored = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+
+      if (stored?.vault) {
+        const res = downloadVaultBackupFromBytes(stored.vault);
+        toast({
+          title: 'Backup created',
+          description: `Downloaded ${res.isJson ? 'JSON' : 'encrypted'} vault backup before resetting.`
+        });
+      }
+    } catch (e) {
+      console.error('Failed to download backup before reset:', e);
+    }
+
+    onNewEmptyVault();
+    toast({ title: 'New vault created', description: 'Local vault has been reset to an empty vault.' });
+    setConfirmResetOpen(false);
     setOpen(false);
   };
 
@@ -196,7 +232,7 @@ export function SettingsDialog({
                   onCheckedChange={expertMode => setNewSettings({ ...newSettings, expertMode })}
                 />
               </div>
-            </>)}
+            </>)
 
             {//Expert Mode Settings
               keyValid && newSettings.expertMode && (
@@ -253,14 +289,47 @@ export function SettingsDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                  </div></>)}
+                  </div></>) }
+
+            <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+              <div>
+                <p className="text-sm font-medium text-destructive">Danger Zone</p>
+                <p className="text-xs text-muted-foreground">
+                  Creates a new empty vault in this browser. Before resetting, a backup of your current vault will be downloaded.
+                </p>
+              </div>
+              <Button variant="destructive" size="sm" onClick={() => setConfirmResetOpen(true)}>
+                New empty vault
+              </Button>
+            </div>
           </div>
+
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={handleSave}>Save</Button>
           </div>
+
+          <AlertDialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>New empty vault</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A backup file will be downloaded first. After that, your local vault will be replaced with an empty vault.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={resetVault}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Create empty vault
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </DialogContent>
       </Dialog>
     </TooltipProvider>
