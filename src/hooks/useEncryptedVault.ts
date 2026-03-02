@@ -58,7 +58,7 @@ export const getEnvironment:
   } =
   () => ({
     android: /Android/i.test(navigator.userAgent),
-    pwaMode: ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia(`(display-mode: ${mode}`).matches)
+    pwaMode: ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia(`(display-mode: ${mode})`).matches)
   });
 
 const getIntentUrl = (message: string) => {
