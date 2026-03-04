@@ -54,7 +54,7 @@ interface PasswordFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entry?: PasswordEntry | null;
-  onSave: (entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => void;
+  onSave: (entry: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => void | Promise<void>;
   existingTags: string[];
   settings: AppSettings;
 }
@@ -240,7 +240,7 @@ export function PasswordForm({
             return field;
           }));
 
-      onSave({
+      await onSave({
         title: title.trim() || 'Untitled',
         username,
         password: finalPassword,
