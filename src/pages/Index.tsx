@@ -293,11 +293,12 @@ const Index = () => {
     return ordered;
   }, [allTags, filteredEntries, selectedTags]);
 
-  const handleSave = (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => {
+  const handleSave = async (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => {
     if (editingEntry) {
       updateEntry(editingEntry.id, data);
     } else {
-      addEntry(data);
+      const newEntry = addEntry(data);
+      await onAccess(newEntry.id);
       // Ensure the newly created entry is visible immediately
       setSearch('');
       setSelectedTags(new Set());
