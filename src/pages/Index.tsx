@@ -806,6 +806,17 @@ const Index = () => {
             <ScrollArea className="flex-1">
               <TooltipProvider>
                 <div className="flex items-center gap-2 flex-nowrap justify-end pr-1">
+                  {//"Lock workspace" button to be shown only if workspace protection activated
+                    vaultData.settings.workspaceProtection !== 'none' && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button className="shrink-0" variant="outline" size="icon" onClick={lockVault}>
+                            <LockKeyhole className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Lock workspace</TooltipContent>
+                      </Tooltip>
+                    )}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button className="shrink-0" variant="outline" size="icon" onClick={() => setFormOpen(true)}>
@@ -850,18 +861,6 @@ const Index = () => {
                     </TooltipTrigger>
                     <TooltipContent>Manage tags</TooltipContent>
                   </Tooltip>
-
-                  {//"Lock workspace" button to be shown only if workspace protection activated
-                    vaultData.settings.workspaceProtection !== 'none' && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button className="shrink-0" variant="outline" size="icon" onClick={lockVault}>
-                            <LockKeyhole className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Lock workspace</TooltipContent>
-                      </Tooltip>
-                    )}
                   <SettingsDialog
                     settings={vaultData.settings}
                     onSaveSettings={updateSettings}
