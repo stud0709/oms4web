@@ -126,6 +126,8 @@ function DecryptQrDialogContent({
   useEffect(() => {
     if (!open || chunks.length <= 1 || step !== 'display') return;
 
+    setInputValue('');
+
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % chunks.length);
     }, INTERVAL_QR_SEQUENCE);
