@@ -86,7 +86,7 @@ export async function generateKeyFromPassword(password: string, salt?: Uint8Arra
     {
       name: "PBKDF2",
       salt: salt,
-      iterations: 65535,
+      iterations: 600000,
       hash: "SHA-256"
     },
     passwordKey,

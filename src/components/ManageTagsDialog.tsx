@@ -39,14 +39,21 @@ export function ManageTagsDialog({
 }: ManageTagsDialogProps) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [confirmDeleteTag, setConfirmDeleteTag] = useState<string | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setDrafts(Object.fromEntries(tags.map(t => [t, t])));
+      setConfirmDeleteTag(null);
+    }
+  }
 
   const sortedTags = useMemo(() => [...tags].sort((a, b) => a.localeCompare(b)), [tags]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
-    if (nextOpen) {
-      setDrafts(Object.fromEntries(tags.map(t => [t, t])));
-    } else {
+    if (!nextOpen) {
       setConfirmDeleteTag(null);
     }
   };
