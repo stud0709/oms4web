@@ -92,6 +92,26 @@ export function PasswordCard({
 
   const isValidHttpUrl = (value: string) => {
     if (!value || isAirGapField(value)) return false;
+
+    // Check if it already has a protocol
+    const hasProtocol = value.startsWith('http://') || value.startsWith('https://');
+
+    // Check if it starts with www.
+    const startsWithWww = value.startsWith('www.');
+
+    // Check if it looks like a domain name:
+    // - contains a dot
+    // - no spaces
+    // - no @ symbol (to avoid matching emails)
+    // - TLD (last part of hostname) is letters-only and at least 2 characters long
+    const domainRegex = /^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})*\.[a-zA-Z]{2,63}$/;
+    const hostPart = value.split('/')[0].split(':')[0];
+    const isDomain = !value.includes(' ') && !value.includes('@') && domainRegex.test(hostPart);
+
+    if (!hasProtocol && !startsWithWww && !isDomain) {
+      return false;
+    }
+
     try {
       const url = new URL(toExternalUrl(value));
       return url.protocol === 'http:' || url.protocol === 'https:';
