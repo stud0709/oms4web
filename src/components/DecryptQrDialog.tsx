@@ -111,6 +111,7 @@ function DecryptQrDialogContent({
   const [displayMode, setDisplayMode] = useState<DisplayMode>(
     !env.android && isNostrEnabled ? 'nostr' : 'airgap'
   );
+  const [topicHex, setTopicHex] = useState<string>('');
   const [nostrQrMessage, setNostrQrMessage] = useState<string>('');
   const [nostrStatus, setNostrStatus] = useState<NostrSessionStatus>('connecting');
   const [nostrDetail, setNostrDetail] = useState<string>('');
@@ -178,6 +179,7 @@ function DecryptQrDialogContent({
     }
 
     const topicHex = generateTopic();
+    setTopicHex(topicHex);
     const relays = settings?.nostrRelays && settings.nostrRelays.length > 0
       ? settings.nostrRelays
       : DEFAULT_NOSTR_RELAYS;
@@ -406,9 +408,17 @@ function DecryptQrDialogContent({
               ) : displayMode === 'nostr' ? (
                 <div className="flex flex-col items-center gap-3 w-full">
                   {nostrQrMessage && nostrStatus !== 'timeout' ? (
-                    <div className="p-4 bg-white rounded-lg shadow-sm border">
-                      <QRCodeSVG value={nostrQrMessage} size={220} />
-                    </div>
+                    <>
+                      <div className="p-4 bg-white rounded-lg shadow-sm border">
+                        <QRCodeSVG value={nostrQrMessage} size={220} />
+                      </div>
+                      {topicHex && (
+                        <div className="flex items-center gap-1.5 text-xs font-mono bg-muted/60 px-3 py-1.5 rounded-md border text-muted-foreground">
+                          <span className="font-semibold text-foreground">Topic Prefix:</span>
+                          <span className="font-bold tracking-wider text-primary">{topicHex.substring(0, 8)}...</span>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="p-8 bg-muted/40 rounded-lg flex flex-col items-center gap-3 text-center border">
                       <Clock className="h-10 w-10 text-muted-foreground" />
