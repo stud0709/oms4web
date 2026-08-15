@@ -108,8 +108,14 @@ export async function processKeyResponse(
   keyResponse: string,
   context: KeyRequestContext
 ): Promise<VaultData> {
-  // Decode the response
-  const responseBytes = Uint8Array.from(atob(keyResponse), c => c.charCodeAt(0));
+  // Decode the response (supporting both raw base64 and oms00_ prefix)
+  const cleanResponse = keyResponse.startsWith(OMS_PREFIX)
+    ? keyResponse.slice(OMS_PREFIX.length)
+    : keyResponse;
+  const responseBytes = Uint8Array.from(
+    atob(cleanResponse.replace(/\s+/g, '')),
+    c => c.charCodeAt(0)
+  );
 
   let offset = 0;
 

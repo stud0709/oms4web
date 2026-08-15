@@ -16,6 +16,7 @@ export const APPLICATION_IDS = {
   ENCRYPTED_MESSAGE: 8,
   TOTP_URI: 9,
   WIFI_PAIRING: 10,
+  NOSTR_PAIRING: 10,
   KEY_REQUEST_PAIRING: 11,
   ENCRYPTED_OTP: 12,
   OMS4WEB_CALLBACK_REQUEST: 13,
@@ -40,6 +41,15 @@ export const AES_KEY_LENGTHS = [128, 192, 256] as const;
 //QR sequence interval (ms)
 export const INTERVAL_QR_SEQUENCE = 250;
 
+// Nostr constants
+export const NOSTR_EVENT_KIND = 25000;
+export const DEFAULT_NOSTR_TTL = 60;
+export const DEFAULT_NOSTR_RELAYS = [
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://relay.primal.net',
+];
+
 export const DEFAULT_SETTINGS: AppSettings = {
   publicKey: '',
   rsaTransformationIdx: 2,
@@ -49,6 +59,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   vaultName: '',
   workspaceProtection: 'none',
   expertMode: false,
+  nostrRelays: DEFAULT_NOSTR_RELAYS,
+  enableNostrPairing: true,
 };
 
 export const

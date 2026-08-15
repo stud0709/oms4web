@@ -3,7 +3,7 @@ import {
   useEffect,
   useMemo
 } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings, Plus, Trash2, RotateCcw, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -38,7 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   validatePublicKey,
 } from '@/lib/crypto';
-import { RSA_TRANSFORMATIONS } from "@/lib/constants";
+import { DEFAULT_NOSTR_RELAYS, RSA_TRANSFORMATIONS } from "@/lib/constants";
 import {
   AppSettings,
   WorkspaceProtection
@@ -65,14 +65,61 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [newSettings, setNewSettings] = useState(settings);
+  const [newRelayInput, setNewRelayInput] = useState('');
   const { toast } = useToast();
   const [keyValid, setKeyValid] = useState(false);
   const env = useMemo(() => getEnvironment(), []);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) setNewSettings(settings);
+    if (newOpen) {
+      setNewSettings(settings);
+      setNewRelayInput('');
+    }
     setOpen(newOpen);
+  };
+
+  const handleAddRelay = () => {
+    const trimmed = newRelayInput.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith('wss://') && !trimmed.startsWith('ws://')) {
+      toast({
+        title: 'Invalid relay URL',
+        description: 'Relay URL must start with wss:// or ws://',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const currentRelays = newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS;
+    if (currentRelays.includes(trimmed)) {
+      toast({
+        title: 'Duplicate relay',
+        description: 'This relay is already in the list',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setNewSettings({
+      ...newSettings,
+      nostrRelays: [...currentRelays, trimmed],
+    });
+    setNewRelayInput('');
+  };
+
+  const handleRemoveRelay = (urlToRemove: string) => {
+    const currentRelays = newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS;
+    setNewSettings({
+      ...newSettings,
+      nostrRelays: currentRelays.filter(url => url !== urlToRemove),
+    });
+  };
+
+  const handleResetRelays = () => {
+    setNewSettings({
+      ...newSettings,
+      nostrRelays: [...DEFAULT_NOSTR_RELAYS],
+    });
+    toast({ title: 'Relays reset', description: 'Reset to default Nostr relays.' });
   };
 
   //validating the key
@@ -224,7 +271,7 @@ export function SettingsDialog({
                 </div>
 
                 <div className="flex items-center justify-between p-3">
-                  <Label htmlFor="encryptionEnabled" className="font-medium">
+                  <Label htmlFor="expertModeEnabled" className="font-medium">
                     Expert Mode
                   </Label>
                   <Switch
@@ -235,6 +282,91 @@ export function SettingsDialog({
                 </div>
               </>
             )}
+
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5 pr-2">
+                  <div className="flex items-center gap-2">
+                    <Radio className="h-4 w-4 text-primary" />
+                    <Label htmlFor="nostrPairingEnabled" className="font-medium cursor-pointer">
+                      Nostr Relay Pairing
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enables real-time wireless key exchange and pairing with OneMoreSecret via Nostr relays.
+                  </p>
+                </div>
+                <Switch
+                  id="nostrPairingEnabled"
+                  checked={newSettings.enableNostrPairing !== false}
+                  onCheckedChange={enableNostrPairing => setNewSettings({ ...newSettings, enableNostrPairing })}
+                />
+              </div>
+
+              {newSettings.enableNostrPairing !== false && (
+                <div className="space-y-3 pt-2 border-t border-border/50">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Preferred Relays
+                    </Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleResetRelays}
+                      className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Reset Defaults
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {(newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS).map((relayUrl) => (
+                      <div
+                        key={relayUrl}
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-background text-xs font-mono border border-border"
+                      >
+                        <span className="truncate mr-2">{relayUrl}</span>
+                        {(newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS).length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                            onClick={() => handleRemoveRelay(relayUrl)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="wss://relay.example.com"
+                      value={newRelayInput}
+                      onChange={(e) => setNewRelayInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddRelay();
+                        }
+                      }}
+                      className="text-xs font-mono h-8"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleAddRelay}
+                      className="h-8 text-xs gap-1 shrink-0"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {keyValid && newSettings.expertMode && (
               <>

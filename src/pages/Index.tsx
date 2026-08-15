@@ -724,6 +724,7 @@ const Index = () => {
             encryptedData={vaultState.encryptedData}
             onDecrypted={loadDecryptedData}
             onSkip={startWithEmptyVault}
+            settings={vaultData.settings}
             hideCloseButton
           />
         </div>
@@ -1066,6 +1067,7 @@ const Index = () => {
           encryptedData={importDecryptData}
           onDecrypted={handleImportDecrypted}
           onSkip={() => setImportDecryptData(null)}
+          settings={vaultData.settings}
         />
       )}
 
@@ -1077,6 +1079,7 @@ const Index = () => {
           encryptedData={mergeDecryptData}
           onDecrypted={handleMergeDecrypted}
           onSkip={() => setMergeDecryptData(null)}
+          settings={vaultData.settings}
         />
       )}
     </div>

@@ -154,7 +154,7 @@ export const validateJson = (data: unknown) => {
 
   if (!(SETTINGS_PROPERTY_NAME in vd)) throw new Error('Invalid format');
 
-  validateSettings(vd.settings);
+  vd.settings = validateSettings(vd.settings);
 
   vd.entries = vd.entries.map(entry => ({
     ...entry,
@@ -164,13 +164,23 @@ export const validateJson = (data: unknown) => {
   return vd;
 }
 
-export const validateSettings = (settings: AppSettings) => {
-  settings = { ...DEFAULT_SETTINGS, ...settings };
+export const validateSettings = (settings: AppSettings): AppSettings => {
+  const merged = { ...DEFAULT_SETTINGS, ...settings };
 
-  if (!settings.publicKey) {
-    settings.workspaceProtection = 'none';
-    settings.encryptionEnabled = false;
+  if (!merged.nostrRelays || !Array.isArray(merged.nostrRelays) || merged.nostrRelays.length === 0) {
+    merged.nostrRelays = DEFAULT_SETTINGS.nostrRelays;
   }
+  if (merged.enableNostrPairing === undefined) {
+    merged.enableNostrPairing = true;
+  }
+
+  if (!merged.publicKey) {
+    merged.workspaceProtection = 'none';
+    merged.encryptionEnabled = false;
+  }
+
+  Object.assign(settings, merged);
+  return merged;
 }
 
 const _encryptAndLock = (vaultData: VaultData, andThen: (vaultState: VaultState) => void) => {

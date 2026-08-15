@@ -58,6 +58,8 @@ export interface AppSettings {
   vaultName: string;
   workspaceProtection: WorkspaceProtection;
   expertMode: boolean;
+  nostrRelays?: string[];
+  enableNostrPairing?: boolean;
 }
 
 export interface QuickUnlockData {
