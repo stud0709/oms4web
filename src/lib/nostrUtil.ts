@@ -64,7 +64,7 @@ export function generateTopic(): string {
 
 /**
  * Serialize a Nostr pairing message matching OmsDataOutputStream structure:
- * (1) Application ID = APPLICATION_WIFI_PAIRING (10)
+ * (1) Application ID = APPLICATION_NOSTR_PAIRING (10)
  * (2) Topic ID (hex string)
  * (3) TTL in seconds (unsigned short)
  * (4) Relay count (unsigned short)
@@ -76,14 +76,14 @@ export function createNostrPairingMessage(
   ttl: number = DEFAULT_NOSTR_TTL
 ): string {
   const parts: Uint8Array[] = [
-    writeUnsignedShort(APPLICATION_IDS.WIFI_PAIRING), // (1) Application ID 10
-    writeString(topicHex),                            // (2) Topic hex
-    writeUnsignedShort(ttl),                          // (3) TTL
-    writeUnsignedShort(relays.length),                // (4) Relay count
+    writeUnsignedShort(APPLICATION_IDS.NOSTR_PAIRING), // (1) Application ID 10
+    writeString(topicHex),                             // (2) Topic hex
+    writeUnsignedShort(ttl),                           // (3) TTL
+    writeUnsignedShort(relays.length),                 // (4) Relay count
   ];
 
   for (const relay of relays) {
-    parts.push(writeString(relay));                   // (5) Relay URL string
+    parts.push(writeString(relay));                    // (5) Relay URL string
   }
 
   const messageBytes = concatArrays(...parts);
@@ -107,9 +107,9 @@ export function parseNostrPairingMessage(input: Uint8Array | string): NostrPairi
   const applicationId = readUnsignedShort(data, offset);
   offset += 2;
 
-  if (applicationId !== APPLICATION_IDS.WIFI_PAIRING) {
+  if (applicationId !== APPLICATION_IDS.NOSTR_PAIRING) {
     throw new Error(
-      `Invalid application ID for Nostr pairing: expected ${APPLICATION_IDS.WIFI_PAIRING}, got ${applicationId}`
+      `Invalid application ID for Nostr pairing: expected ${APPLICATION_IDS.NOSTR_PAIRING}, got ${applicationId}`
     );
   }
 

@@ -446,7 +446,7 @@ export function useEncryptedVault() {
       const db = await oms4webDbPromise;
       const binary =
         (await loadFromObsoleteStore(db)) || //OLD FORMAT, REMOVE 
-        (await db.get(VAULT_STORE_V3, STORAGE_KEY)).vault;
+        (await db.get(VAULT_STORE_V3, STORAGE_KEY))?.vault;
 
       const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
 
