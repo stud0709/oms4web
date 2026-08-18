@@ -20,6 +20,7 @@ import {
 import { bytesToBase64 } from './base64';
 import {
   APPLICATION_IDS,
+  DEFAULT_NOSTR_HEARTBEAT_INTERVAL_MS,
   DEFAULT_NOSTR_RELAYS,
   DEFAULT_NOSTR_TTL,
   NOSTR_EVENT_KIND,
@@ -283,7 +284,7 @@ export class NostrSession {
     this.heartbeatTimer = setInterval(() => {
       if (this.isDestroyed || this.status === 'completed' || this.status === 'timeout') return;
       this.sendPing();
-    }, 5000);
+    }, DEFAULT_NOSTR_HEARTBEAT_INTERVAL_MS);
   }
 
   /**

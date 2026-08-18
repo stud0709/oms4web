@@ -43,7 +43,8 @@ export const INTERVAL_QR_SEQUENCE = 250;
 
 // Nostr constants
 export const NOSTR_EVENT_KIND = 25000;
-export const DEFAULT_NOSTR_TTL = 60;
+export const DEFAULT_NOSTR_TTL = 120;
+export const DEFAULT_NOSTR_HEARTBEAT_INTERVAL_MS = 30000;
 export const DEFAULT_NOSTR_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
