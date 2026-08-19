@@ -1,11 +1,12 @@
 /**
  * Nostr Transport & Pairing Utilities for oms4web
  * 
- * Provides:
+ * Aligned with oms_companion (Java) implementation:
  * 1. Topic generation & pairing message serialization matching OmsDataOutputStream (App ID 10)
- * 2. Multi-relay WebSocket connection & subscription (Kind 25000)
- * 3. Ephemeral Schnorr keypair signing (via nostr-tools)
- * 4. Ping/pong heartbeats and encrypted request/response exchange
+ * 2. Multi-relay WebSocket connection & subscription (Kind 25000, #t tag filter)
+ * 3. Ephemeral Schnorr keypair signing (via nostr-tools/pure)
+ * 4. Ping/pong heartbeats (30s interval), request/response exchange (with req_id/reply_to tags),
+ *    and graceful disconnect propagation
  */
 
 import { generateSecretKey, getPublicKey, finalizeEvent, type Event as NostrEvent } from 'nostr-tools/pure';
@@ -46,8 +47,8 @@ export interface NostrSessionEvents {
   onStatusChange?: (status: NostrSessionStatus, detail?: string) => void;
   onPing?: () => void;
   onPong?: () => void;
-  onRequest?: (payload: string) => void;
-  onResponse?: (payload: string) => void;
+  onRequest?: (payload: string, reqId?: string) => void;
+  onResponse?: (payload: string, reqId?: string) => void;
   onDisconnect?: () => void;
   onError?: (error: Error) => void;
   onRelayStatus?: (relayUrl: string, connected: boolean) => void;
@@ -161,6 +162,7 @@ export class NostrSession {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private isDestroyed = false;
   private seenEventIds: Set<string> = new Set();
+  private lastActivityTimestamp = Date.now();
 
   constructor(
     topicHex: string,
@@ -203,11 +205,9 @@ export class NostrSession {
     this.setStatus('connecting');
     this.startTtlCountdown();
 
-    const since = Math.floor(Date.now() / 1000) - 10;
     const filter = {
       kinds: [NOSTR_EVENT_KIND],
       '#t': [this.topicHex],
-      since,
     };
 
     let connectedRelaysCount = 0;
@@ -225,7 +225,7 @@ export class NostrSession {
           connectedRelaysCount++;
           this.events.onRelayStatus?.(relayUrl, true);
 
-          // Subscribe to topic filter
+          // Subscribe to topic filter ["REQ", subId, {"kinds": [25000], "#t": [topic]}]
           const reqMsg = JSON.stringify(['REQ', this.subId, filter]);
           ws.send(reqMsg);
 
@@ -291,26 +291,44 @@ export class NostrSession {
    * Handle an incoming Nostr event received from relays
    */
   private handleInboundEvent(event: NostrEvent): void {
-    // Ignore events sent by ourselves
-    if (event.pubkey === this.publicKey) return;
+    if (!event || this.isDestroyed) return;
+
+    // Ignore events sent by ourselves (echoed back by relays)
+    if (event.pubkey && event.pubkey.toLowerCase() === this.publicKey.toLowerCase()) return;
+
+    // Topic matching
+    const topicTag = event.tags.find(t => t[0] === 't')?.[1];
+    if (!topicTag || topicTag.toLowerCase() !== this.topicHex.toLowerCase()) return;
 
     // Deduplicate events received across multiple relays
     if (this.seenEventIds.has(event.id)) return;
     this.seenEventIds.add(event.id);
 
+    this.lastActivityTimestamp = Date.now();
+
     // Extract type from tags or payload
-    const typeTag = event.tags.find(t => t[0] === 'type')?.[1];
+    let messageType = event.tags.find(t => t[0] === 'type')?.[1];
     let parsedContent: { type?: string; payload?: string; [key: string]: unknown } = {};
 
     try {
-      if (event.content.trim().startsWith('{')) {
+      if (event.content && event.content.trim().startsWith('{')) {
         parsedContent = JSON.parse(event.content);
       }
     } catch {
-      // Content is not JSON, treat as raw payload string
+      // Content is raw payload string
     }
 
-    const messageType = typeTag || parsedContent.type || 'unknown';
+    if (!messageType && parsedContent.type) {
+      messageType = parsedContent.type;
+    } else if (!messageType && event.content) {
+      if (event.content.includes('"ping"')) messageType = 'ping';
+      else if (event.content.includes('"pong"')) messageType = 'pong';
+      else if (event.content.includes('"disconnect"')) messageType = 'disconnect';
+      else if (event.content.includes('"response"')) messageType = 'response';
+      else if (event.content.includes('"request"')) messageType = 'request';
+    }
+
+    const reqId = event.tags.find(t => t[0] === 'reply_to')?.[1] || event.tags.find(t => t[0] === 'req_id')?.[1];
     const payload = parsedContent.payload || event.content;
 
     switch (messageType) {
@@ -334,12 +352,12 @@ export class NostrSession {
 
       case 'request':
         this.setStatus('transmitting', 'Received request payload');
-        this.events.onRequest?.(payload);
+        this.events.onRequest?.(payload, reqId);
         break;
 
       case 'response':
         this.setStatus('transmitting', 'Received response payload');
-        this.events.onResponse?.(payload);
+        this.events.onResponse?.(payload, reqId);
         break;
 
       case 'disconnect':
@@ -349,9 +367,9 @@ export class NostrSession {
         break;
 
       default:
-        // If content has an OMS prefix or Base64 payload, check if it's a response
+        // If content has an OMS prefix or Base64 payload, treat as response
         if (event.content.startsWith(OMS_PREFIX) || event.content.length > 20) {
-          this.events.onResponse?.(event.content);
+          this.events.onResponse?.(event.content, reqId);
         }
         break;
     }
@@ -360,7 +378,7 @@ export class NostrSession {
   /**
    * Publish a signed Nostr event to all connected relays
    */
-  public publishEvent(type: string, content: string): NostrEvent | null {
+  public publishEvent(type: string, content: string, extraTags: string[][] = []): NostrEvent | null {
     if (this.isDestroyed) return null;
 
     const expiration = String(Math.floor(Date.now() / 1000) + Math.max(this.remainingSeconds, 10));
@@ -372,6 +390,7 @@ export class NostrSession {
         ['t', this.topicHex],
         ['type', type],
         ['expiration', expiration],
+        ...extraTags,
       ],
       content,
     };
@@ -395,21 +414,23 @@ export class NostrSession {
   }
 
   public sendPing(): void {
-    this.publishEvent('ping', JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+    this.publishEvent('ping', JSON.stringify({ type: 'ping', ts: Date.now() }));
   }
 
   public sendPong(): void {
-    this.publishEvent('pong', JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+    this.publishEvent('pong', JSON.stringify({ type: 'pong', ts: Date.now() }));
   }
 
-  public sendRequest(payload: string): void {
+  public sendRequest(payload: string, reqId?: string): void {
     this.setStatus('transmitting', 'Sending request payload');
-    this.publishEvent('request', JSON.stringify({ type: 'request', payload }));
+    const id = reqId || (typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2));
+    this.publishEvent('request', payload, [['req_id', id]]);
   }
 
-  public sendResponse(payload: string): void {
+  public sendResponse(payload: string, replyTo?: string): void {
     this.setStatus('transmitting', 'Sending response payload');
-    this.publishEvent('response', JSON.stringify({ type: 'response', payload }));
+    const extraTags = replyTo ? [['reply_to', replyTo]] : [];
+    this.publishEvent('response', payload, extraTags);
   }
 
   public sendDisconnect(): void {
@@ -421,6 +442,14 @@ export class NostrSession {
    */
   public destroy(): void {
     if (this.isDestroyed) return;
+
+    // Send disconnect notification to peer before closing
+    try {
+      this.sendDisconnect();
+    } catch {
+      // ignore
+    }
+
     this.isDestroyed = true;
 
     if (this.ttlTimer) {

@@ -48,7 +48,8 @@ export const DEFAULT_NOSTR_HEARTBEAT_INTERVAL_MS = 30000;
 export const DEFAULT_NOSTR_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
-  'wss://relay.primal.net',
+  'wss://relay.snort.social',
+  'wss://nostr.mom',
 ];
 
 export const DEFAULT_SETTINGS: AppSettings = {
