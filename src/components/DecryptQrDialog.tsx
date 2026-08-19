@@ -112,7 +112,8 @@ function DecryptQrDialogContent({
     !env.android && isNostrEnabled ? 'nostr' : 'airgap'
   );
   const [topicHex, setTopicHex] = useState<string>('');
-  const [nostrQrMessage, setNostrQrMessage] = useState<string>('');
+  const [nostrChunks, setNostrChunks] = useState<QrChunk[]>([]);
+  const [nostrCurrentIndex, setNostrCurrentIndex] = useState(0);
   const [nostrStatus, setNostrStatus] = useState<NostrSessionStatus>('connecting');
   const [nostrDetail, setNostrDetail] = useState<string>('');
   const [nostrRemainingSeconds, setNostrRemainingSeconds] = useState<number>(DEFAULT_NOSTR_TTL);
@@ -186,7 +187,9 @@ function DecryptQrDialogContent({
     const ttl = DEFAULT_NOSTR_TTL;
 
     const pairingMessage = createNostrPairingMessage(topicHex, relays, ttl);
-    setNostrQrMessage(pairingMessage);
+    const pChunks = getQrSequence(pairingMessage);
+    setNostrChunks(pChunks);
+    setNostrCurrentIndex(0);
     setNostrRemainingSeconds(ttl);
     setNostrStatus('connecting');
     setNostrDetail('Connecting to Nostr relays...');
@@ -284,6 +287,17 @@ function DecryptQrDialogContent({
 
     return () => clearInterval(interval);
   }, [open, chunks.length, step, displayMode]);
+
+  // Cycle Nostr pairing QR code sequence
+  useEffect(() => {
+    if (!open || nostrChunks.length <= 1 || step !== 'display' || displayMode !== 'nostr') return;
+
+    const interval = setInterval(() => {
+      setNostrCurrentIndex((prev) => (prev + 1) % nostrChunks.length);
+    }, INTERVAL_QR_SEQUENCE);
+
+    return () => clearInterval(interval);
+  }, [open, nostrChunks.length, step, displayMode]);
 
   const handleProceedToInput = useCallback(() => {
     setStep('input');
@@ -407,11 +421,31 @@ function DecryptQrDialogContent({
                 </div>
               ) : displayMode === 'nostr' ? (
                 <div className="flex flex-col items-center gap-3 w-full">
-                  {nostrQrMessage && nostrStatus !== 'timeout' ? (
+                  {nostrChunks.length > 0 && nostrStatus !== 'timeout' ? (
                     <>
                       <div className="p-4 bg-white rounded-lg shadow-sm border">
-                        <QRCodeSVG value={nostrQrMessage} size={220} />
+                        <QRCodeSVG
+                          value={nostrChunks[nostrCurrentIndex]?.encoded || ''}
+                          size={220}
+                        />
                       </div>
+                      {nostrChunks.length > 1 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-muted-foreground">
+                            {nostrCurrentIndex + 1} / {nostrChunks.length}
+                          </span>
+                          <div className="flex gap-1">
+                            {nostrChunks.map((_, idx) => (
+                              <div
+                                key={idx}
+                                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                                  idx === nostrCurrentIndex ? 'bg-primary' : 'bg-muted'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {topicHex && (
                         <div className="flex items-center gap-1.5 text-xs font-mono bg-muted/60 px-3 py-1.5 rounded-md border text-muted-foreground">
                           <span className="font-semibold text-foreground">Topic Prefix:</span>
