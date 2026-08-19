@@ -5,8 +5,6 @@ import {
   Clock,
   RefreshCw,
   Loader2,
-  Smartphone,
-  Unplug
 } from 'lucide-react';
 import {
   Dialog,
@@ -42,7 +40,6 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
     pairingChunks,
     currentChunkIndex,
     startPairing,
-    disconnect,
   } = useNostr();
 
   // Always initiate a fresh pairing session whenever the dialog opens while not paired
@@ -74,54 +71,12 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
             Nostr Relay Pairing
           </DialogTitle>
           <DialogDescription>
-            {isPaired
-              ? 'OneMoreSecret is paired wirelessly with oms4web.'
-              : 'Scan the animated QR code with OneMoreSecret to pair.'}
+            Scan the animated QR code with OneMoreSecret to pair.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-3">
-          {isPaired ? (
-            <div className="w-full p-6 bg-muted/40 rounded-xl flex flex-col items-center gap-4 text-center border">
-              <div className="relative flex items-center justify-center my-2">
-                <div className="absolute h-16 w-16 rounded-full bg-green-500/20 animate-ping" />
-                <div className="relative h-14 w-14 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400 border border-green-500/20">
-                  <Smartphone className="h-7 w-7" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-semibold text-base">Pairing Active</h4>
-                <p className="text-sm text-muted-foreground">
-                  OneMoreSecret is paired and ready.
-                </p>
-              </div>
-              <p className="text-xs text-muted-foreground/80 max-w-xs bg-background/50 px-3 py-2 rounded-md border">
-                You can now send passwords directly to your phone and unlock your workspace wirelessly.
-              </p>
-              <div className="flex gap-2 w-full pt-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    disconnect();
-                    onOpenChange(false);
-                  }}
-                  className="flex-1 gap-1.5"
-                >
-                  <Unplug className="h-4 w-4" />
-                  Disconnect
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenChange(false)}
-                  className="flex-1"
-                >
-                  Done
-                </Button>
-              </div>
-            </div>
-          ) : pairingChunks.length > 0 && status !== 'timeout' ? (
+          {pairingChunks.length > 0 && status !== 'timeout' ? (
             <>
               <div className="p-4 bg-white rounded-lg shadow-sm border">
                 <QRCodeSVG
