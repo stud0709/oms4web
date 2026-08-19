@@ -405,6 +405,18 @@ export function useEncryptedVault() {
     _encryptAndLock(vaultData, vaultStatePinLocked => setVaultState(vaultStatePinLocked));
   };
 
+  const fallbackToDecrypt = useCallback(async () => {
+    const db = await oms4webDbPromise;
+    await db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
+    const stored = await db.get(VAULT_STORE_V3, STORAGE_KEY);
+    if (stored) {
+      setVaultState({
+        status: 'encrypted',
+        encryptedData: stored.vault,
+      });
+    }
+  }, []);
+
   const loadDecryptedData = useCallback((vaultData: VaultData) => {
     try {
       setVaultData(vaultData);
@@ -700,6 +712,7 @@ export function useEncryptedVault() {
     updateSettings,
     applyRef,
     switchToQuickUnlock,
+    fallbackToDecrypt,
     isBackupRequired
   };
 }

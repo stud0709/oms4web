@@ -83,6 +83,7 @@ const Index = () => {
     unlockPin,
     applyRef,
     switchToQuickUnlock,
+    fallbackToDecrypt,
     isBackupRequired,
   } = useEncryptedVault();
 
@@ -831,6 +832,7 @@ const Index = () => {
           onUnlock={unlockPin}
           onSkip={startWithEmptyVault}
           settings={vaultData.settings}
+          onFallbackToDecrypt={fallbackToDecrypt}
           hideCloseButton
         />
       </div>

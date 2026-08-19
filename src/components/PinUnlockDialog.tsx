@@ -30,6 +30,7 @@ interface PinUnlockDialogProps {
   onSkip: () => void;
   hideCloseButton?: boolean;
   settings?: AppSettings;
+  onFallbackToDecrypt?: () => void;
 }
 
 export function PinUnlockDialog({
@@ -39,6 +40,7 @@ export function PinUnlockDialog({
   onUnlock,
   hideCloseButton,
   settings,
+  onFallbackToDecrypt,
 }: PinUnlockDialogProps) {
   const preventClose = hideCloseButton === true;
   const [chunks, setChunks] = useState<QrChunk[]>([]);
@@ -99,8 +101,12 @@ export function PinUnlockDialog({
   const handleClose = useCallback(async () => {
     const db = await oms4webDbPromise;
     await db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
-    window.location.reload();
-  }, []);
+    if (onFallbackToDecrypt) {
+      onFallbackToDecrypt();
+    } else {
+      window.location.reload();
+    }
+  }, [onFallbackToDecrypt]);
 
   const currentChunk = chunks[currentIndex];
 
