@@ -18,7 +18,8 @@ import {
   Radio,
   RefreshCw,
   Clock,
-  Layers
+  Layers,
+  Smartphone,
 } from 'lucide-react';
 import {
   Dialog,
@@ -358,6 +359,9 @@ function DecryptQrDialogContent({
 
   const totalRelays = settings?.nostrRelays?.length || DEFAULT_NOSTR_RELAYS.length;
 
+  const isPairingWaitingUnlock =
+    displayMode === 'nostr' && (nostrStatus === 'peer_connected' || nostrStatus === 'transmitting');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -381,7 +385,9 @@ function DecryptQrDialogContent({
               env.android
                 ? 'Send the key request to OneMoreSecret, then press UNLOCK or paste the key response below.'
                 : displayMode === 'nostr'
-                  ? 'Scan the QR code with OneMoreSecret to pair and decrypt automatically via Nostr.'
+                  ? isPairingWaitingUnlock
+                    ? 'Pairing successful! Please confirm the unlock request on OneMoreSecret.'
+                    : 'Scan the QR code with OneMoreSecret to pair and decrypt automatically via Nostr.'
                   : 'Scan the animated QR code(s) with OneMoreSecret to get the decryption key.'
             )}
             {step === 'input' && 'Paste the key response from your device'}
@@ -430,7 +436,25 @@ function DecryptQrDialogContent({
                 </div>
               ) : displayMode === 'nostr' ? (
                 <div className="flex flex-col items-center gap-3 w-full">
-                  {nostrChunks.length > 0 && nostrStatus !== 'timeout' ? (
+                  {isPairingWaitingUnlock ? (
+                    <div className="w-full p-6 bg-muted/40 rounded-xl flex flex-col items-center gap-4 text-center border">
+                      <div className="relative flex items-center justify-center my-2">
+                        <div className="absolute h-16 w-16 rounded-full bg-primary/20 animate-ping" />
+                        <div className="relative h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                          <Smartphone className="h-7 w-7" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-semibold text-base">Pairing Successful</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Waiting for unlock authorization on your phone...
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground/80 max-w-xs bg-background/50 px-3 py-2 rounded-md border">
+                        Please review and confirm the decryption request in OneMoreSecret.
+                      </p>
+                    </div>
+                  ) : nostrChunks.length > 0 && nostrStatus !== 'timeout' ? (
                     <>
                       <div className="p-4 bg-white rounded-lg shadow-sm border">
                         <QRCodeSVG
@@ -487,16 +511,16 @@ function DecryptQrDialogContent({
                         Listening on {connectedRelaysCount} relay(s)
                       </Badge>
                     )}
-                    {nostrStatus === 'peer_connected' && (
-                      <Badge variant="secondary" className="gap-1.5 py-1 bg-green-500/10 text-green-600 dark:text-green-400">
+                    {(nostrStatus === 'peer_connected' || nostrStatus === 'transmitting') && (
+                      <Badge variant="secondary" className="gap-1.5 py-1 bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
                         <CheckCircle className="h-3 w-3" />
-                        OneMoreSecret connected!
+                        OneMoreSecret paired
                       </Badge>
                     )}
                     {nostrStatus === 'transmitting' && (
                       <Badge variant="secondary" className="gap-1.5 py-1 bg-primary/10 text-primary">
                         <Loader2 className="h-3 w-3 animate-spin" />
-                        Exchanging encrypted keys...
+                        Waiting for unlock...
                       </Badge>
                     )}
                     {nostrStatus !== 'timeout' && (
