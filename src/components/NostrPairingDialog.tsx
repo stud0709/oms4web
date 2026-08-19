@@ -2,8 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Radio,
-  Clock,
-  RefreshCw,
   Loader2,
 } from 'lucide-react';
 import {
@@ -13,7 +11,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNostr } from '@/hooks/useNostr';
 import { AppSettings } from '@/types/types';
@@ -36,7 +33,6 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
     connectedRelaysCount,
     totalRelaysCount,
     topicHex,
-    remainingSeconds,
     pairingChunks,
     currentChunkIndex,
     startPairing,
@@ -76,7 +72,7 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-3">
-          {pairingChunks.length > 0 && status !== 'timeout' ? (
+          {pairingChunks.length > 0 && (
             <>
               <div className="p-4 bg-white rounded-lg shadow-sm border">
                 <QRCodeSVG
@@ -126,27 +122,8 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
                     Listening on {connectedRelaysCount} relay(s)
                   </Badge>
                 )}
-                {status !== 'timeout' && (
-                  <Badge variant="outline" className="gap-1 py-1 font-mono text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {remainingSeconds}s
-                  </Badge>
-                )}
               </div>
             </>
-          ) : (
-            <div className="p-8 bg-muted/40 rounded-lg flex flex-col items-center gap-3 text-center border w-full">
-              <Clock className="h-10 w-10 text-muted-foreground" />
-              <p className="text-sm font-medium">Nostr pairing session expired</p>
-              <Button
-                size="sm"
-                onClick={() => startPairing(settings?.nostrRelays)}
-                className="gap-1.5"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Restart Pairing
-              </Button>
-            </div>
           )}
         </div>
       </DialogContent>

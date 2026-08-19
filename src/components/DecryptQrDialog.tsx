@@ -117,7 +117,6 @@ function DecryptQrDialogContent({
   const [nostrCurrentIndex, setNostrCurrentIndex] = useState(0);
   const [nostrStatus, setNostrStatus] = useState<NostrSessionStatus>('connecting');
   const [nostrDetail, setNostrDetail] = useState<string>('');
-  const [nostrRemainingSeconds, setNostrRemainingSeconds] = useState<number>(DEFAULT_NOSTR_TTL);
   const [connectedRelaysCount, setConnectedRelaysCount] = useState<number>(0);
   const nostrSessionRef = useRef<NostrSession | null>(null);
 
@@ -191,7 +190,6 @@ function DecryptQrDialogContent({
     const pChunks = getQrSequence(pairingMessage);
     setNostrChunks(pChunks);
     setNostrCurrentIndex(0);
-    setNostrRemainingSeconds(ttl);
     setNostrStatus('connecting');
     setNostrDetail('Connecting to Nostr relays...');
     setConnectedRelaysCount(0);
@@ -222,9 +220,6 @@ function DecryptQrDialogContent({
           if (connected) count++;
         }
         setConnectedRelaysCount(count);
-      },
-      onTtlTick: (rem) => {
-        setNostrRemainingSeconds(rem);
       },
       onPing: () => {
         // Peer scanned QR code and sent ping - transmit our KEY_REQUEST_PAIRING message
@@ -521,12 +516,6 @@ function DecryptQrDialogContent({
                       <Badge variant="secondary" className="gap-1.5 py-1 bg-primary/10 text-primary">
                         <Loader2 className="h-3 w-3 animate-spin" />
                         Waiting for unlock...
-                      </Badge>
-                    )}
-                    {nostrStatus !== 'timeout' && (
-                      <Badge variant="outline" className="gap-1 py-1 font-mono text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {nostrRemainingSeconds}s
                       </Badge>
                     )}
                   </div>

@@ -1,12 +1,11 @@
 /**
  * Nostr Transport & Pairing Utilities for oms4web
  * 
- * Aligned with oms_companion (Java) implementation:
+ * Permanent & Durable Nostr session support:
  * 1. Topic generation & pairing message serialization matching OmsDataOutputStream (App ID 10)
  * 2. Multi-relay WebSocket connection & subscription (Kind 25000, #t tag filter)
- * 3. Ephemeral Schnorr keypair signing (via nostr-tools/pure)
- * 4. Ping/pong heartbeats (30s interval), request/response exchange (with req_id/reply_to tags),
- *    and graceful disconnect propagation
+ * 3. Automatic resilient WebSocket reconnection
+ * 4. Request/response exchange (with req_id/reply_to tags) without inactivity timeouts
  */
 
 import { generateSecretKey, getPublicKey, finalizeEvent, type Event as NostrEvent } from 'nostr-tools/pure';
@@ -21,7 +20,6 @@ import {
 import { bytesToBase64 } from './base64';
 import {
   APPLICATION_IDS,
-  DEFAULT_NOSTR_HEARTBEAT_INTERVAL_MS,
   DEFAULT_NOSTR_RELAYS,
   DEFAULT_NOSTR_TTL,
   NOSTR_EVENT_KIND,
@@ -40,7 +38,6 @@ export type NostrSessionStatus =
   | 'peer_connected'
   | 'transmitting'
   | 'completed'
-  | 'timeout'
   | 'error';
 
 export interface NostrSessionEvents {
@@ -52,7 +49,6 @@ export interface NostrSessionEvents {
   onDisconnect?: () => void;
   onError?: (error: Error) => void;
   onRelayStatus?: (relayUrl: string, connected: boolean) => void;
-  onTtlTick?: (remainingSeconds: number) => void;
 }
 
 /**
@@ -128,11 +124,11 @@ export function parseNostrPairingMessage(input: Uint8Array | string): NostrPairi
   const relayCount = readUnsignedShort(data, offset);
   offset += 2;
 
-  // (5) Relays
+  // (5) Relay URLs
   const relays: string[] = [];
   for (let i = 0; i < relayCount; i++) {
-    const [relayBytes, offsetRelay] = readByteArray(data, offset);
-    offset = offsetRelay;
+    const [relayBytes, nextOffset] = readByteArray(data, offset);
+    offset = nextOffset;
     relays.push(new TextDecoder().decode(relayBytes));
   }
 
@@ -140,9 +136,8 @@ export function parseNostrPairingMessage(input: Uint8Array | string): NostrPairi
 }
 
 /**
- * Nostr Session Manager
- * Handles multi-relay WebSocket connections, subscriptions to Kind 25000,
- * event signing, and ping/pong/payload message exchanges.
+ * Robust Nostr Session Manager for oms4web
+ * Handles persistent multi-relay WebSocket connections, reconnects, message publishing, and filtering.
  */
 export class NostrSession {
   public readonly topicHex: string;
@@ -153,41 +148,37 @@ export class NostrSession {
   public readonly publicKey: string;
 
   private sockets: Map<string, WebSocket> = new Map();
+  private reconnectTimers: Map<string, NodeJS.Timeout> = new Map();
   private subId: string;
   private status: NostrSessionStatus = 'connecting';
   private events: NostrSessionEvents;
 
-  private remainingSeconds: number;
-  private ttlTimer: NodeJS.Timeout | null = null;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
   private isDestroyed = false;
   private seenEventIds: Set<string> = new Set();
-  private lastActivityTimestamp = Date.now();
 
   constructor(
     topicHex: string,
     relays: string[] = DEFAULT_NOSTR_RELAYS,
     ttl: number = DEFAULT_NOSTR_TTL,
-    events: NostrSessionEvents = {}
+    events: NostrSessionEvents = {},
+    existingSecretKey?: Uint8Array
   ) {
     this.topicHex = topicHex;
     this.relays = relays.length > 0 ? relays : DEFAULT_NOSTR_RELAYS;
     this.ttl = ttl > 0 ? ttl : DEFAULT_NOSTR_TTL;
-    this.remainingSeconds = this.ttl;
     this.events = events;
 
-    // Generate ephemeral Schnorr keypair for this session
-    this.secretKey = generateSecretKey();
+    this.secretKey = existingSecretKey || generateSecretKey();
     this.publicKey = getPublicKey(this.secretKey);
     this.subId = 'oms_' + Math.random().toString(36).substring(2, 10);
   }
 
-  public getStatus(): NostrSessionStatus {
-    return this.status;
+  public getSecretKey(): Uint8Array {
+    return this.secretKey;
   }
 
-  public getRemainingSeconds(): number {
-    return this.remainingSeconds;
+  public getStatus(): NostrSessionStatus {
+    return this.status;
   }
 
   private setStatus(status: NostrSessionStatus, detail?: string) {
@@ -203,88 +194,75 @@ export class NostrSession {
     if (this.isDestroyed) return;
 
     this.setStatus('connecting');
-    this.startTtlCountdown();
-
-    const filter = {
-      kinds: [NOSTR_EVENT_KIND],
-      '#t': [this.topicHex],
-    };
-
-    let connectedRelaysCount = 0;
 
     for (const relayUrl of this.relays) {
-      try {
-        const ws = new WebSocket(relayUrl);
-        this.sockets.set(relayUrl, ws);
-
-        ws.onopen = () => {
-          if (this.isDestroyed) {
-            ws.close();
-            return;
-          }
-          connectedRelaysCount++;
-          this.events.onRelayStatus?.(relayUrl, true);
-
-          // Subscribe to topic filter ["REQ", subId, {"kinds": [25000], "#t": [topic]}]
-          const reqMsg = JSON.stringify(['REQ', this.subId, filter]);
-          ws.send(reqMsg);
-
-          if (this.status === 'connecting') {
-            this.setStatus('listening', `Connected to ${connectedRelaysCount} relay(s)`);
-          }
-        };
-
-        ws.onmessage = (event) => {
-          if (this.isDestroyed) return;
-          try {
-            const data = JSON.parse(event.data);
-            if (Array.isArray(data) && data[0] === 'EVENT' && data[1] === this.subId) {
-              const nostrEvent: NostrEvent = data[2];
-              this.handleInboundEvent(nostrEvent);
-            }
-          } catch (err) {
-            console.warn(`[NostrSession] Failed to parse relay message from ${relayUrl}:`, err);
-          }
-        };
-
-        ws.onerror = (err) => {
-          console.warn(`[NostrSession] WebSocket error on ${relayUrl}:`, err);
-          this.events.onRelayStatus?.(relayUrl, false);
-        };
-
-        ws.onclose = () => {
-          this.events.onRelayStatus?.(relayUrl, false);
-        };
-      } catch (err) {
-        console.warn(`[NostrSession] Failed to connect to ${relayUrl}:`, err);
-        this.events.onRelayStatus?.(relayUrl, false);
-      }
+      this.connectRelay(relayUrl);
     }
   }
 
-  private startTtlCountdown(): void {
-    if (this.ttlTimer) clearInterval(this.ttlTimer);
+  private connectRelay(relayUrl: string): void {
+    if (this.isDestroyed) return;
 
-    this.ttlTimer = setInterval(() => {
-      if (this.isDestroyed) return;
+    try {
+      const ws = new WebSocket(relayUrl);
+      this.sockets.set(relayUrl, ws);
 
-      this.remainingSeconds--;
-      this.events.onTtlTick?.(this.remainingSeconds);
+      ws.onopen = () => {
+        if (this.isDestroyed) {
+          ws.close();
+          return;
+        }
+        this.events.onRelayStatus?.(relayUrl, true);
 
-      if (this.remainingSeconds <= 0) {
-        this.setStatus('timeout', 'Session timed out');
-        this.destroy();
-      }
-    }, 1000);
-  }
+        // Subscribe to topic filter ["REQ", subId, {"kinds": [25000], "#t": [topic]}]
+        const filter = {
+          kinds: [NOSTR_EVENT_KIND],
+          '#t': [this.topicHex],
+        };
+        const reqMsg = JSON.stringify(['REQ', this.subId, filter]);
+        ws.send(reqMsg);
 
-  private startHeartbeat(): void {
-    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+        if (this.status === 'connecting') {
+          this.setStatus('listening', 'Connected to relay');
+        }
+      };
 
-    this.heartbeatTimer = setInterval(() => {
-      if (this.isDestroyed || this.status === 'completed' || this.status === 'timeout') return;
-      this.sendPing();
-    }, DEFAULT_NOSTR_HEARTBEAT_INTERVAL_MS);
+      ws.onmessage = (event) => {
+        if (this.isDestroyed) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (Array.isArray(data) && data[0] === 'EVENT' && data[1] === this.subId) {
+            const nostrEvent: NostrEvent = data[2];
+            this.handleInboundEvent(nostrEvent);
+          }
+        } catch (err) {
+          console.warn(`[NostrSession] Failed to parse relay message from ${relayUrl}:`, err);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.warn(`[NostrSession] WebSocket error on ${relayUrl}:`, err);
+        this.events.onRelayStatus?.(relayUrl, false);
+      };
+
+      ws.onclose = () => {
+        this.events.onRelayStatus?.(relayUrl, false);
+        this.sockets.delete(relayUrl);
+
+        // Resilient auto-reconnect if not explicitly destroyed
+        if (!this.isDestroyed) {
+          const timer = setTimeout(() => {
+            if (!this.isDestroyed) {
+              this.connectRelay(relayUrl);
+            }
+          }, 3000);
+          this.reconnectTimers.set(relayUrl, timer);
+        }
+      };
+    } catch (err) {
+      console.warn(`[NostrSession] Failed to connect to ${relayUrl}:`, err);
+      this.events.onRelayStatus?.(relayUrl, false);
+    }
   }
 
   /**
@@ -303,8 +281,6 @@ export class NostrSession {
     // Deduplicate events received across multiple relays
     if (this.seenEventIds.has(event.id)) return;
     this.seenEventIds.add(event.id);
-
-    this.lastActivityTimestamp = Date.now();
 
     // Extract type from tags or payload
     let messageType = event.tags.find(t => t[0] === 'type')?.[1];
@@ -335,17 +311,14 @@ export class NostrSession {
       case 'ping':
         if (this.status !== 'peer_connected' && this.status !== 'transmitting') {
           this.setStatus('peer_connected', 'Peer connected via Nostr');
-          this.startHeartbeat();
         }
         this.events.onPing?.();
-        // Automatically answer ping with pong
         this.sendPong();
         break;
 
       case 'pong':
         if (this.status !== 'peer_connected' && this.status !== 'transmitting') {
           this.setStatus('peer_connected', 'Peer confirmed connection');
-          this.startHeartbeat();
         }
         this.events.onPong?.();
         break;
@@ -356,7 +329,7 @@ export class NostrSession {
         break;
 
       case 'response':
-        this.setStatus('transmitting', 'Received response payload');
+        this.setStatus('peer_connected', 'Received response payload');
         this.events.onResponse?.(payload, reqId);
         break;
 
@@ -369,6 +342,7 @@ export class NostrSession {
       default:
         // If content has an OMS prefix or Base64 payload, treat as response
         if (event.content.startsWith(OMS_PREFIX) || event.content.length > 20) {
+          this.setStatus('peer_connected', 'Received response payload');
           this.events.onResponse?.(event.content, reqId);
         }
         break;
@@ -381,7 +355,8 @@ export class NostrSession {
   public publishEvent(type: string, content: string, extraTags: string[][] = []): NostrEvent | null {
     if (this.isDestroyed) return null;
 
-    const expiration = String(Math.floor(Date.now() / 1000) + Math.max(this.remainingSeconds, 10));
+    // 24h event expiration timestamp
+    const expiration = String(Math.floor(Date.now() / 1000) + 86400);
 
     const eventTemplate = {
       kind: NOSTR_EVENT_KIND,
@@ -443,7 +418,6 @@ export class NostrSession {
   public destroy(): void {
     if (this.isDestroyed) return;
 
-    // Send disconnect notification to peer before closing
     try {
       this.sendDisconnect();
     } catch {
@@ -452,17 +426,11 @@ export class NostrSession {
 
     this.isDestroyed = true;
 
-    if (this.ttlTimer) {
-      clearInterval(this.ttlTimer);
-      this.ttlTimer = null;
+    for (const timer of this.reconnectTimers.values()) {
+      clearTimeout(timer);
     }
+    this.reconnectTimers.clear();
 
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-
-    // Close subscriptions and sockets
     const closeMsg = JSON.stringify(['CLOSE', this.subId]);
     for (const ws of this.sockets.values()) {
       try {
