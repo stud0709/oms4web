@@ -17,9 +17,6 @@ import {
   Tags,
   Cloud,
   CloudOff,
-  Smartphone,
-  Radio,
-  QrCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -110,10 +107,8 @@ const Index = () => {
   const allTags = getAllHashtags();
   const [lastAccessMap, setLastAccessMap] = useState<Record<string, number>>({});
 
-  const { isPaired, status: nostrStatus, requestVaultUnlock, disconnect: disconnectNostr } = useNostr();
+  const { isPaired, status: nostrStatus, disconnect: disconnectNostr } = useNostr();
   const [nostrPairingOpen, setNostrPairingOpen] = useState(false);
-  const [isUnlockingNostr, setIsUnlockingNostr] = useState(false);
-  const [forceOfflineUnlock, setForceOfflineUnlock] = useState(false);
   const env = useMemo(() => getEnvironment(), []);
 
   // Invalidate any active connection when Nostr is explicitly disabled in settings while vault is open
@@ -737,88 +732,20 @@ const Index = () => {
       // decrypt and immediately convert into pin-locked status
       switchToQuickUnlock(vaultState);
       return null;
-    } else if (isPaired && !forceOfflineUnlock) {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-          <div className="w-full max-w-md p-6 bg-card border rounded-2xl shadow-lg flex flex-col items-center gap-5 text-center">
-            <div className="relative flex items-center justify-center my-2">
-              <div className="absolute h-20 w-20 rounded-full bg-primary/20 animate-ping" />
-              <div className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                <Smartphone className="h-8 w-8" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="font-bold text-lg">Unlock Workspace</h3>
-              <p className="text-sm text-muted-foreground">
-                OneMoreSecret is paired. You can unlock your workspace wirelessly.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2.5 w-full pt-2">
-              <Button
-                className="w-full gap-2 py-6 text-base font-semibold"
-                onClick={async () => {
-                  setIsUnlockingNostr(true);
-                  try {
-                    const decrypted = await requestVaultUnlock(vaultState.encryptedData);
-                    setForceOfflineUnlock(false);
-                    loadDecryptedData(decrypted);
-                  } catch (err) {
-                    toast({
-                      variant: 'destructive',
-                      title: 'Unlock failed',
-                      description: err instanceof Error ? err.message : 'Could not unlock via Nostr',
-                    });
-                  } finally {
-                    setIsUnlockingNostr(false);
-                  }
-                }}
-                disabled={isUnlockingNostr}
-              >
-                {isUnlockingNostr ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Waiting for phone authorization...
-                  </>
-                ) : (
-                  <>
-                    <Radio className="h-5 w-5" />
-                    Unlock via OneMoreSecret
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => setForceOfflineUnlock(true)}
-                className="w-full gap-2 text-xs text-muted-foreground"
-                disabled={isUnlockingNostr}
-              >
-                <QrCode className="h-4 w-4" />
-                Unlock Offline (Air-Gap QR)
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-    } else {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <DecryptQrDialog
-            open={true}
-            onOpenChange={() => { }}
-            encryptedData={vaultState.encryptedData}
-            onDecrypted={(data) => {
-              setForceOfflineUnlock(false);
-              loadDecryptedData(data);
-            }}
-            onSkip={startWithEmptyVault}
-            settings={vaultData.settings}
-            hideCloseButton
-          />
-        </div>
-      );
     }
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <DecryptQrDialog
+          open={true}
+          onOpenChange={() => { }}
+          encryptedData={vaultState.encryptedData}
+          onDecrypted={loadDecryptedData}
+          onSkip={startWithEmptyVault}
+          settings={vaultData.settings}
+          hideCloseButton
+        />
+      </div>
+    );
   }
 
   // Show PIN unlock dialog if vault is pin-locked
