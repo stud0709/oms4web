@@ -3,7 +3,7 @@ import {
   useState,
   type ReactNode
 } from 'react';
-import { PasswordEntry } from '@/types/types';
+import { PasswordEntry, AppSettings } from '@/types/types';
 import {
   Copy,
   Eye,
@@ -59,7 +59,8 @@ interface PasswordCardProps {
   onTagClick: (tag: string) => void;
   applyRef: (entry: PasswordEntry) => PasswordEntry;
   onAccess: (entryId: string) => void;
-  setSearch: React.Dispatch<React.SetStateAction<string>>
+  setSearch: React.Dispatch<React.SetStateAction<string>>;
+  settings?: AppSettings;
 }
 
 export function PasswordCard({
@@ -70,11 +71,13 @@ export function PasswordCard({
   onTagClick,
   applyRef,
   onAccess,
-  setSearch }: PasswordCardProps) {
+  setSearch,
+  settings }: PasswordCardProps) {
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
   const [referenceMode, setReferenceMode] = useState(false);
   const { isPaired, sendSecret } = useNostr();
+  const isNostrAvailable = Boolean(settings?.enableNostrPairing) && isPaired;
 
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
   const env = useMemo(() => getEnvironment(), []);
@@ -384,7 +387,7 @@ export function PasswordCard({
                   <>
                     {!env.android && (
                       <>
-                        {isPaired && (
+                        {isNostrAvailable && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
@@ -482,7 +485,7 @@ export function PasswordCard({
                       <>
                         {!env.android && (
                           <>
-                            {isPaired && (
+                            {isNostrAvailable && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getQrSequence } from '@/lib/qrUtil';
 import { INTERVAL_QR_SEQUENCE } from "@/lib/constants";
-import { QrChunk, VaultState } from "@/types/types";
+import { QrChunk, VaultState, AppSettings } from "@/types/types";
 import { oms4webDbPromise, QUICK_UNLOCK_STORE, STORAGE_KEY } from '@/lib/db';
 import { useNostr } from '@/hooks/useNostr';
 
@@ -28,6 +28,7 @@ interface PinUnlockDialogProps {
   onUnlock: (inputValue: string) => Promise<boolean>;
   onSkip: () => void;
   hideCloseButton?: boolean;
+  settings?: AppSettings;
 }
 
 export function PinUnlockDialog({
@@ -36,6 +37,7 @@ export function PinUnlockDialog({
   vaultState,
   onUnlock,
   hideCloseButton,
+  settings,
 }: PinUnlockDialogProps) {
   const preventClose = hideCloseButton === true;
   const [chunks, setChunks] = useState<QrChunk[]>([]);
@@ -44,6 +46,7 @@ export function PinUnlockDialog({
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const { isPaired, sendSecret } = useNostr();
+  const isNostrAvailable = Boolean(settings?.enableNostrPairing) && isPaired;
 
   // Generate and encrypt PIN when dialog opens
   useEffect(() => {
@@ -193,7 +196,7 @@ export function PinUnlockDialog({
               >
                 Unlock
               </Button>
-              {isPaired && (
+              {isNostrAvailable && (
                 <Button
                   variant="outline"
                   size="sm"

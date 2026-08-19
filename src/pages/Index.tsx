@@ -109,11 +109,18 @@ const Index = () => {
   const allTags = getAllHashtags();
   const [lastAccessMap, setLastAccessMap] = useState<Record<string, number>>({});
 
-  const { isPaired, requestVaultUnlock, disconnect: disconnectNostr } = useNostr();
+  const { isPaired, status: nostrStatus, requestVaultUnlock, disconnect: disconnectNostr } = useNostr();
   const [nostrPairingOpen, setNostrPairingOpen] = useState(false);
   const [isUnlockingNostr, setIsUnlockingNostr] = useState(false);
   const [forceOfflineUnlock, setForceOfflineUnlock] = useState(false);
   const env = useMemo(() => getEnvironment(), []);
+
+  // Invalidate any active connection when Nostr is disabled in settings
+  useEffect(() => {
+    if (!vaultData.settings.enableNostrPairing && (isPaired || nostrStatus !== 'disconnected')) {
+      disconnectNostr();
+    }
+  }, [vaultData.settings.enableNostrPairing, isPaired, nostrStatus, disconnectNostr]);
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -729,7 +736,7 @@ const Index = () => {
       // decrypt and immediately convert into pin-locked status
       switchToQuickUnlock(vaultState);
       return null;
-    } else if (isPaired && !forceOfflineUnlock) {
+    } else if (Boolean(vaultData.settings.enableNostrPairing) && isPaired && !forceOfflineUnlock) {
       return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
           <div className="w-full max-w-md p-6 bg-card border rounded-2xl shadow-lg flex flex-col items-center gap-5 text-center">
@@ -823,6 +830,7 @@ const Index = () => {
           vaultState={vaultState}
           onUnlock={unlockPin}
           onSkip={startWithEmptyVault}
+          settings={vaultData.settings}
           hideCloseButton
         />
       </div>
@@ -943,7 +951,7 @@ const Index = () => {
                     </TooltipTrigger>
                     <TooltipContent>Manage tags</TooltipContent>
                   </Tooltip>
-                  {!env.android && (
+                  {!env.android && Boolean(vaultData.settings.enableNostrPairing) && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -1079,6 +1087,7 @@ const Index = () => {
                       applyRef={applyRef}
                       setSearch={setSearch}
                       onAccess={onAccess}
+                      settings={vaultData.settings}
                     />
                   </div>
                 ))}
