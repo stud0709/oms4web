@@ -56,12 +56,6 @@ export function PinUnlockDialog({
         const qrChunks = getQrSequence(vaultState.omsMessage);
         setChunks(qrChunks);
         setCurrentIndex(0);
-
-        if (isPaired) {
-          sendSecret(vaultState.omsMessage).catch((err) => {
-            console.warn('[PinUnlockDialog] Failed to auto-send PIN to phone:', err);
-          });
-        }
       } catch (err) {
         console.error('Failed to encrypt PIN:', err);
       } finally {
@@ -72,7 +66,7 @@ export function PinUnlockDialog({
     initPin();
     setInputValue('');
     setError('');
-  }, [open, vaultState, isPaired, sendSecret]);
+  }, [open, vaultState]);
 
   // Cycle through QR chunks
   useEffect(() => {
@@ -207,7 +201,7 @@ export function PinUnlockDialog({
                   className="w-full gap-1.5 text-xs"
                 >
                   <Radio className="h-3.5 w-3.5 text-primary" />
-                  Resend PIN to OneMoreSecret
+                  Send PIN to OneMoreSecret
                 </Button>
               )}
             </div>
