@@ -38,7 +38,7 @@ import {
   INTERVAL_QR_SEQUENCE,
 } from "@/lib/constants";
 import { AppSettings, QrChunk, VaultData } from "@/types/types";
-import { createKeyRequest, processKeyResponse } from '@/lib/keyRequest';
+import { createKeyRequest, createKeyRequestPairing, processKeyResponse } from '@/lib/keyRequest';
 import { KeyRequestContext } from '@/types/types';
 import {
   createNostrPairingMessage,
@@ -197,6 +197,18 @@ function DecryptQrDialogContent({
 
     const relayStatuses = new Map<string, boolean>();
 
+    let hasSentKeyRequest = false;
+    const sendKeyRequestPairing = () => {
+      if (hasSentKeyRequest || !encryptedData) return;
+      hasSentKeyRequest = true;
+      try {
+        const pairingReq = createKeyRequestPairing('vault', encryptedData);
+        session.sendRequest(pairingReq.base64Payload);
+      } catch (err) {
+        console.error('[DecryptQrDialog] Failed to build KEY_REQUEST_PAIRING:', err);
+      }
+    };
+
     const session = new NostrSession(topicHex, relays, ttl, {
       onStatusChange: (status, detail) => {
         setNostrStatus(status);
@@ -214,15 +226,12 @@ function DecryptQrDialogContent({
         setNostrRemainingSeconds(rem);
       },
       onPing: () => {
-        // Peer scanned QR code and sent ping - transmit our KEY_REQUEST message
-        if (keyRequestContext.current) {
-          session.sendRequest(keyRequestContext.current.message);
-        }
+        // Peer scanned QR code and sent ping - transmit our KEY_REQUEST_PAIRING message
+        sendKeyRequestPairing();
       },
       onPong: () => {
-        if (keyRequestContext.current) {
-          session.sendRequest(keyRequestContext.current.message);
-        }
+        // Connected to peer
+        sendKeyRequestPairing();
       },
       onResponse: (responsePayload) => {
         // Received KEY_RESPONSE over Nostr
@@ -235,7 +244,7 @@ function DecryptQrDialogContent({
 
     nostrSessionRef.current = session;
     session.start();
-  }, [env.android, open, settings?.nostrRelays, handleSubmitDecrypted]);
+  }, [env.android, open, settings?.nostrRelays, handleSubmitDecrypted, encryptedData]);
 
   // Clean up Nostr session on unmount or dialog close
   useEffect(() => {
