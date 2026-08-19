@@ -243,7 +243,7 @@ export function useEncryptedVault() {
   const encryptAndLock = useCallback(() => {
     _encryptAndLock(vaultData, vaultState => {
       setVaultState(vaultState);
-      setVaultData(EMPTY_VAULT);
+      setVaultData(prev => ({ ...EMPTY_VAULT, settings: prev.settings }));
     });
   }, [vaultData]);
 
@@ -460,7 +460,7 @@ export function useEncryptedVault() {
           encryptedData: binary,
           quickUnlock
         });
-        setVaultData(EMPTY_VAULT);
+        setVaultData(prev => ({ ...EMPTY_VAULT, settings: prev.settings }));
         return;
       }
 

@@ -115,12 +115,12 @@ const Index = () => {
   const [forceOfflineUnlock, setForceOfflineUnlock] = useState(false);
   const env = useMemo(() => getEnvironment(), []);
 
-  // Invalidate any active connection when Nostr is disabled in settings
+  // Invalidate any active connection when Nostr is explicitly disabled in settings while vault is open
   useEffect(() => {
-    if (!vaultData.settings.enableNostrPairing && (isPaired || nostrStatus !== 'disconnected')) {
+    if (vaultState.status === 'ready' && !vaultData.settings.enableNostrPairing && (isPaired || nostrStatus !== 'disconnected')) {
       disconnectNostr();
     }
-  }, [vaultData.settings.enableNostrPairing, isPaired, nostrStatus, disconnectNostr]);
+  }, [vaultState.status, vaultData.settings.enableNostrPairing, isPaired, nostrStatus, disconnectNostr]);
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -736,7 +736,7 @@ const Index = () => {
       // decrypt and immediately convert into pin-locked status
       switchToQuickUnlock(vaultState);
       return null;
-    } else if (Boolean(vaultData.settings.enableNostrPairing) && isPaired && !forceOfflineUnlock) {
+    } else if (isPaired && !forceOfflineUnlock) {
       return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
           <div className="w-full max-w-md p-6 bg-card border rounded-2xl shadow-lg flex flex-col items-center gap-5 text-center">

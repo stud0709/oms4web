@@ -196,7 +196,7 @@ export function PinUnlockDialog({
               >
                 Unlock
               </Button>
-              {isNostrAvailable && (
+              {isPaired && (
                 <Button
                   variant="outline"
                   size="sm"
