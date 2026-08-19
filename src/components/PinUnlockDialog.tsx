@@ -4,7 +4,7 @@ import {
   useCallback
 } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Lock, QrCode, Loader2, X } from 'lucide-react';
+import { Lock, QrCode, Loader2, X, Radio } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import { getQrSequence } from '@/lib/qrUtil';
 import { INTERVAL_QR_SEQUENCE } from "@/lib/constants";
 import { QrChunk, VaultState } from "@/types/types";
 import { oms4webDbPromise, QUICK_UNLOCK_STORE, STORAGE_KEY } from '@/lib/db';
+import { useNostr } from '@/hooks/useNostr';
 
 interface PinUnlockDialogProps {
   open: boolean;
@@ -42,6 +43,7 @@ export function PinUnlockDialog({
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const { isPaired, sendSecret } = useNostr();
 
   // Generate and encrypt PIN when dialog opens
   useEffect(() => {
@@ -54,6 +56,12 @@ export function PinUnlockDialog({
         const qrChunks = getQrSequence(vaultState.omsMessage);
         setChunks(qrChunks);
         setCurrentIndex(0);
+
+        if (isPaired) {
+          sendSecret(vaultState.omsMessage).catch((err) => {
+            console.warn('[PinUnlockDialog] Failed to auto-send PIN to phone:', err);
+          });
+        }
       } catch (err) {
         console.error('Failed to encrypt PIN:', err);
       } finally {
@@ -64,7 +72,7 @@ export function PinUnlockDialog({
     initPin();
     setInputValue('');
     setError('');
-  }, [open, vaultState]);
+  }, [open, vaultState, isPaired, sendSecret]);
 
   // Cycle through QR chunks
   useEffect(() => {
@@ -183,14 +191,25 @@ export function PinUnlockDialog({
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <Button
-                className="flex-1"
+                className="w-full"
                 onClick={handleVerify}
                 disabled={inputValue.length !== 6}
               >
                 Unlock
               </Button>
+              {isPaired && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sendSecret(vaultState.omsMessage)}
+                  className="w-full gap-1.5 text-xs"
+                >
+                  <Radio className="h-3.5 w-3.5 text-primary" />
+                  Resend PIN to OneMoreSecret
+                </Button>
+              )}
             </div>
           </div>
         </div>

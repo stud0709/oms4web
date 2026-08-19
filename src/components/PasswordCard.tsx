@@ -13,6 +13,7 @@ import {
   Trash2,
   Hash,
   QrCode,
+  Radio,
   Webhook,
   Link,
   MapPin
@@ -28,6 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { AirGapQrDialog } from '@/components/AirGapQrDialog';
+import { useNostr } from '@/hooks/useNostr';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +74,7 @@ export function PasswordCard({
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [qrDialogValue, setQrDialogValue] = useState<string | null>(null);
   const [referenceMode, setReferenceMode] = useState(false);
+  const { isPaired, sendSecret } = useNostr();
 
   const isDeleted = entry.hashtags.includes(DELETED_TAG);
   const env = useMemo(() => getEnvironment(), []);
@@ -379,13 +382,37 @@ export function PasswordCard({
               <div className="flex gap-1 flex-shrink-0">
                 {!referenceMode && (
                   <>
-                    {!env.android && (<Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setQrDialogValue(entryToDisplay.password)}
-                      title="Air Gap - Show QR Code">
-                      <QrCode className="h-4 w-4" />
-                    </Button>)}
+                    {!env.android && (
+                      <>
+                        {isPaired && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => sendSecret(entryToDisplay.password)}
+                                className="text-primary hover:text-primary hover:bg-primary/10"
+                              >
+                                <Radio className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Send to OneMoreSecret (Nostr)</TooltipContent>
+                          </Tooltip>
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setQrDialogValue(entryToDisplay.password)}
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Air Gap - Show QR Code</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
                     {env.android && (
                       <>
                         <Tooltip>
@@ -454,13 +481,36 @@ export function PasswordCard({
                     {isAirGapField(field.value) && (
                       <>
                         {!env.android && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setQrDialogValue(field.value)}
-                            title="Air Gap - Show QR Code">
-                            <QrCode className="h-4 w-4" />
-                          </Button>)}
+                          <>
+                            {isPaired && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => sendSecret(field.value)}
+                                    className="text-primary hover:text-primary hover:bg-primary/10"
+                                  >
+                                    <Radio className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Send to OneMoreSecret (Nostr)</TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setQrDialogValue(field.value)}
+                                >
+                                  <QrCode className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Air Gap - Show QR Code</TooltipContent>
+                            </Tooltip>
+                          </>
+                        )}
                         {env.android && (
                           <Tooltip>
                             <TooltipTrigger asChild>

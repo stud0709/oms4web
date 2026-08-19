@@ -14,7 +14,12 @@ import {
   LockKeyhole,
   ExternalLink,
   GitMerge,
-  Tags
+  Tags,
+  Cloud,
+  CloudOff,
+  Smartphone,
+  Radio,
+  QrCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,8 +28,11 @@ import {
   downloadVault,
   getTimestamp,
   useEncryptedVault,
-  validateJson
+  validateJson,
+  getEnvironment
 } from '@/hooks/useEncryptedVault';
+import { useNostr } from '@/hooks/useNostr';
+import { NostrPairingDialog } from '@/components/NostrPairingDialog';
 import { PasswordCard } from '@/components/PasswordCard';
 import { PasswordForm } from '@/components/PasswordForm';
 import { SearchBar } from '@/components/SearchBar';
@@ -100,6 +108,12 @@ const Index = () => {
   const [manageTagsOpen, setManageTagsOpen] = useState(false);
   const allTags = getAllHashtags();
   const [lastAccessMap, setLastAccessMap] = useState<Record<string, number>>({});
+
+  const { isPaired, requestVaultUnlock } = useNostr();
+  const [nostrPairingOpen, setNostrPairingOpen] = useState(false);
+  const [isUnlockingNostr, setIsUnlockingNostr] = useState(false);
+  const [forceOfflineUnlock, setForceOfflineUnlock] = useState(false);
+  const env = useMemo(() => getEnvironment(), []);
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -712,9 +726,73 @@ const Index = () => {
   // Show decrypt dialog if vault is encrypted
   if (vaultState.status === 'encrypted') {
     if (vaultState.quickUnlock) {
-      //decrypt and immediately convert into pin-locked status
+      // decrypt and immediately convert into pin-locked status
       switchToQuickUnlock(vaultState);
       return null;
+    } else if (isPaired && !forceOfflineUnlock) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+          <div className="w-full max-w-md p-6 bg-card border rounded-2xl shadow-lg flex flex-col items-center gap-5 text-center">
+            <div className="relative flex items-center justify-center my-2">
+              <div className="absolute h-20 w-20 rounded-full bg-primary/20 animate-ping" />
+              <div className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                <Smartphone className="h-8 w-8" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="font-bold text-lg">Unlock Workspace</h3>
+              <p className="text-sm text-muted-foreground">
+                OneMoreSecret is paired. You can unlock your workspace wirelessly.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 w-full pt-2">
+              <Button
+                className="w-full gap-2 py-6 text-base font-semibold"
+                onClick={async () => {
+                  setIsUnlockingNostr(true);
+                  try {
+                    const decrypted = await requestVaultUnlock(vaultState.encryptedData);
+                    setForceOfflineUnlock(false);
+                    loadDecryptedData(decrypted);
+                  } catch (err) {
+                    toast({
+                      variant: 'destructive',
+                      title: 'Unlock failed',
+                      description: err instanceof Error ? err.message : 'Could not unlock via Nostr',
+                    });
+                  } finally {
+                    setIsUnlockingNostr(false);
+                  }
+                }}
+                disabled={isUnlockingNostr}
+              >
+                {isUnlockingNostr ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Waiting for phone authorization...
+                  </>
+                ) : (
+                  <>
+                    <Radio className="h-5 w-5" />
+                    Unlock via OneMoreSecret
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => setForceOfflineUnlock(true)}
+                className="w-full gap-2 text-xs text-muted-foreground"
+                disabled={isUnlockingNostr}
+              >
+                <QrCode className="h-4 w-4" />
+                Unlock Offline (Air-Gap QR)
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
     } else {
       return (
         <div className="min-h-screen flex items-center justify-center">
@@ -722,7 +800,10 @@ const Index = () => {
             open={true}
             onOpenChange={() => { }}
             encryptedData={vaultState.encryptedData}
-            onDecrypted={loadDecryptedData}
+            onDecrypted={(data) => {
+              setForceOfflineUnlock(false);
+              loadDecryptedData(data);
+            }}
             onSkip={startWithEmptyVault}
             settings={vaultData.settings}
             hideCloseButton
@@ -862,6 +943,33 @@ const Index = () => {
                     </TooltipTrigger>
                     <TooltipContent>Manage tags</TooltipContent>
                   </Tooltip>
+                  {!env.android && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          className={`shrink-0 ${
+                            isPaired
+                              ? 'text-green-600 dark:text-green-400 border-green-500/30 bg-green-500/10 hover:bg-green-500/20'
+                              : ''
+                          }`}
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setNostrPairingOpen(true)}
+                        >
+                          {isPaired ? (
+                            <CloudOff className="h-4 w-4" />
+                          ) : (
+                            <Cloud className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isPaired
+                          ? 'OneMoreSecret paired (Click to manage / disconnect)'
+                          : 'Pair with OneMoreSecret (Nostr)'}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                   <SettingsDialog
                     settings={vaultData.settings}
                     onSaveSettings={updateSettings}
@@ -1082,6 +1190,13 @@ const Index = () => {
           settings={vaultData.settings}
         />
       )}
+
+      {/* Standalone Nostr pairing dialog */}
+      <NostrPairingDialog
+        open={nostrPairingOpen}
+        onOpenChange={setNostrPairingOpen}
+        settings={vaultData.settings}
+      />
     </div>
   );
 };
