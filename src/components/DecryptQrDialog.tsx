@@ -108,7 +108,35 @@ function DecryptQrDialogContent({
   const env = useMemo(() => getEnvironment(), []);
 
   // Nostr pairing state
-  const isNostrEnabled = Boolean(settings?.enableNostrPairing);
+  const isNostrEnabled = useMemo(() => {
+    if (typeof settings?.enableNostrPairing === 'boolean') {
+      return settings.enableNostrPairing;
+    }
+    try {
+      const stored = localStorage.getItem('oms4web_enable_nostr_pairing');
+      if (stored !== null) return stored === 'true';
+    } catch {
+      // ignore
+    }
+    return false;
+  }, [settings?.enableNostrPairing]);
+
+  const effectiveRelays = useMemo(() => {
+    if (settings?.nostrRelays && settings.nostrRelays.length > 0) {
+      return settings.nostrRelays;
+    }
+    try {
+      const stored = localStorage.getItem('oms4web_nostr_relays');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_NOSTR_RELAYS;
+  }, [settings?.nostrRelays]);
+
   const [displayMode, setDisplayMode] = useState<DisplayMode>(
     !env.android && isNostrEnabled ? 'nostr' : 'airgap'
   );
@@ -182,9 +210,7 @@ function DecryptQrDialogContent({
 
     const topicHex = generateTopic();
     setTopicHex(topicHex);
-    const relays = settings?.nostrRelays && settings.nostrRelays.length > 0
-      ? settings.nostrRelays
-      : DEFAULT_NOSTR_RELAYS;
+    const relays = effectiveRelays;
     const ttl = DEFAULT_NOSTR_TTL;
 
     const pairingMessage = createNostrPairingMessage(topicHex, relays, ttl);
@@ -245,7 +271,7 @@ function DecryptQrDialogContent({
 
     nostrSessionRef.current = session;
     session.start();
-  }, [env.android, open, settings?.nostrRelays, handleSubmitDecrypted, encryptedData]);
+  }, [env.android, open, effectiveRelays, handleSubmitDecrypted, encryptedData]);
 
   // Clean up Nostr session on unmount or dialog close
   useEffect(() => {
@@ -584,20 +610,18 @@ function DecryptQrDialogContent({
                     </div>
                   )}
                   <div className="flex gap-2 w-full">
-                    {isNostrEnabled && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setDisplayMode('nostr');
-                          initNostrSession();
-                        }}
-                        className="flex-1 gap-1.5 text-xs"
-                      >
-                        <Radio className="h-3.5 w-3.5 text-primary" />
-                        Nostr Relay Pairing
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDisplayMode('nostr');
+                        initNostrSession();
+                      }}
+                      className="flex-1 gap-1.5 text-xs"
+                    >
+                      <Radio className="h-3.5 w-3.5 text-primary" />
+                      Nostr Relay Pairing
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

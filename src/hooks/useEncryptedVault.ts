@@ -171,7 +171,22 @@ export const validateSettings = (settings: AppSettings): AppSettings => {
     merged.nostrRelays = DEFAULT_SETTINGS.nostrRelays;
   }
   if (merged.enableNostrPairing === undefined) {
-    merged.enableNostrPairing = false;
+    try {
+      const stored = localStorage.getItem('oms4web_enable_nostr_pairing');
+      merged.enableNostrPairing = stored === 'true';
+    } catch {
+      merged.enableNostrPairing = false;
+    }
+  }
+
+  // Persist Nostr preferences to localStorage so DecryptQrDialog can read them before decrypting vault
+  try {
+    localStorage.setItem('oms4web_enable_nostr_pairing', String(Boolean(merged.enableNostrPairing)));
+    if (merged.nostrRelays) {
+      localStorage.setItem('oms4web_nostr_relays', JSON.stringify(merged.nostrRelays));
+    }
+  } catch {
+    // ignore
   }
 
   if (!merged.publicKey) {
@@ -181,7 +196,7 @@ export const validateSettings = (settings: AppSettings): AppSettings => {
 
   Object.assign(settings, merged);
   return merged;
-}
+};
 
 const _encryptAndLock = (vaultData: VaultData, andThen: (vaultState: VaultState) => void) => {
   const encoded = new TextEncoder().encode(JSON.stringify(vaultData));
