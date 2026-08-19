@@ -1,7 +1,8 @@
 import {
   useState,
   useEffect,
-  useCallback
+  useCallback,
+  useRef
 } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Lock, QrCode, Loader2, X, Radio } from 'lucide-react';
@@ -45,8 +46,8 @@ export function PinUnlockDialog({
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { isPaired, sendSecret } = useNostr();
-  const isNostrAvailable = Boolean(settings?.enableNostrPairing) && isPaired;
 
   // Generate and encrypt PIN when dialog opens
   useEffect(() => {
@@ -169,6 +170,7 @@ export function PinUnlockDialog({
             <div className="space-y-2">
               <Label htmlFor="pin">Enter 6-digit PIN</Label>
               <Input
+                ref={inputRef}
                 id="pin"
                 type="text"
                 autoComplete="one-time-code"
@@ -200,7 +202,10 @@ export function PinUnlockDialog({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => sendSecret(vaultState.omsMessage)}
+                  onClick={() => {
+                    sendSecret(vaultState.omsMessage);
+                    inputRef.current?.focus();
+                  }}
                   className="w-full gap-1.5 text-xs"
                 >
                   <Radio className="h-3.5 w-3.5 text-primary" />
