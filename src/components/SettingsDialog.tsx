@@ -269,161 +269,165 @@ export function SettingsDialog({
                     onCheckedChange={encryptionEnabled => setNewSettings({ ...newSettings, encryptionEnabled })}
                   />
                 </div>
-
-                <div className="flex items-center justify-between p-3">
-                  <Label htmlFor="expertModeEnabled" className="font-medium">
-                    Expert Mode
-                  </Label>
-                  <Switch
-                    id="expertModeEnabled"
-                    checked={newSettings.expertMode}
-                    onCheckedChange={expertMode => setNewSettings({ ...newSettings, expertMode })}
-                  />
-                </div>
               </>
             )}
 
-            <div className="space-y-3 p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 pr-2">
-                  <div className="flex items-center gap-2">
-                    <Radio className="h-4 w-4 text-primary" />
-                    <Label htmlFor="nostrPairingEnabled" className="font-medium cursor-pointer">
-                      Nostr Relay Pairing
-                    </Label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enables real-time wireless key exchange and pairing with OneMoreSecret via Nostr relays.
-                  </p>
-                </div>
-                <Switch
-                  id="nostrPairingEnabled"
-                  checked={newSettings.enableNostrPairing !== false}
-                  onCheckedChange={enableNostrPairing => setNewSettings({ ...newSettings, enableNostrPairing })}
-                />
-              </div>
-
-              {newSettings.enableNostrPairing !== false && (
-                <div className="space-y-3 pt-2 border-t border-border/50">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Preferred Relays
-                    </Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleResetRelays}
-                      className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      Reset Defaults
-                    </Button>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {(newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS).map((relayUrl) => (
-                      <div
-                        key={relayUrl}
-                        className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-background text-xs font-mono border border-border"
-                      >
-                        <span className="truncate mr-2">{relayUrl}</span>
-                        {(newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS).length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={() => handleRemoveRelay(relayUrl)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="wss://relay.example.com"
-                      value={newRelayInput}
-                      onChange={(e) => setNewRelayInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddRelay();
-                        }
-                      }}
-                      className="text-xs font-mono h-8"
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleAddRelay}
-                      className="h-8 text-xs gap-1 shrink-0"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              )}
+            <div className="flex items-center justify-between p-3">
+              <Label htmlFor="expertModeEnabled" className="font-medium">
+                Expert Mode
+              </Label>
+              <Switch
+                id="expertModeEnabled"
+                checked={newSettings.expertMode}
+                onCheckedChange={expertMode => setNewSettings({ ...newSettings, expertMode })}
+              />
             </div>
 
-            {keyValid && newSettings.expertMode && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="rsaTransformation">RSA Transformation</Label>
-                  <Select
-                    value={String(newSettings.rsaTransformationIdx)}
-                    onValueChange={v => setNewSettings({ ...newSettings, rsaTransformationIdx: Number(v) })}>
-                    <SelectTrigger id="rsaTransformation">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(RSA_TRANSFORMATIONS).map((t) => (
-                        <SelectItem key={t.idx} value={String(t.idx)}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {newSettings.expertMode && (
+              <div className="space-y-4">
+                <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 pr-2">
+                      <div className="flex items-center gap-2">
+                        <Radio className="h-4 w-4 text-primary" />
+                        <Label htmlFor="nostrPairingEnabled" className="font-medium cursor-pointer">
+                          Nostr Relay Pairing
+                        </Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Enables real-time wireless key exchange and pairing with OneMoreSecret via Nostr relays.
+                      </p>
+                    </div>
+                    <Switch
+                      id="nostrPairingEnabled"
+                      checked={newSettings.enableNostrPairing !== false}
+                      onCheckedChange={enableNostrPairing => setNewSettings({ ...newSettings, enableNostrPairing })}
+                    />
+                  </div>
+
+                  {newSettings.enableNostrPairing !== false && (
+                    <div className="space-y-3 pt-2 border-t border-border/50">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Preferred Relays
+                        </Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleResetRelays}
+                          className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Reset Defaults
+                        </Button>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {(newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS).map((relayUrl) => (
+                          <div
+                            key={relayUrl}
+                            className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-background text-xs font-mono border border-border"
+                          >
+                            <span className="truncate mr-2">{relayUrl}</span>
+                            {(newSettings.nostrRelays || DEFAULT_NOSTR_RELAYS).length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                                onClick={() => handleRemoveRelay(relayUrl)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="wss://relay.example.com"
+                          value={newRelayInput}
+                          onChange={(e) => setNewRelayInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddRelay();
+                            }
+                          }}
+                          className="text-xs font-mono h-8"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleAddRelay}
+                          className="h-8 text-xs gap-1 shrink-0"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="aesKeyLength">AES Key Length</Label>
-                  <Select
-                    value={String(newSettings.aesKeyLength)}
-                    onValueChange={v => setNewSettings({ ...newSettings, aesKeyLength: Number(v) })}>
-                    <SelectTrigger id="aesKeyLength">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AES_KEY_LENGTHS.map((len) => (
-                        <SelectItem key={len} value={String(len)}>
-                          {len} bits
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {keyValid && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="rsaTransformation">RSA Transformation</Label>
+                      <Select
+                        value={String(newSettings.rsaTransformationIdx)}
+                        onValueChange={v => setNewSettings({ ...newSettings, rsaTransformationIdx: Number(v) })}>
+                        <SelectTrigger id="rsaTransformation">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(RSA_TRANSFORMATIONS).map((t) => (
+                            <SelectItem key={t.idx} value={String(t.idx)}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="aesTransformation">AES Transformation</Label>
-                  <Select
-                    value={String(newSettings.aesTransformationIdx)}
-                    onValueChange={v => setNewSettings({ ...newSettings, aesTransformationIdx: Number(v) })}>
-                    <SelectTrigger id="aesTransformation">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AES_TRANSFORMATIONS.map((t) => (
-                        <SelectItem key={t.idx} value={String(t.idx)}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
+                    <div className="space-y-2">
+                      <Label htmlFor="aesKeyLength">AES Key Length</Label>
+                      <Select
+                        value={String(newSettings.aesKeyLength)}
+                        onValueChange={v => setNewSettings({ ...newSettings, aesKeyLength: Number(v) })}>
+                        <SelectTrigger id="aesKeyLength">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AES_KEY_LENGTHS.map((len) => (
+                            <SelectItem key={len} value={String(len)}>
+                              {len} bits
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="aesTransformation">AES Transformation</Label>
+                      <Select
+                        value={String(newSettings.aesTransformationIdx)}
+                        onValueChange={v => setNewSettings({ ...newSettings, aesTransformationIdx: Number(v) })}>
+                        <SelectTrigger id="aesTransformation">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AES_TRANSFORMATIONS.map((t) => (
+                            <SelectItem key={t.idx} value={String(t.idx)}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
