@@ -108,7 +108,7 @@ function DecryptQrDialogContent({
   const env = useMemo(() => getEnvironment(), []);
 
   // Nostr pairing state
-  const isNostrEnabled = settings?.enableNostrPairing !== false;
+  const isNostrEnabled = Boolean(settings?.enableNostrPairing);
   const [displayMode, setDisplayMode] = useState<DisplayMode>(
     !env.android && isNostrEnabled ? 'nostr' : 'airgap'
   );

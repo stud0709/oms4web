@@ -62,7 +62,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   workspaceProtection: 'none',
   expertMode: false,
   nostrRelays: DEFAULT_NOSTR_RELAYS,
-  enableNostrPairing: true,
+  enableNostrPairing: false,
 };
 
 export const

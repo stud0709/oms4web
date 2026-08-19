@@ -300,12 +300,12 @@ export function SettingsDialog({
                     </div>
                     <Switch
                       id="nostrPairingEnabled"
-                      checked={newSettings.enableNostrPairing !== false}
+                      checked={Boolean(newSettings.enableNostrPairing)}
                       onCheckedChange={enableNostrPairing => setNewSettings({ ...newSettings, enableNostrPairing })}
                     />
                   </div>
 
-                  {newSettings.enableNostrPairing !== false && (
+                  {Boolean(newSettings.enableNostrPairing) && (
                     <div className="space-y-3 pt-2 border-t border-border/50">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">

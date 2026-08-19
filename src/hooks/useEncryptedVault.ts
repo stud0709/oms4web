@@ -171,7 +171,7 @@ export const validateSettings = (settings: AppSettings): AppSettings => {
     merged.nostrRelays = DEFAULT_SETTINGS.nostrRelays;
   }
   if (merged.enableNostrPairing === undefined) {
-    merged.enableNostrPairing = true;
+    merged.enableNostrPairing = false;
   }
 
   if (!merged.publicKey) {
