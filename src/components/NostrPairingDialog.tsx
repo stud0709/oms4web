@@ -1,11 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Radio,
   Clock,
   RefreshCw,
   Loader2,
-  CheckCircle,
   Smartphone,
   Unplug
 } from 'lucide-react';
@@ -20,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNostr } from '@/hooks/useNostr';
 import { AppSettings } from '@/types/types';
+import { toast } from '@/hooks/use-toast';
 
 interface NostrPairingDialogProps {
   open: boolean;
@@ -45,11 +45,25 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
     disconnect,
   } = useNostr();
 
+  // Always initiate a fresh pairing session whenever the dialog opens while not paired
+  const prevOpenRef = useRef(open);
   useEffect(() => {
-    if (open && status === 'disconnected') {
+    if (open && !prevOpenRef.current && !isPaired) {
       startPairing(settings?.nostrRelays);
     }
-  }, [open, status, startPairing, settings?.nostrRelays]);
+    prevOpenRef.current = open;
+  }, [open, isPaired, startPairing, settings?.nostrRelays]);
+
+  // When pairing succeeds, show toast and close dialog automatically
+  useEffect(() => {
+    if (open && isPaired) {
+      toast({
+        title: 'Successfully connected',
+        description: 'Connected to OneMoreSecret via Nostr.',
+      });
+      onOpenChange(false);
+    }
+  }, [open, isPaired, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -109,7 +109,7 @@ const Index = () => {
   const allTags = getAllHashtags();
   const [lastAccessMap, setLastAccessMap] = useState<Record<string, number>>({});
 
-  const { isPaired, requestVaultUnlock } = useNostr();
+  const { isPaired, requestVaultUnlock, disconnect: disconnectNostr } = useNostr();
   const [nostrPairingOpen, setNostrPairingOpen] = useState(false);
   const [isUnlockingNostr, setIsUnlockingNostr] = useState(false);
   const [forceOfflineUnlock, setForceOfflineUnlock] = useState(false);
@@ -954,7 +954,17 @@ const Index = () => {
                           }`}
                           variant="outline"
                           size="icon"
-                          onClick={() => setNostrPairingOpen(true)}
+                          onClick={() => {
+                            if (isPaired) {
+                              disconnectNostr();
+                              toast({
+                                title: 'Disconnected',
+                                description: 'Disconnected from OneMoreSecret via Nostr.',
+                              });
+                            } else {
+                              setNostrPairingOpen(true);
+                            }
+                          }}
                         >
                           {isPaired ? (
                             <CloudOff className="h-4 w-4" />
@@ -965,7 +975,7 @@ const Index = () => {
                       </TooltipTrigger>
                       <TooltipContent>
                         {isPaired
-                          ? 'OneMoreSecret paired (Click to manage / disconnect)'
+                          ? 'OneMoreSecret connected (Click to disconnect)'
                           : 'Pair with OneMoreSecret (Nostr)'}
                       </TooltipContent>
                     </Tooltip>
