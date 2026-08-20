@@ -334,7 +334,6 @@ export class NostrSession {
         break;
 
       case 'disconnect':
-      case 'bye':
         this.events.onDisconnect?.();
         this.setStatus('completed', 'Peer disconnected');
         break;
