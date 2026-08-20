@@ -54,7 +54,7 @@
   - `types/`: domain types (vault, entries, settings, encryption envelopes).
 - **`public/`**: icons, robots, placeholder assets.
 - **`dist/`**: build output (generated).
-- **Docs:** `README.md`, `getting_started.md`, `history.md`, `reference_to_another_entry.md`, `readme_images/`.
+- **Docs:** `README.md`, [Wiki](https://github.com/stud0709/oms4web/wiki), `readme_images/`.
 
 ## 5. Key Entry Points
 - **App entry:** `src/main.tsx` (React root, service worker registration).
@@ -97,7 +97,7 @@
 - **Build:** `npm run build` (or `npm run build:dev`).
 - **Preview:** `npm run preview`.
 - **Deploy to GitHub Pages:** `npm run deploy` (runs `npm run build` first).
-- **User setup:** Provide OMS public key in Settings; otherwise encryption features are limited (see `getting_started.md`).
+- **User setup:** Provide OMS public key in Settings; otherwise encryption features are limited (see [Getting Started](https://github.com/stud0709/oms4web/wiki/Getting-Started)).
 
 ## 10. Areas of Complexity
 - **Crypto envelope implementation:** RSA/AES envelope parsing and creation (OMS compatibility) in `src/lib/crypto.ts` and `fileEncryption.ts`.

@@ -1,11 +1,13 @@
 /**
  * Nostr Transport & Pairing Utilities for oms4web
  * 
- * Permanent & Durable Nostr session support:
- * 1. Topic generation & pairing message serialization matching OmsDataOutputStream (App ID 10)
+ * PSK-Authenticated & Encrypted Nostr Pairing:
+ * 1. Topic & 256-bit PSK generation; pairing message serialization (App ID 10)
  * 2. Multi-relay WebSocket connection & subscription (Kind 25000, #t tag filter)
- * 3. Automatic resilient WebSocket reconnection
- * 4. Request/response exchange (with req_id/reply_to tags) without inactivity timeouts
+ * 3. AES-256-GCM symmetric authenticated encryption for all event payloads using PSK
+ * 4. Wire format: event.content = Base64(12-byte IV + CiphertextWith128BitTag), tags = [["t", topicHex]]
+ * 5. Automatic resilient WebSocket reconnection
+ * 6. One-shot {"type": "paired"} handshake and encrypted request/response correlation
  */
 
 import { generateSecretKey, getPublicKey, finalizeEvent, type Event as NostrEvent } from 'nostr-tools/pure';
@@ -16,6 +18,7 @@ import {
   readUnsignedShort,
   concatArrays,
   writeString,
+  toArrayBuffer,
 } from './crypto';
 import { bytesToBase64 } from './base64';
 import {
@@ -28,6 +31,7 @@ import {
 
 export interface NostrPairingData {
   topicHex: string;
+  psk: Uint8Array;
   ttl: number;
   relays: string[];
 }
@@ -42,8 +46,7 @@ export type NostrSessionStatus =
 
 export interface NostrSessionEvents {
   onStatusChange?: (status: NostrSessionStatus, detail?: string) => void;
-  onPing?: () => void;
-  onPong?: () => void;
+  onPaired?: () => void;
   onRequest?: (payload: string, reqId?: string) => void;
   onResponse?: (payload: string, reqId?: string) => void;
   onDisconnect?: () => void;
@@ -61,27 +64,100 @@ export function generateTopic(): string {
 }
 
 /**
+ * Generate a cryptographically random 256-bit (32-byte) Pre-Shared Key (PSK)
+ */
+export function generatePsk(): Uint8Array {
+  const psk = new Uint8Array(32);
+  crypto.getRandomValues(psk);
+  return psk;
+}
+
+/**
+ * Encrypt a plaintext string using AES-256-GCM with a 32-byte PSK.
+ * Wire format: Base64(12-byte IV + CiphertextWith128BitTag)
+ */
+export async function encryptWithPsk(plaintext: string, psk: Uint8Array): Promise<string> {
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    toArrayBuffer(psk),
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
+
+  const plaintextBytes = new TextEncoder().encode(plaintext);
+  const ciphertextBuffer = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: toArrayBuffer(iv) },
+    cryptoKey,
+    toArrayBuffer(plaintextBytes)
+  );
+
+  const ciphertext = new Uint8Array(ciphertextBuffer);
+  const combined = new Uint8Array(iv.length + ciphertext.length);
+  combined.set(iv, 0);
+  combined.set(ciphertext, iv.length);
+
+  return bytesToBase64(combined);
+}
+
+/**
+ * Decrypt a base64-encoded ciphertext (12-byte IV + CiphertextWith128BitTag) using AES-256-GCM with a 32-byte PSK.
+ */
+export async function decryptWithPsk(b64Ciphertext: string, psk: Uint8Array): Promise<string> {
+  const clean = b64Ciphertext.trim().replace(/\s+/g, '');
+  const combined = Uint8Array.from(atob(clean), c => c.charCodeAt(0));
+  if (combined.length < 28) {
+    throw new Error('Ciphertext payload too short (must contain 12-byte IV and at least 16-byte tag)');
+  }
+
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    toArrayBuffer(psk),
+    { name: 'AES-GCM' },
+    false,
+    ['decrypt']
+  );
+
+  const decryptedBuffer = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: toArrayBuffer(iv) },
+    cryptoKey,
+    toArrayBuffer(ciphertext)
+  );
+
+  return new TextDecoder().decode(decryptedBuffer);
+}
+
+/**
  * Serialize a Nostr pairing message matching OmsDataOutputStream structure:
  * (1) Application ID = APPLICATION_NOSTR_PAIRING (10)
  * (2) Topic ID (hex string)
- * (3) TTL in seconds (unsigned short)
- * (4) Relay count (unsigned short)
- * (5) Relay URLs (string list)
+ * (3) PSK (32-byte array with length prefix)
+ * (4) TTL in seconds (unsigned short)
+ * (5) Relay count (unsigned short)
+ * (6) Relay URLs (string list)
  */
 export function createNostrPairingMessage(
   topicHex: string,
+  psk: Uint8Array,
   relays: string[] = DEFAULT_NOSTR_RELAYS,
   ttl: number = DEFAULT_NOSTR_TTL
 ): string {
   const parts: Uint8Array[] = [
     writeUnsignedShort(APPLICATION_IDS.NOSTR_PAIRING), // (1) Application ID 10
     writeString(topicHex),                             // (2) Topic hex
-    writeUnsignedShort(ttl),                           // (3) TTL
-    writeUnsignedShort(relays.length),                 // (4) Relay count
+    writeByteArray(psk),                               // (3) 32-byte PSK
+    writeUnsignedShort(ttl),                           // (4) TTL
+    writeUnsignedShort(relays.length),                 // (5) Relay count
   ];
 
   for (const relay of relays) {
-    parts.push(writeString(relay));                    // (5) Relay URL string
+    parts.push(writeString(relay));                    // (6) Relay URL string
   }
 
   const messageBytes = concatArrays(...parts);
@@ -116,15 +192,19 @@ export function parseNostrPairingMessage(input: Uint8Array | string): NostrPairi
   offset = offsetTopic;
   const topicHex = new TextDecoder().decode(topicBytes);
 
-  // (3) TTL
+  // (3) PSK
+  const [psk, offsetPsk] = readByteArray(data, offset);
+  offset = offsetPsk;
+
+  // (4) TTL
   const ttl = readUnsignedShort(data, offset);
   offset += 2;
 
-  // (4) Relay count
+  // (5) Relay count
   const relayCount = readUnsignedShort(data, offset);
   offset += 2;
 
-  // (5) Relay URLs
+  // (6) Relay URLs
   const relays: string[] = [];
   for (let i = 0; i < relayCount; i++) {
     const [relayBytes, nextOffset] = readByteArray(data, offset);
@@ -132,15 +212,16 @@ export function parseNostrPairingMessage(input: Uint8Array | string): NostrPairi
     relays.push(new TextDecoder().decode(relayBytes));
   }
 
-  return { topicHex, ttl, relays };
+  return { topicHex, psk, ttl, relays };
 }
 
 /**
  * Robust Nostr Session Manager for oms4web
- * Handles persistent multi-relay WebSocket connections, reconnects, message publishing, and filtering.
+ * Handles PSK-encrypted multi-relay WebSocket connections, reconnects, message publishing, and filtering.
  */
 export class NostrSession {
   public readonly topicHex: string;
+  public readonly psk: Uint8Array;
   public readonly relays: string[];
   public readonly ttl: number;
 
@@ -158,12 +239,14 @@ export class NostrSession {
 
   constructor(
     topicHex: string,
+    psk: Uint8Array,
     relays: string[] = DEFAULT_NOSTR_RELAYS,
     ttl: number = DEFAULT_NOSTR_TTL,
     events: NostrSessionEvents = {},
     existingSecretKey?: Uint8Array
   ) {
     this.topicHex = topicHex;
+    this.psk = psk;
     this.relays = relays.length > 0 ? relays : DEFAULT_NOSTR_RELAYS;
     this.ttl = ttl > 0 ? ttl : DEFAULT_NOSTR_TTL;
     this.events = events;
@@ -268,7 +351,7 @@ export class NostrSession {
   /**
    * Handle an incoming Nostr event received from relays
    */
-  private handleInboundEvent(event: NostrEvent): void {
+  private async handleInboundEvent(event: NostrEvent): Promise<void> {
     if (!event || this.isDestroyed) return;
 
     // Ignore events sent by ourselves (echoed back by relays)
@@ -282,133 +365,118 @@ export class NostrSession {
     if (this.seenEventIds.has(event.id)) return;
     this.seenEventIds.add(event.id);
 
-    // Extract type from tags or payload
-    let messageType = event.tags.find(t => t[0] === 'type')?.[1];
-    let parsedContent: { type?: string; payload?: string; [key: string]: unknown } = {};
-
     try {
-      if (event.content && event.content.trim().startsWith('{')) {
-        parsedContent = JSON.parse(event.content);
+      // Decrypt event content using PSK
+      const decryptedPlaintext = await decryptWithPsk(event.content, this.psk);
+      let parsedMsg: { type?: string; payload?: string; req_id?: string; reply_to?: string; [key: string]: unknown } = {};
+
+      try {
+        parsedMsg = JSON.parse(decryptedPlaintext);
+      } catch {
+        // Plaintext is raw payload string
+        parsedMsg = { payload: decryptedPlaintext };
       }
-    } catch {
-      // Content is raw payload string
-    }
 
-    if (!messageType && parsedContent.type) {
-      messageType = parsedContent.type;
-    } else if (!messageType && event.content) {
-      if (event.content.includes('"ping"')) messageType = 'ping';
-      else if (event.content.includes('"pong"')) messageType = 'pong';
-      else if (event.content.includes('"disconnect"')) messageType = 'disconnect';
-      else if (event.content.includes('"response"')) messageType = 'response';
-      else if (event.content.includes('"request"')) messageType = 'request';
-    }
+      switch (parsedMsg.type) {
+        case 'paired':
+          if (this.status !== 'peer_connected') {
+            this.setStatus('peer_connected', 'Peer paired via PSK');
+          }
+          this.events.onPaired?.();
+          break;
 
-    const reqId = event.tags.find(t => t[0] === 'reply_to')?.[1] || event.tags.find(t => t[0] === 'req_id')?.[1];
-    const payload = parsedContent.payload || event.content;
+        case 'request':
+          this.setStatus('transmitting', 'Received request payload');
+          this.events.onRequest?.(parsedMsg.payload || '', parsedMsg.req_id);
+          break;
 
-    switch (messageType) {
-      case 'ping':
-        if (this.status !== 'peer_connected' && this.status !== 'transmitting') {
-          this.setStatus('peer_connected', 'Peer connected via Nostr');
-        }
-        this.events.onPing?.();
-        this.sendPong();
-        break;
-
-      case 'pong':
-        if (this.status !== 'peer_connected' && this.status !== 'transmitting') {
-          this.setStatus('peer_connected', 'Peer confirmed connection');
-        }
-        this.events.onPong?.();
-        break;
-
-      case 'request':
-        this.setStatus('transmitting', 'Received request payload');
-        this.events.onRequest?.(payload, reqId);
-        break;
-
-      case 'response':
-        this.setStatus('peer_connected', 'Received response payload');
-        this.events.onResponse?.(payload, reqId);
-        break;
-
-      case 'disconnect':
-        this.events.onDisconnect?.();
-        this.setStatus('completed', 'Peer disconnected');
-        break;
-
-      default:
-        // If content has an OMS prefix or Base64 payload, treat as response
-        if (event.content.startsWith(OMS_PREFIX) || event.content.length > 20) {
+        case 'response':
           this.setStatus('peer_connected', 'Received response payload');
-          this.events.onResponse?.(event.content, reqId);
-        }
-        break;
+          this.events.onResponse?.(parsedMsg.payload || '', parsedMsg.reply_to || parsedMsg.req_id);
+          break;
+
+        case 'disconnect':
+          this.events.onDisconnect?.();
+          this.setStatus('completed', 'Peer disconnected');
+          break;
+
+        default:
+          // Fallback: If decrypted content has OMS prefix or Base64, treat as response
+          if (decryptedPlaintext.startsWith(OMS_PREFIX) || decryptedPlaintext.length > 20) {
+            this.setStatus('peer_connected', 'Received response payload');
+            this.events.onResponse?.(decryptedPlaintext, parsedMsg.reply_to || parsedMsg.req_id);
+          }
+          break;
+      }
+    } catch (err) {
+      console.warn('[NostrSession] Failed to decrypt or process event payload:', err);
     }
   }
 
   /**
-   * Publish a signed Nostr event to all connected relays
+   * Publish a PSK-encrypted Nostr Kind 25000 event to all connected relays
    */
-  public publishEvent(type: string, content: string, extraTags: string[][] = []): NostrEvent | null {
+  public async publishEncrypted(jsonPayload: object): Promise<NostrEvent | null> {
     if (this.isDestroyed) return null;
 
-    // 24h event expiration timestamp
-    const expiration = String(Math.floor(Date.now() / 1000) + 86400);
+    try {
+      const plaintext = JSON.stringify(jsonPayload);
+      const encryptedContent = await encryptWithPsk(plaintext, this.psk);
 
-    const eventTemplate = {
-      kind: NOSTR_EVENT_KIND,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [
-        ['t', this.topicHex],
-        ['type', type],
-        ['expiration', expiration],
-        ...extraTags,
-      ],
-      content,
-    };
+      const eventTemplate = {
+        kind: NOSTR_EVENT_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['t', this.topicHex],
+        ],
+        content: encryptedContent,
+      };
 
-    const finalizedEvent = finalizeEvent(eventTemplate, this.secretKey);
-    this.seenEventIds.add(finalizedEvent.id);
+      const finalizedEvent = finalizeEvent(eventTemplate, this.secretKey);
+      this.seenEventIds.add(finalizedEvent.id);
 
-    const eventMsg = JSON.stringify(['EVENT', finalizedEvent]);
+      const eventMsg = JSON.stringify(['EVENT', finalizedEvent]);
 
-    for (const [url, ws] of this.sockets.entries()) {
-      if (ws.readyState === WebSocket.OPEN) {
-        try {
-          ws.send(eventMsg);
-        } catch (err) {
-          console.warn(`[NostrSession] Failed to send event to ${url}:`, err);
+      for (const [url, ws] of this.sockets.entries()) {
+        if (ws.readyState === WebSocket.OPEN) {
+          try {
+            ws.send(eventMsg);
+          } catch (err) {
+            console.warn(`[NostrSession] Failed to send event to ${url}:`, err);
+          }
         }
       }
+
+      return finalizedEvent;
+    } catch (err) {
+      console.error('[NostrSession] Failed to publish encrypted event:', err);
+      return null;
     }
-
-    return finalizedEvent;
   }
 
-  public sendPing(): void {
-    this.publishEvent('ping', JSON.stringify({ type: 'ping', ts: Date.now() }));
-  }
-
-  public sendPong(): void {
-    this.publishEvent('pong', JSON.stringify({ type: 'pong', ts: Date.now() }));
-  }
-
-  public sendRequest(payload: string, reqId?: string): void {
+  public async sendRequest(payload: string, reqId?: string): Promise<void> {
     this.setStatus('transmitting', 'Sending request payload');
     const id = reqId || (typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2));
-    this.publishEvent('request', payload, [['req_id', id]]);
+    await this.publishEncrypted({
+      type: 'request',
+      req_id: id,
+      payload,
+    });
   }
 
-  public sendResponse(payload: string, replyTo?: string): void {
+  public async sendResponse(payload: string, replyTo?: string): Promise<void> {
     this.setStatus('transmitting', 'Sending response payload');
-    const extraTags = replyTo ? [['reply_to', replyTo]] : [];
-    this.publishEvent('response', payload, extraTags);
+    await this.publishEncrypted({
+      type: 'response',
+      reply_to: replyTo,
+      payload,
+    });
   }
 
-  public sendDisconnect(): void {
-    this.publishEvent('disconnect', JSON.stringify({ type: 'disconnect' }));
+  public async sendDisconnect(): Promise<void> {
+    await this.publishEncrypted({
+      type: 'disconnect',
+    });
   }
 
   /**

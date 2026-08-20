@@ -3,7 +3,8 @@ import {
   NostrSession,
   NostrSessionStatus,
   createNostrPairingMessage,
-  generateTopic
+  generateTopic,
+  generatePsk,
 } from '@/lib/nostrUtil';
 import { getQrSequence } from '@/lib/qrUtil';
 import {
@@ -21,6 +22,7 @@ const STORAGE_NOSTR_PAIRING = 'oms4web_nostr_pairing';
 
 interface StoredPairing {
   topicHex: string;
+  pskHex: string;
   relays: string[];
   secretKeyHex: string;
 }
@@ -58,7 +60,7 @@ function getInitialPairing(): StoredPairing | null {
     const raw = localStorage.getItem(STORAGE_NOSTR_PAIRING);
     if (raw) {
       const stored: StoredPairing = JSON.parse(raw);
-      if (stored.topicHex && stored.relays && stored.secretKeyHex) {
+      if (stored.topicHex && stored.pskHex && stored.relays && stored.secretKeyHex) {
         return stored;
       }
     }
@@ -122,10 +124,11 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentChunkIndex(0);
   }, []);
 
-  const savePairingToStorage = useCallback((topic: string, relays: string[], sKey: Uint8Array) => {
+  const savePairingToStorage = useCallback((topic: string, psk: Uint8Array, relays: string[], sKey: Uint8Array) => {
     try {
       const stored: StoredPairing = {
         topicHex: topic,
+        pskHex: bytesToHex(psk),
         relays,
         secretKeyHex: bytesToHex(sKey),
       };
@@ -140,13 +143,17 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!initialPairing || sessionRef.current) return;
 
     const topic = initialPairing.topicHex;
+    const psk = hexToBytes(initialPairing.pskHex);
     const relays = initialPairing.relays;
     const sKey = hexToBytes(initialPairing.secretKeyHex);
     const relayStatuses = new Map<string, boolean>();
 
-    const session = new NostrSession(topic, relays, DEFAULT_NOSTR_TTL, {
+    const session = new NostrSession(topic, psk, relays, DEFAULT_NOSTR_TTL, {
       onStatusChange: (newStatus) => {
         setStatus(newStatus);
+      },
+      onPaired: () => {
+        savePairingToStorage(topic, psk, relays, session.getSecretKey());
       },
       onRelayStatus: (url, isConnected) => {
         relayStatuses.set(url, isConnected);
@@ -156,27 +163,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         setConnectedRelaysCount(count);
       },
-      onPing: () => {
-        if (pendingEncryptedDataRef.current) {
-          try {
-            const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
-            session.sendRequest(req.base64Payload);
-          } catch (err) {
-            console.error('[NostrContext] Failed to send pending key request:', err);
-          }
-        }
-      },
-      onPong: () => {
-        if (pendingEncryptedDataRef.current) {
-          try {
-            const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
-            session.sendRequest(req.base64Payload);
-          } catch (err) {
-            console.error('[NostrContext] Failed to send pending key request:', err);
-          }
-        }
-      },
       onResponse: async (responsePayload) => {
+        savePairingToStorage(topic, psk, relays, session.getSecretKey());
         if (pendingUnlockResolveRef.current && pendingEncryptedDataRef.current) {
           try {
             const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
@@ -209,7 +197,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     sessionRef.current = session;
     session.start();
-  }, [initialPairing]);
+  }, [initialPairing, savePairingToStorage]);
 
   const startPairing = useCallback((customRelays?: string[]) => {
     if (sessionRef.current) {
@@ -219,24 +207,33 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const relays = customRelays && customRelays.length > 0 ? customRelays : DEFAULT_NOSTR_RELAYS;
     const topic = generateTopic();
+    const psk = generatePsk();
 
     setTopicHex(topic);
     setTotalRelaysCount(relays.length);
     setStatus('connecting');
     setConnectedRelaysCount(0);
 
-    const pairingMsg = createNostrPairingMessage(topic, relays, DEFAULT_NOSTR_TTL);
+    const pairingMsg = createNostrPairingMessage(topic, psk, relays, DEFAULT_NOSTR_TTL);
     const chunks = getQrSequence(pairingMsg);
     setPairingChunks(chunks);
     setCurrentChunkIndex(0);
 
     const relayStatuses = new Map<string, boolean>();
 
-    const session = new NostrSession(topic, relays, DEFAULT_NOSTR_TTL, {
+    const session = new NostrSession(topic, psk, relays, DEFAULT_NOSTR_TTL, {
       onStatusChange: (newStatus) => {
         setStatus(newStatus);
-        if (newStatus === 'peer_connected') {
-          savePairingToStorage(topic, relays, session.getSecretKey());
+      },
+      onPaired: () => {
+        savePairingToStorage(topic, psk, relays, session.getSecretKey());
+        if (pendingEncryptedDataRef.current) {
+          try {
+            const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
+            session.sendRequest(req.base64Payload);
+          } catch (err) {
+            console.error('[NostrContext] Failed to send pending key request:', err);
+          }
         }
       },
       onRelayStatus: (url, isConnected) => {
@@ -247,30 +244,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         setConnectedRelaysCount(count);
       },
-      onPing: () => {
-        savePairingToStorage(topic, relays, session.getSecretKey());
-        if (pendingEncryptedDataRef.current) {
-          try {
-            const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
-            session.sendRequest(req.base64Payload);
-          } catch (err) {
-            console.error('[NostrContext] Failed to send pending key request:', err);
-          }
-        }
-      },
-      onPong: () => {
-        savePairingToStorage(topic, relays, session.getSecretKey());
-        if (pendingEncryptedDataRef.current) {
-          try {
-            const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
-            session.sendRequest(req.base64Payload);
-          } catch (err) {
-            console.error('[NostrContext] Failed to send pending key request:', err);
-          }
-        }
-      },
       onResponse: async (responsePayload) => {
-        savePairingToStorage(topic, relays, session.getSecretKey());
+        savePairingToStorage(topic, psk, relays, session.getSecretKey());
         if (pendingUnlockResolveRef.current && pendingEncryptedDataRef.current) {
           try {
             const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
@@ -345,7 +320,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       base64Payload = btoa(unescape(encodeURIComponent(secretTextOrOms)));
     }
 
-    sessionRef.current.sendRequest(base64Payload);
+    await sessionRef.current.sendRequest(base64Payload);
     toast({
       title: 'Sent to OneMoreSecret',
       description: 'Secret transmitted securely over Nostr pairing.',

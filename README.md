@@ -1,115 +1,60 @@
-# oms4web - a password manager for OneMoreSecret
-⚠️ This is a very early version of the software compatible with [OneMoreSecret](https://github.com/stud0709/OneMoreSecret) *beta* versions.
+# oms4web
 
-This project started on Christmas 2025 as a vibe coding experiment. [Lovable.dev](https://lovable.dev/) did a great job to get things started, but with the exceeding complexity, things under the hood became increasingly messy, and I have been taking back control over the code since then. But I remain a heavy user of LLMs when it comes to coding.
+> A lightweight, client-side web password manager for [OneMoreSecret](https://github.com/stud0709/OneMoreSecret).
 
-The webapp is online at https://stud0709.github.io/oms4web/
+🌐 **Live Web App:** [https://stud0709.github.io/oms4web/](https://stud0709.github.io/oms4web/)  
+📖 **Documentation Wiki:** [https://github.com/stud0709/oms4web/wiki](https://github.com/stud0709/oms4web/wiki)  
+📱 **OneMoreSecret Android App:** [https://github.com/stud0709/OneMoreSecret](https://github.com/stud0709/OneMoreSecret)  
+🗺️ **Roadmap & Issues:** [https://github.com/stud0709/oms4web/issues](https://github.com/stud0709/oms4web/issues)
 
-The Getting Started manual is [here](./getting_started.md)
+---
 
-For the roadmap, see [issues](https://github.com/stud0709/oms4web/issues)
+## Overview
 
-## Features
+**oms4web** provides a responsive web interface to manage your credentials on desktop or mobile while keeping master private keys securely stored inside the OneMoreSecret mobile app.
 
-### Password manager with QR-code integration
+There is **zero backend**. All cryptographic operations execute locally in your browser using the standard Web Cryptography API, and data is stored in your browser's local IndexedDB.
 
-*OneMoreSecret* has been updated to beta version, as some internal logic had to be changed to allow Android - JavaScript compatibility. *oms4web* provides the necessary QR interface out of the box, so you can use it with *OneMoreSecret* without additional software (like [omsCompanion](https://github.com/stud0709/oms_companion))
+### Key Features
 
-### Local data storage
-Data is encrypted and stored locally in the browser database (indexDB). Encryption is enabled as soon as you have set up your public key in the app settings.  
+- **Zero-Backend Architecture:** 100% client-side execution; your data stays entirely in your browser.
+- **Air-Gapped & Direct Workflows:**
+  - **Desktop:** Displays animated QR code sequences for air-gapped scanning by OneMoreSecret.
+  - **Mobile:** Direct Android intent (`oms00://`) integration for one-tap decryption.
+  - **Nostr Relay Pairing:** Wireless, real-time synchronization and one-click unlocking over Nostr relays without scanning QR codes.
+- **Workspace Protection Modes:** Choose between in-place field protection, quick PIN Lock (PBKDF2), or full asymmetric RSA/AES workspace encryption.
+- **Advanced Vault Capabilities:** Dynamic cross-entry linking (`oms4web://`), automatic revision history, and multi-format vault merging (`.json`, `.oms00`, KeePass `.xml`).
+- **PWA & Offline Ready:** Full Progressive Web App support for standalone desktop and mobile installation.
 
-⚠️ Export your data regularly, as indexDB is cleared every time you clear your browser's cache.
+---
 
-There is no back-end at all, the entire logic runs in your browser.
+## Documentation
 
-### Different workspace protection modes
-- None - this does not affect password / field encryption though, these are always protected.
-- Lock: your database is encrypted with a temporary AES key
-- Encrypt: the encrypted version of the workspace is loaded into the app, you decrypt it to unlock the workspace (this is slightly more time-consuming than locking, but more secure)
+Full user guides and technical documentation are available in the **[oms4web Wiki](https://github.com/stud0709/oms4web/wiki)**:
 
-## Security considerations
-Not even your [thoughts](https://www.euronews.com/next/2025/08/15/a-brain-computer-chip-can-read-peoples-minds-with-up-to-74-accuracy) are private novadays. A JavaScript with dozens of [dependencies](https://martijnhols.nl/blog/the-security-risks-of-front-end-dependencies) has never been secure. But it's probably secure enough for the most use cases with the existing protection mechanisms in ths browser and your understanding of the security risks.
+- 🚀 [Getting Started Guide](https://github.com/stud0709/oms4web/wiki/Getting-Started)
+- 📻 [Nostr Connection & Wireless Pairing](https://github.com/stud0709/oms4web/wiki/Nostr-Connection)
+- 🔒 [Workspace Security & Protection Modes](https://github.com/stud0709/oms4web/wiki/Workspace-Security-and-Protection)
+- 🔗 [Cross-Entry References](https://github.com/stud0709/oms4web/wiki/Cross-Entry-References)
+- 📜 [Entry History](https://github.com/stud0709/oms4web/wiki/Entry-History)
+- 🔀 [Import & Merge (JSON, .oms00, KeePass XML)](https://github.com/stud0709/oms4web/wiki/Import-and-Merge)
+- 🛠️ [Architecture & Developer Guide](https://github.com/stud0709/oms4web/wiki/Architecture-and-Development)
 
-✅ The public key you pass to the settings can NOT be used to decrypt your data, it's part of [RSA](https://www.geeksforgeeks.org/computer-networks/rsa-algorithm-cryptography/) algorithm.
+---
 
-⚠️ It goes without saying, that the *oms4web* internal password generator / field encryption has access to the unencrypted version of your data. If you don't want that, generate your passwords in *OneMoreSecret*, you can then have the app TYPE its encrypted version into the entry form. 
+## Quick Start for Development
 
-✅ The entire workspace data is encrypted by your private key, that's why you have to unlock it first.
+```bash
+# Clone the repository
+git clone https://github.com/stud0709/oms4web.git
+cd oms4web
 
-👉 The *Lock Workspace* protection generates a temporary AES key and encrypts your workspace. The one-time password to unlock is passed to your *OneMoreSecret* app in the usual manner, but it takes less time than decryption of the workspace. With AES key being generated in the browser, it is potentially *less* secure than workspace encryption.
+# Install dependencies
+npm install
 
-The following is the original README file content by [Lovable.dev](https://lovable.dev/)
-
-# Welcome to your Lovable project
-
-## Project info
-
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start local development server (runs on port 8080)
 npm run dev
+
+# Build for production
+npm run build
 ```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
