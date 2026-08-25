@@ -87,6 +87,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const pendingUnlockResolveRef = useRef<((vaultData: VaultData) => void) | null>(null);
   const pendingUnlockRejectRef = useRef<((err: Error) => void) | null>(null);
   const pendingEncryptedDataRef = useRef<Uint8Array | null>(null);
+  const isUnlockRequestInFlightRef = useRef(false);
+  const isSendingSecretRef = useRef(false);
 
   const isPaired = status === 'peer_connected' || status === 'transmitting';
 
@@ -111,6 +113,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sessionRef.current.destroy();
       sessionRef.current = null;
     }
+    isUnlockRequestInFlightRef.current = false;
+    isSendingSecretRef.current = false;
     if (pendingUnlockRejectRef.current) {
       pendingUnlockRejectRef.current(new Error('Nostr session disconnected'));
       pendingUnlockResolveRef.current = null;
@@ -166,25 +170,26 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       onResponse: async (responsePayload) => {
         savePairingToStorage(topic, psk, relays, session.getSecretKey());
         if (pendingUnlockResolveRef.current && pendingEncryptedDataRef.current) {
+          const encData = pendingEncryptedDataRef.current;
+          const resolve = pendingUnlockResolveRef.current;
+          const reject = pendingUnlockRejectRef.current;
+
+          isUnlockRequestInFlightRef.current = false;
+          pendingUnlockResolveRef.current = null;
+          pendingUnlockRejectRef.current = null;
+          pendingEncryptedDataRef.current = null;
+
           try {
-            const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
+            const req = createKeyRequestPairing('vault', encData);
             const dummyContext = {
               keyPair: {} as CryptoKeyPair,
               envelope: req.envelope,
               message: '',
             };
             const vaultData = await processKeyResponse(responsePayload, dummyContext);
-            const resolve = pendingUnlockResolveRef.current;
-            pendingUnlockResolveRef.current = null;
-            pendingUnlockRejectRef.current = null;
-            pendingEncryptedDataRef.current = null;
             resolve(vaultData);
           } catch (err) {
-            if (pendingUnlockRejectRef.current) {
-              const reject = pendingUnlockRejectRef.current;
-              pendingUnlockResolveRef.current = null;
-              pendingUnlockRejectRef.current = null;
-              pendingEncryptedDataRef.current = null;
+            if (reject) {
               reject(err instanceof Error ? err : new Error(String(err)));
             }
           }
@@ -227,11 +232,13 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       },
       onPaired: () => {
         savePairingToStorage(topic, psk, relays, session.getSecretKey());
-        if (pendingEncryptedDataRef.current) {
+        if (pendingEncryptedDataRef.current && !isUnlockRequestInFlightRef.current) {
+          isUnlockRequestInFlightRef.current = true;
           try {
             const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
             session.sendRequest(req.base64Payload);
           } catch (err) {
+            isUnlockRequestInFlightRef.current = false;
             console.error('[NostrContext] Failed to send pending key request:', err);
           }
         }
@@ -247,25 +254,26 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       onResponse: async (responsePayload) => {
         savePairingToStorage(topic, psk, relays, session.getSecretKey());
         if (pendingUnlockResolveRef.current && pendingEncryptedDataRef.current) {
+          const encData = pendingEncryptedDataRef.current;
+          const resolve = pendingUnlockResolveRef.current;
+          const reject = pendingUnlockRejectRef.current;
+
+          isUnlockRequestInFlightRef.current = false;
+          pendingUnlockResolveRef.current = null;
+          pendingUnlockRejectRef.current = null;
+          pendingEncryptedDataRef.current = null;
+
           try {
-            const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
+            const req = createKeyRequestPairing('vault', encData);
             const dummyContext = {
               keyPair: {} as CryptoKeyPair,
               envelope: req.envelope,
               message: '',
             };
             const vaultData = await processKeyResponse(responsePayload, dummyContext);
-            const resolve = pendingUnlockResolveRef.current;
-            pendingUnlockResolveRef.current = null;
-            pendingUnlockRejectRef.current = null;
-            pendingEncryptedDataRef.current = null;
             resolve(vaultData);
           } catch (err) {
-            if (pendingUnlockRejectRef.current) {
-              const reject = pendingUnlockRejectRef.current;
-              pendingUnlockResolveRef.current = null;
-              pendingUnlockRejectRef.current = null;
-              pendingEncryptedDataRef.current = null;
+            if (reject) {
               reject(err instanceof Error ? err : new Error(String(err)));
             }
           }
@@ -285,7 +293,12 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error('Nostr session is not active');
     }
 
+    if (isUnlockRequestInFlightRef.current) {
+      throw new Error('An unlock request is already in progress');
+    }
+
     pendingEncryptedDataRef.current = encryptedData;
+    isUnlockRequestInFlightRef.current = true;
 
     return new Promise<VaultData>((resolve, reject) => {
       pendingUnlockResolveRef.current = resolve;
@@ -295,6 +308,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const req = createKeyRequestPairing('vault', encryptedData);
         sessionRef.current?.sendRequest(req.base64Payload);
       } catch (err) {
+        isUnlockRequestInFlightRef.current = false;
         pendingEncryptedDataRef.current = null;
         pendingUnlockResolveRef.current = null;
         pendingUnlockRejectRef.current = null;
@@ -308,23 +322,36 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error('No active Nostr pairing');
     }
 
-    let base64Payload: string;
-
-    if (secretTextOrOms.startsWith(OMS_PREFIX)) {
-      base64Payload = secretTextOrOms.slice(OMS_PREFIX.length).replace(/\s+/g, '');
-    } else if (settings?.publicKey) {
-      const omsMsg = await createEncryptedMessage(secretTextOrOms, settings);
-      base64Payload = (omsMsg.startsWith(OMS_PREFIX) ? omsMsg.slice(OMS_PREFIX.length) : omsMsg).replace(/\s+/g, '');
-    } else {
-      // Fallback: UTF-8 to Base64
-      base64Payload = btoa(unescape(encodeURIComponent(secretTextOrOms)));
+    if (isSendingSecretRef.current) {
+      console.warn('[NostrContext] Secret transmission already in flight, ignoring duplicate call');
+      return;
     }
 
-    await sessionRef.current.sendRequest(base64Payload);
-    toast({
-      title: 'Sent to OneMoreSecret',
-      description: 'Secret transmitted securely over Nostr pairing.',
-    });
+    isSendingSecretRef.current = true;
+
+    try {
+      let base64Payload: string;
+
+      if (secretTextOrOms.startsWith(OMS_PREFIX)) {
+        base64Payload = secretTextOrOms.slice(OMS_PREFIX.length).replace(/\s+/g, '');
+      } else if (settings?.publicKey) {
+        const omsMsg = await createEncryptedMessage(secretTextOrOms, settings);
+        base64Payload = (omsMsg.startsWith(OMS_PREFIX) ? omsMsg.slice(OMS_PREFIX.length) : omsMsg).replace(/\s+/g, '');
+      } else {
+        // Fallback: UTF-8 to Base64
+        base64Payload = btoa(unescape(encodeURIComponent(secretTextOrOms)));
+      }
+
+      await sessionRef.current.sendRequest(base64Payload);
+      toast({
+        title: 'Sent to OneMoreSecret',
+        description: 'Secret transmitted securely over Nostr pairing.',
+      });
+    } finally {
+      setTimeout(() => {
+        isSendingSecretRef.current = false;
+      }, 500);
+    }
   }, []);
 
   // Cleanup on unmount
