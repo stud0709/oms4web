@@ -42,10 +42,10 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
   const prevOpenRef = useRef(open);
   useEffect(() => {
     if (open && !prevOpenRef.current && !isPaired) {
-      startPairing(settings?.nostrRelays);
+      startPairing(settings, settings?.nostrRelays);
     }
     prevOpenRef.current = open;
-  }, [open, isPaired, startPairing, settings?.nostrRelays]);
+  }, [open, isPaired, startPairing, settings]);
 
   // When pairing succeeds, show toast and close dialog automatically
   useEffect(() => {

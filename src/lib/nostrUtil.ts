@@ -11,6 +11,7 @@
  */
 
 import { generateSecretKey, getPublicKey, finalizeEvent, type Event as NostrEvent } from 'nostr-tools/pure';
+import { AppSettings } from '@/types/types';
 import {
   writeUnsignedShort,
   writeByteArray,
@@ -19,6 +20,7 @@ import {
   concatArrays,
   writeString,
   toArrayBuffer,
+  createEncryptedMessage,
 } from './crypto';
 import { bytesToBase64 } from './base64';
 import {
@@ -134,33 +136,50 @@ export async function decryptWithPsk(b64Ciphertext: string, psk: Uint8Array): Pr
 }
 
 /**
- * Serialize a Nostr pairing message matching OmsDataOutputStream structure:
- * (1) Application ID = APPLICATION_NOSTR_PAIRING (10)
- * (2) Topic ID (hex string)
- * (3) PSK (32-byte array with length prefix)
- * (4) TTL in seconds (unsigned short)
- * (5) Relay count (unsigned short)
- * (6) Relay URLs (string list)
+ * Create the inner binary payload for Nostr pairing (topicHex, psk, ttl, relays)
  */
-export function createNostrPairingMessage(
+export function createNostrPairingPayloadBytes(
   topicHex: string,
   psk: Uint8Array,
   relays: string[] = DEFAULT_NOSTR_RELAYS,
   ttl: number = DEFAULT_NOSTR_TTL
-): string {
+): Uint8Array {
   const parts: Uint8Array[] = [
-    writeUnsignedShort(APPLICATION_IDS.NOSTR_PAIRING), // (1) Application ID 10
-    writeString(topicHex),                             // (2) Topic hex
-    writeByteArray(psk),                               // (3) 32-byte PSK
-    writeUnsignedShort(ttl),                           // (4) TTL
-    writeUnsignedShort(relays.length),                 // (5) Relay count
+    writeString(topicHex),             // (1) Topic hex string (length-prefixed)
+    writeByteArray(psk),               // (2) 32-byte PSK (length-prefixed)
+    writeUnsignedShort(ttl),           // (3) TTL
+    writeUnsignedShort(relays.length), // (4) Relay count
   ];
 
   for (const relay of relays) {
-    parts.push(writeString(relay));                    // (6) Relay URL string
+    parts.push(writeString(relay));    // (5) Relay URL string (length-prefixed)
   }
 
-  const messageBytes = concatArrays(...parts);
+  return concatArrays(...parts);
+}
+
+/**
+ * Serialize and encrypt a Nostr pairing message.
+ * When settings with a valid Master RSA Public Key is provided, wraps in APPLICATION_RSA_AES_GENERIC (6)
+ * with inner APPLICATION_NOSTR_PAIRING (10).
+ */
+export async function createNostrPairingMessage(
+  topicHex: string,
+  psk: Uint8Array,
+  relays: string[] = DEFAULT_NOSTR_RELAYS,
+  ttl: number = DEFAULT_NOSTR_TTL,
+  settings?: AppSettings
+): Promise<string> {
+  const innerPayload = createNostrPairingPayloadBytes(topicHex, psk, relays, ttl);
+
+  if (settings?.publicKey) {
+    return await createEncryptedMessage(innerPayload, settings, APPLICATION_IDS.NOSTR_PAIRING);
+  }
+
+  const messageBytes = concatArrays(
+    writeUnsignedShort(APPLICATION_IDS.NOSTR_PAIRING),
+    innerPayload
+  );
   return OMS_PREFIX + bytesToBase64(messageBytes);
 }
 

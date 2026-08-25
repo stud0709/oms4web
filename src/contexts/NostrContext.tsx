@@ -35,7 +35,7 @@ export interface NostrContextType {
   topicHex: string;
   pairingChunks: QrChunk[];
   currentChunkIndex: number;
-  startPairing: (relays?: string[]) => void;
+  startPairing: (settings?: AppSettings, relays?: string[]) => Promise<void>;
   disconnect: () => void;
   requestVaultUnlock: (encryptedData: Uint8Array) => Promise<VaultData>;
   sendSecret: (secretTextOrOms: string, settings?: AppSettings) => Promise<void>;
@@ -204,13 +204,15 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     session.start();
   }, [initialPairing, savePairingToStorage]);
 
-  const startPairing = useCallback((customRelays?: string[]) => {
+  const startPairing = useCallback(async (settings?: AppSettings, customRelays?: string[]) => {
     if (sessionRef.current) {
       sessionRef.current.destroy();
       sessionRef.current = null;
     }
 
-    const relays = customRelays && customRelays.length > 0 ? customRelays : DEFAULT_NOSTR_RELAYS;
+    const relays = customRelays && customRelays.length > 0
+      ? customRelays
+      : (settings?.nostrRelays && settings.nostrRelays.length > 0 ? settings.nostrRelays : DEFAULT_NOSTR_RELAYS);
     const topic = generateTopic();
     const psk = generatePsk();
 
@@ -219,10 +221,14 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStatus('connecting');
     setConnectedRelaysCount(0);
 
-    const pairingMsg = createNostrPairingMessage(topic, psk, relays, DEFAULT_NOSTR_TTL);
-    const chunks = getQrSequence(pairingMsg);
-    setPairingChunks(chunks);
-    setCurrentChunkIndex(0);
+    try {
+      const pairingMsg = await createNostrPairingMessage(topic, psk, relays, DEFAULT_NOSTR_TTL, settings);
+      const chunks = getQrSequence(pairingMsg);
+      setPairingChunks(chunks);
+      setCurrentChunkIndex(0);
+    } catch (err) {
+      console.error('[NostrContext] Failed to generate pairing message:', err);
+    }
 
     const relayStatuses = new Map<string, boolean>();
 

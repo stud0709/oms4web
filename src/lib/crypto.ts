@@ -301,7 +301,7 @@ export async function aesDecryptData(aesAlgorithm: string, ivBuffer: ArrayBuffer
  * (7) AES-encrypted message (byte array with length prefix)
  */
 export async function createEncryptedMessage(
-  message: string,
+  message: string | Uint8Array,
   settings: AppSettings,
   payloadApplicationId: number = APPLICATION_IDS.ENCRYPTED_MESSAGE
 ): Promise<string> {
@@ -333,8 +333,8 @@ export async function createEncryptedMessage(
   // Get fingerprint
   const fingerprint = await getFingerprint(publicKey);
 
-  // Create the inner payload: APPLICATION_ENCRYPTED_MESSAGE + message bytes
-  const messageBytes = new TextEncoder().encode(message);
+  // Create the inner payload: payloadApplicationId + message bytes
+  const messageBytes = typeof message === 'string' ? new TextEncoder().encode(message) : message;
   const payload = createPayload(payloadApplicationId, messageBytes);
 
   // Encrypt based on algorithm
