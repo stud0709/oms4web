@@ -59,6 +59,7 @@ import { JSONPath } from 'jsonpath-plus';
 import { createEncryptedMessage } from '@/lib/crypto';
 import { normalizeTag } from '@/lib/tagUtils';
 import { LAST_ACCESS_STORE, oms4webDbPromise } from '@/lib/db';
+import { parseKeePassUuid, convertKeePassValue, RawKeePassEntry } from '@/lib/keepassImport';
 
 const Index = () => {
   const {
@@ -228,6 +229,8 @@ const Index = () => {
         }) ?? false;
 
         const matchesSearch = !search ||
+          entry.id.toLowerCase().includes(searchLower) ||
+          entry.id.replace(/-/g, '').toLowerCase().includes(searchLower.replace(/-/g, '')) ||
           view.title.toLowerCase().includes(searchLower) ||
           view.username.toLowerCase().includes(searchLower) ||
           view.url.toLowerCase().includes(searchLower) ||
@@ -542,7 +545,7 @@ const Index = () => {
       return tags;
     };
 
-    const parseEntryData = async (entryEl: Element, entryId: string, extraHashtags: string[] = []) => {
+    const parseRawEntryData = (entryEl: Element, entryId: string, extraHashtags: string[] = []): RawKeePassEntry => {
       // Important: Entry contains nested <History><Entry>...</Entry></History>.
       // We must only parse *direct* children here, otherwise history fields may overwrite the main entry.
       const stringEls = getDirectChildren(entryEl, 'String');
@@ -557,11 +560,12 @@ const Index = () => {
         kv.set(key, { value, protectInMemory });
       }
 
-      const title = kv.get('Title')?.value ?? 'Untitled';
-      const username = kv.get('UserName')?.value ?? '';
-      const url = kv.get('URL')?.value ?? '';
-      const notes = kv.get('Notes')?.value ?? '';
-      const passwordRes = await maybeEncryptProtected(kv.get('Password')?.value ?? '', kv.get('Password')?.protectInMemory ?? false);
+      const rawTitle = kv.get('Title')?.value ?? 'Untitled';
+      const rawUsername = kv.get('UserName')?.value ?? '';
+      const rawPassword = kv.get('Password')?.value ?? '';
+      const protectPassword = kv.get('Password')?.protectInMemory ?? false;
+      const rawUrl = kv.get('URL')?.value ?? '';
+      const rawNotes = kv.get('Notes')?.value ?? '';
 
       const tagsEl = getDirectChild(entryEl, 'Tags');
       const tagsRaw = (tagsEl?.textContent ?? '') || kv.get('Tags')?.value || '';
@@ -580,68 +584,108 @@ const Index = () => {
       const updatedAt = updatedAtStr ? new Date(updatedAtStr) : new Date();
 
       const standardKeys = new Set(['Title', 'UserName', 'Password', 'URL', 'Notes', 'Tags']);
-      const customFields = await Promise.all(
-        Array.from(kv.entries())
-          .filter(([key]) => !standardKeys.has(key))
-          .map(async ([key, { value, protectInMemory }]) => {
-            const res = await maybeEncryptProtected(value, protectInMemory);
-            return {
-              id: crypto.randomUUID(),
-              label: key,
-              value: res.value,
-              protection: (res.value.startsWith(OMS_PREFIX) ? 'encrypted' : 'none') as CustomFieldProtection,
-              readonly: res.readonly,
-            };
-          })
-      );
-
-      return {
-        id: entryId,
-        title: title.trim() || 'Untitled',
-        username,
-        password: passwordRes.value,
-        passwordReadonly: passwordRes.value.startsWith(OMS_PREFIX),
-        url,
-        notes,
-        hashtags,
-        customFields,
-        createdAt,
-        updatedAt,
-      };
-    };
-
-    const entries: PasswordEntry[] = [];
-
-    // Important: <History> itself contains <Entry> tags. We only want "real" entries here,
-    // and map the historical <Entry> versions into `history`.
-    const entryEls = Array.from(doc.getElementsByTagName('Entry')).filter(el => !el.closest('History'));
-
-    for (const entryEl of entryEls) {
-      const id = crypto.randomUUID();
-
-      const groupTags = getParentGroupTags(entryEl);
-      const data = await parseEntryData(entryEl, id, groupTags);
+      const rawCustomFields = Array.from(kv.entries())
+        .filter(([key]) => !standardKeys.has(key))
+        .map(([key, { value, protectInMemory }]) => ({
+          id: crypto.randomUUID(),
+          label: key,
+          value,
+          protectInMemory,
+        }));
 
       const historyEl = getDirectChild(entryEl, 'History');
       const historyEntryEls = historyEl ? getDirectChildren(historyEl, 'Entry') : [];
 
-      const history = (await Promise.all(
-        historyEntryEls.map(async (historyEntryEl) => {
-          const historyData = await parseEntryData(historyEntryEl, id, groupTags);
+      const history = historyEntryEls
+        .map((historyEntryEl) => {
+          const historyData = parseRawEntryData(historyEntryEl, entryId, extraHashtags);
           return {
             timestamp: historyData.updatedAt,
             data: historyData,
           };
         })
-      ))
         .filter(h => !Number.isNaN(h.timestamp.getTime()))
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      entries.push({
-        ...data,
+      return {
+        id: entryId,
+        rawTitle,
+        rawUsername,
+        rawPassword,
+        protectPassword,
+        rawUrl,
+        rawNotes,
+        rawCustomFields,
+        hashtags,
+        createdAt,
+        updatedAt,
         history,
-      });
-    }
+      };
+    };
+
+    // Important: <History> itself contains <Entry> tags. We only want "real" entries here,
+    // and map the historical <Entry> versions into `history`.
+    const entryEls = Array.from(doc.getElementsByTagName('Entry')).filter(el => !el.closest('History'));
+
+    // Pass 1: Parse all raw entries (preserving KeePass UUID)
+    const rawEntries: RawKeePassEntry[] = entryEls.map(entryEl => {
+      const uuidEl = getDirectChild(entryEl, 'UUID');
+      const id = parseKeePassUuid(uuidEl?.textContent ?? '');
+      const groupTags = getParentGroupTags(entryEl);
+      return parseRawEntryData(entryEl, id, groupTags);
+    });
+
+    // Pass 2: Convert references and apply protection/encryption
+    const transformRawToFinal = async (raw: RawKeePassEntry): Promise<PasswordEntry> => {
+      const title = convertKeePassValue(raw.rawTitle, rawEntries).trim() || 'Untitled';
+      const username = convertKeePassValue(raw.rawUsername, rawEntries);
+      const url = convertKeePassValue(raw.rawUrl, rawEntries);
+      const notes = convertKeePassValue(raw.rawNotes, rawEntries);
+
+      const convertedPassword = convertKeePassValue(raw.rawPassword, rawEntries);
+      const passwordRes = await maybeEncryptProtected(convertedPassword, raw.protectPassword);
+
+      const customFields = await Promise.all(
+        raw.rawCustomFields.map(async (cf) => {
+          const convertedVal = convertKeePassValue(cf.value, rawEntries);
+          const res = await maybeEncryptProtected(convertedVal, cf.protectInMemory);
+          return {
+            id: cf.id,
+            label: cf.label,
+            value: res.value,
+            protection: (res.value.startsWith(OMS_PREFIX) ? 'encrypted' : 'none') as CustomFieldProtection,
+            readonly: res.readonly,
+          };
+        })
+      );
+
+      const history = await Promise.all(
+        raw.history.map(async (h) => {
+          const hData = await transformRawToFinal(h.data);
+          return {
+            timestamp: h.timestamp,
+            data: hData,
+          };
+        })
+      );
+
+      return {
+        id: raw.id,
+        title,
+        username,
+        password: passwordRes.value,
+        passwordReadonly: passwordRes.value.startsWith(OMS_PREFIX),
+        url,
+        notes,
+        hashtags: raw.hashtags,
+        customFields,
+        createdAt: raw.createdAt,
+        updatedAt: raw.updatedAt,
+        history,
+      };
+    };
+
+    const entries = await Promise.all(rawEntries.map(transformRawToFinal));
 
     return {
       entries,

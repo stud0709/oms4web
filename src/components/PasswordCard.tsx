@@ -393,7 +393,7 @@ export function PasswordCard({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => sendSecret(entryToDisplay.password)}
+                                onClick={() => sendSecret(entryToDisplay.password, settings)}
                                 className="text-primary hover:text-primary hover:bg-primary/10"
                               >
                                 <Radio className="h-4 w-4" />
@@ -491,7 +491,7 @@ export function PasswordCard({
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => sendSecret(field.value)}
+                                    onClick={() => sendSecret(field.value, settings)}
                                     className="text-primary hover:text-primary hover:bg-primary/10"
                                   >
                                     <Radio className="h-4 w-4" />
