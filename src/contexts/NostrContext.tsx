@@ -19,12 +19,14 @@ import { createEncryptedMessage } from '@/lib/crypto';
 import { toast } from '@/hooks/use-toast';
 
 const STORAGE_NOSTR_PAIRING = 'oms4web_nostr_pairing';
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface StoredPairing {
   topicHex: string;
   pskHex: string;
   relays: string[];
   secretKeyHex: string;
+  expiresAt?: number;
 }
 
 export interface NostrContextType {
@@ -60,6 +62,11 @@ function getInitialPairing(): StoredPairing | null {
     const raw = localStorage.getItem(STORAGE_NOSTR_PAIRING);
     if (raw) {
       const stored: StoredPairing = JSON.parse(raw);
+      if (stored.expiresAt && Date.now() > stored.expiresAt) {
+        console.log('[NostrContext] Stored pairing expired after 24h. Clearing storage.');
+        localStorage.removeItem(STORAGE_NOSTR_PAIRING);
+        return null;
+      }
       if (stored.topicHex && stored.pskHex && stored.relays && stored.secretKeyHex) {
         return stored;
       }
@@ -135,6 +142,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         pskHex: bytesToHex(psk),
         relays,
         secretKeyHex: bytesToHex(sKey),
+        expiresAt: Date.now() + SESSION_TTL_MS,
       };
       localStorage.setItem(STORAGE_NOSTR_PAIRING, JSON.stringify(stored));
     } catch (err) {
