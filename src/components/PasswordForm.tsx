@@ -1,3 +1,4 @@
+import { isOmsText } from '@/lib/crypto';
 import {
   useState,
   useEffect,
@@ -192,7 +193,7 @@ export function PasswordForm({
       let finalPassword = password;
 
       // Check if password needs encryption
-      if (password && !password.startsWith(OMS_PREFIX) && !password.startsWith(OMS4WEB_REF)) {
+      if (password && !isOmsText(password) && !password.startsWith(OMS4WEB_REF)) {
         if (settings.encryptionEnabled) {          
           try {
             finalPassword = await createEncryptedMessage(password, settings);
@@ -226,7 +227,7 @@ export function PasswordForm({
               field.protection = 'none'; //reset protection settings
               return field; //empty
             }
-            if (field.value.startsWith(OMS_PREFIX)) {
+            if (isOmsText(field.value)) {
               field.protection = 'encrypted';
               field.readonly = true;
               return field; //already encrypted
@@ -244,7 +245,7 @@ export function PasswordForm({
         title: title.trim() || 'Untitled',
         username,
         password: finalPassword,
-        passwordReadonly: finalPassword.startsWith(OMS_PREFIX),
+        passwordReadonly: isOmsText(finalPassword),
         url,
         notes,
         hashtags,

@@ -1,3 +1,4 @@
+import { isOmsText } from '@/lib/crypto';
 import {
   useMemo,
   useState,
@@ -91,7 +92,7 @@ export function PasswordCard({
       onSoftDelete(entryToDisplay);
     }
   };
-  const isAirGapField = (value: string) => value?.startsWith(OMS_PREFIX);
+  const isAirGapField = (value: string) => isOmsText(value);
 
   const toExternalUrl = (value: string) =>
     value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;

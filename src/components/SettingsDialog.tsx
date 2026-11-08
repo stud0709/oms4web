@@ -372,63 +372,7 @@ export function SettingsDialog({
                   </div>
                 )}
 
-                {keyValid && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="rsaTransformation">RSA Transformation</Label>
-                      <Select
-                        value={String(newSettings.rsaTransformationIdx)}
-                        onValueChange={v => setNewSettings({ ...newSettings, rsaTransformationIdx: Number(v) })}>
-                        <SelectTrigger id="rsaTransformation">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.values(RSA_TRANSFORMATIONS).map((t) => (
-                            <SelectItem key={t.idx} value={String(t.idx)}>
-                              {t.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="aesKeyLength">AES Key Length</Label>
-                      <Select
-                        value={String(newSettings.aesKeyLength)}
-                        onValueChange={v => setNewSettings({ ...newSettings, aesKeyLength: Number(v) })}>
-                        <SelectTrigger id="aesKeyLength">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AES_KEY_LENGTHS.map((len) => (
-                            <SelectItem key={len} value={String(len)}>
-                              {len} bits
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="aesTransformation">AES Transformation</Label>
-                      <Select
-                        value={String(newSettings.aesTransformationIdx)}
-                        onValueChange={v => setNewSettings({ ...newSettings, aesTransformationIdx: Number(v) })}>
-                        <SelectTrigger id="aesTransformation">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AES_TRANSFORMATIONS.map((t) => (
-                            <SelectItem key={t.idx} value={String(t.idx)}>
-                              {t.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
+                {keyValid && <p className="text-sm text-muted-foreground">New encryption uses RSA-OAEP SHA-256 and AES-256-GCM (OMS v1). Existing encrypted data remains readable.</p>}
               </div>
             )}
 

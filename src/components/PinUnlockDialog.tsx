@@ -209,7 +209,7 @@ export function PinUnlockDialog({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    sendSecret(vaultState.omsMessage);
+                    if (vaultState.status === 'pin-locked') sendSecret(vaultState.omsMessage);
                     inputRef.current?.focus();
                   }}
                   className="w-full gap-1.5 text-xs"

@@ -55,7 +55,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   publicKey: '',
   rsaTransformationIdx: 2,
   aesKeyLength: 256,
-  aesTransformationIdx: 0,
+  aesTransformationIdx: 2,
   encryptionEnabled: false,
   vaultName: '',
   workspaceProtection: 'none',
@@ -66,7 +66,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 export const
   DELETED_TAG = 'deleted',
-  OMS_FILETYPE = '.oms00',
+  OMS_FILETYPE = '.oms',
   OMS_PREFIX = 'oms00_',
   SW_BASE = '/oms4web/',
   OMS4WEB_REF = 'oms4web://',

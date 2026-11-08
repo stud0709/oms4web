@@ -1,3 +1,4 @@
+import * as protocol from './protocol';
 /**
  * OMS Companion compatible encryption implementation
  * Based on: https://github.com/stud0709/oms_companion
@@ -152,6 +153,7 @@ export async function getFingerprint(publicKey: CryptoKey): Promise<Uint8Array> 
  * Write unsigned short (2 bytes, big-endian)
  */
 export function writeUnsignedShort(value: number): Uint8Array {
+  if (!Number.isInteger(value) || value < 0 || value > 65535) throw new Error('Unsigned short overflow');
   const arr = new Uint8Array(2);
   arr[0] = (value >> 8) & 0xff;
   arr[1] = value & 0xff;
@@ -203,7 +205,7 @@ export function addPkcs7Padding(data: Uint8Array, blockSize: number = 16): Uint8
 export function removePkcs7Padding(data: Uint8Array): Uint8Array {
   if (data.length === 0) return data;
   const paddingLength = data[data.length - 1];
-  if (paddingLength > 16 || paddingLength > data.length) {
+  if (paddingLength < 1 || paddingLength > 16 || paddingLength > data.length || !data.slice(-paddingLength).every(v => v === paddingLength)) {
     throw new Error('Invalid PKCS7 padding');
   }
   return data.slice(0, data.length - paddingLength);
@@ -213,6 +215,7 @@ export function removePkcs7Padding(data: Uint8Array): Uint8Array {
  * Read unsigned short (2 bytes, big-endian) from Uint8Array at offset
  */
 export function readUnsignedShort(data: Uint8Array, offset: number): number {
+  if (offset < 0 || offset + 2 > data.length) throw new Error('Truncated OMS field');
   return (data[offset] << 8) | data[offset + 1];
 }
 
@@ -222,6 +225,7 @@ export function readUnsignedShort(data: Uint8Array, offset: number): number {
  */
 export function readByteArray(data: Uint8Array, offset: number): [Uint8Array, number] {
   const length = readUnsignedShort(data, offset);
+  if (offset + 2 + length > data.length) throw new Error('Truncated OMS field');
   const arr = data.slice(offset + 2, offset + 2 + length);
   return [arr, offset + 2 + length];
 }
@@ -288,82 +292,18 @@ export async function aesDecryptData(aesAlgorithm: string, ivBuffer: ArrayBuffer
   return decryptedBytes;
 }
 
-/**
- * Create an RSA x AES envelope (encrypted message)
- * 
- * Format:
- * (1) Application ID (unsigned short)
- * (2) RSA transformation index (unsigned short)
- * (3) Fingerprint (byte array with length prefix)
- * (4) AES transformation index (unsigned short)
- * (5) IV (byte array with length prefix)
- * (6) RSA-encrypted AES secret key (byte array with length prefix)
- * (7) AES-encrypted message (byte array with length prefix)
- */
+/** Create a v1 RSA secret with encrypted application ID/version and authenticated records. */
 export async function createEncryptedMessage(
   message: string | Uint8Array,
   settings: AppSettings,
   payloadApplicationId: number = APPLICATION_IDS.ENCRYPTED_MESSAGE
 ): Promise<string> {
-  const { rsaTransformationIdx, aesKeyLength, aesTransformationIdx } = settings;
-
-  // Get AES transformation details
-  const aesTransformation = AES_TRANSFORMATIONS[aesTransformationIdx];
-
-  // Parse the public key
-  const publicKey = await parsePublicKey(settings.publicKey, rsaTransformationIdx);
-
-  // Generate AES key and IV
-  const aesKey = await generateAesKey(aesKeyLength, aesTransformation.algorithm);
-  const iv = generateIv(aesTransformation.ivSize);
-
-  // Get the raw AES key bytes
-  const aesKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', aesKey));
-
-  // Encrypt the AES key with RSA (fall back to idx 2 if invalid)
-  const rsaTransformation = (RSA_TRANSFORMATIONS[rsaTransformationIdx])
-  const encryptedAesKey = new Uint8Array(
-    await crypto.subtle.encrypt(
-      rsaTransformation.algorithm,
-      publicKey,
-      aesKeyRaw
-    )
-  );
-
-  // Get fingerprint
-  const fingerprint = await getFingerprint(publicKey);
-
-  // Create the inner payload: payloadApplicationId + message bytes
-  const messageBytes = typeof message === 'string' ? new TextEncoder().encode(message) : message;
-  const payload = createPayload(payloadApplicationId, messageBytes);
-
-  // Encrypt based on algorithm
-  const ivBuffer = toArrayBuffer(iv);
-  const encryptedPayload = await aesEncryptData(aesTransformation, ivBuffer, aesKey, payload);
-
-  // Build the final message
-  // Use APPLICATION_RSA_AES_GENERIC as the outer envelope (like in Java implementation)
-  const finalMessage = concatArrays(
-    writeUnsignedShort(APPLICATION_IDS.RSA_AES_GENERIC),  // (1) Application ID
-    writeUnsignedShort(rsaTransformationIdx),             // (2) RSA transformation index
-    writeByteArray(fingerprint),                          // (3) Fingerprint
-    writeUnsignedShort(aesTransformationIdx),             // (4) AES transformation index
-    writeByteArray(iv),                                   // (5) IV
-    writeByteArray(encryptedAesKey),                      // (6) RSA-encrypted AES key
-    writeByteArray(encryptedPayload)                      // (7) AES-encrypted message
-  );
-
-  console.log("Created RSA envelope:");
-  console.log(`Application-ID: ${APPLICATION_IDS.RSA_AES_GENERIC}`);
-  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm.name}`);
-  console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
-  console.log(`AES transformation: ${aesTransformation.idx} = ${aesTransformation.algorithm}`);
-  console.log(`IV: ${toFormattedHex(iv)}`);
-  console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
-
-  // Encode as OMS text format
-  return OMS_PREFIX + bytesToBase64(finalMessage);
-}
+  const publicKey = await parsePublicKey(settings.publicKey, 2);
+  const bytes = typeof message === 'string' ? new TextEncoder().encode(message) : message;
+  const result = await protocol.seal(publicKey, await getFingerprint(publicKey), payloadApplicationId, bytes);
+  result.key.fill(0);
+  return protocol.encodeText(result.bytes);
+    }
 
 /**
  * Write a string as a byte array with length prefix
@@ -398,6 +338,13 @@ export function toFormattedHex(byteArray: Uint8Array) {
  * Format matches EncryptedFile.java structure
  */
 export function parseRsaAesEnvelope(binary: Uint8Array): RsaAesEnvelope {  
+  if (protocol.hasMagic(binary)) {
+    const { header, records } = protocol.readHeader(binary);
+    if (header.kind !== 1) throw new Error('Not an RSA envelope');
+    return { applicationId: APPLICATION_IDS.RSA_AES_GENERIC, rsaTransformation: RSA_TRANSFORMATIONS[2],
+      fingerprint: header.fingerprint, aesTransformation: AES_TRANSFORMATIONS[2], iv: header.noncePrefix,
+      encryptedAesKey: header.wrappedKey, encryptedData: records, protocolHeader: header };
+  }
   let offset = 0;
 
   // (1) Application ID
@@ -427,14 +374,6 @@ export function parseRsaAesEnvelope(binary: Uint8Array): RsaAesEnvelope {
   // (7) AES-encrypted data (remaining bytes, no length prefix)
   const encryptedData = binary.slice(offset);
 
-  console.log("Parsed RSA envelope:");
-  console.log(`Application-ID: ${applicationId}`);
-  console.log(`RSA transformation: ${rsaTransformation.idx} = ${rsaTransformation.algorithm.name}`);
-  console.log(`fingerprint: ${toFormattedHex(fingerprint)}`);
-  console.log(`AES transformation: ${aesTransformation.idx} = ${aesTransformation.algorithm}`);
-  console.log(`IV: ${toFormattedHex(iv)}`);
-  console.log(`encrypted AES secret key: ${toFormattedHex(encryptedAesKey)}`);
-
   return {
     applicationId,
     rsaTransformation,
@@ -444,4 +383,20 @@ export function parseRsaAesEnvelope(binary: Uint8Array): RsaAesEnvelope {
     encryptedAesKey,
     encryptedData,
   };
+}
+export async function decryptEnvelope(envelope: RsaAesEnvelope, key: CryptoKey): Promise<Uint8Array> {
+  if (envelope.protocolHeader) {
+    return protocol.readApplication(await protocol.decryptRecords(envelope.protocolHeader, key, envelope.encryptedData), APPLICATION_IDS.ENCRYPTED_FILE).body;
+  }
+  if (envelope.aesTransformation.algorithm === 'AES-CBC') {
+    const raw = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CBC', iv: toArrayBuffer(envelope.iv) }, key, toArrayBuffer(envelope.encryptedData)));
+    // Java/Android use one padding layer; historical PWA vaults use two.
+    try { JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)); return raw; }
+    catch { return removePkcs7Padding(raw); }
+  }
+  return aesDecryptData(envelope.aesTransformation.algorithm, toArrayBuffer(envelope.iv), key, envelope.encryptedData);
+}
+export function isOmsText(text: string): boolean {
+  if (text.startsWith(OMS_PREFIX)) return true;
+  try { return protocol.decodeText(text) !== null; } catch { return text.trim().startsWith('JU9NUy0'); }
 }

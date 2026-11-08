@@ -1,5 +1,6 @@
 import {
   useState,
+  useRef,
   useEffect,
   useCallback
 } from 'react';
@@ -23,6 +24,7 @@ import {
   createEncryptedMessage,
   generateAesKey,
   aesDecryptData,
+  decryptEnvelope,
   parseRsaAesEnvelope
 } from '@/lib/crypto';
 import {
@@ -34,7 +36,7 @@ import {
   ENTRIES_PROPERTY_NAME,
   SETTINGS_PROPERTY_NAME
 } from "@/lib/constants";
-import { encryptVaultData } from '@/lib/fileEncryption';
+import { encryptVaultDataWithKey } from '@/lib/fileEncryption';
 import {
   oms4webDbPromise,
   QUICK_UNLOCK_STORE,
@@ -101,7 +103,7 @@ export const downloadVault = (vaultName: string, blob: Blob) => {
 
 export const downloadVaultBackupFromBytes = (vaultBytes: Uint8Array) => {
   const isJson = vaultBytes[0] === 123; // ASCII '{'
-  const filename = `Vault backup_${getTimestamp()}.json${isJson ? '' : '.oms00'}`;
+  const filename = `Vault backup_${getTimestamp()}.json${isJson ? '' : '.oms'}`;
   const blob = new Blob([vaultBytes.buffer as ArrayBuffer], {
     type: isJson ? 'application/json' : 'application/octet-stream'
   });
@@ -109,11 +111,9 @@ export const downloadVaultBackupFromBytes = (vaultBytes: Uint8Array) => {
   return { filename, isJson };
 }
 
-export const setQuickUnlock = async (
+export const prepareQuickUnlock = async (
   vaultAesKeyRaw: Uint8Array,
   workspaceProtection: WorkspaceProtection) => {
-
-  const db = await oms4webDbPromise;
 
   if (workspaceProtection === 'quickUnlock' && !getEnvironment().android) {
     //create wrapper key (AES)
@@ -128,19 +128,14 @@ export const setQuickUnlock = async (
       wrapperKey,
       vaultAesKeyRaw.slice().buffer);
 
-    //set data
-    await db.put(
-      QUICK_UNLOCK_STORE,
-      {
-        wrapperKey,
-        wrapperIv,
-        encryptedVaultKey: new Uint8Array(encryptedVaultKey)
-      },
-      STORAGE_KEY
-    );
-  } else {
-    await db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
+    return { wrapperKey, wrapperIv, encryptedVaultKey: new Uint8Array(encryptedVaultKey) };
   }
+  return undefined;
+};
+export const setQuickUnlock = async (key: Uint8Array, protection: WorkspaceProtection) => {
+  const value = await prepareQuickUnlock(key, protection), db = await oms4webDbPromise;
+  if (value) await db.put(QUICK_UNLOCK_STORE, value, STORAGE_KEY);
+  else await db.delete(QUICK_UNLOCK_STORE, STORAGE_KEY);
 };
 
 export const validateJson = (data: unknown) => {
@@ -232,6 +227,8 @@ const jsonToBytes = (json: object) => {
 };
 
 export function useEncryptedVault() {
+  const savePromiseRef = useRef<Promise<void>>(Promise.resolve());
+  const saveRevisionRef = useRef(0);
   const [vaultState, setVaultState] = useState<VaultState>({ status: 'loading' });
   const [vaultData, setVaultData] = useState<VaultData>(EMPTY_VAULT);
 
@@ -250,7 +247,7 @@ export function useEncryptedVault() {
   // Load vault on mount
   useEffect(() => {
     (async () => {
-      //request persistent storage             
+      //request persistent storage
       const isPersisted = await navigator?.storage?.persisted();
       if (isPersisted) {
         console.log("Persistent storage already granted");
@@ -320,11 +317,13 @@ export function useEncryptedVault() {
     }
   }
 
-  // Save vault when data changes 
+  // Save vault when data changes
   useEffect(() => {
     if (vaultState.status !== 'ready') return;
 
-    (async () => {
+    const revision = ++saveRevisionRef.current;
+    savePromiseRef.current = savePromiseRef.current.catch(() => {}).then(async () => {
+      if (revision !== saveRevisionRef.current) return;
       const dataBytes = jsonToBytes(vaultData);
       const db = await oms4webDbPromise;
 
@@ -340,36 +339,48 @@ export function useEncryptedVault() {
       if (vaultData.settings.publicKey
         && vaultData.settings.workspaceProtection !== 'none') {
         try {
-          const encryptedBytes = await encryptVaultData(
+          const encrypted = await encryptVaultDataWithKey(
             dataBytes,
             vaultData.settings
           );
-          await db.put(VAULT_STORE_V3, {
-            vault: encryptedBytes,
+          try {
+          const quickUnlock = await prepareQuickUnlock(encrypted.key, vaultData.settings.workspaceProtection);
+          if (revision !== saveRevisionRef.current) return;
+          const tx = db.transaction([VAULT_STORE_V3, QUICK_UNLOCK_STORE], 'readwrite');
+          await tx.objectStore(VAULT_STORE_V3).put({
+            vault: encrypted.bytes,
             sha256: savedSha256 === null ?
             /* data has been imported, consider unmodified */ sha256 :
             /* retain old value (considered modified) */ savedSha256
           }, STORAGE_KEY);
+          if (quickUnlock) await tx.objectStore(QUICK_UNLOCK_STORE).put(quickUnlock, STORAGE_KEY);
+          else await tx.objectStore(QUICK_UNLOCK_STORE).delete(STORAGE_KEY);
+          await tx.done;
+          } finally { encrypted.key.fill(0); }
         } catch (e) {
-          console.error('Failed to encrypt vault, saving as plain JSON', e);
-          throw new Error('Failed to encrypt vault, saving as plain JSON', { cause: e });
+          console.error('Failed to encrypt vault; previous saved data retained', e);
+          throw new Error('Failed to encrypt vault; previous saved data retained', { cause: e });
         }
       } else {
         // Save as plain JSON for 'none' and 'pin' modes, or as fallback
-        await db.put(VAULT_STORE_V3, {
+        if (revision !== saveRevisionRef.current) return;
+        const tx = db.transaction([VAULT_STORE_V3, QUICK_UNLOCK_STORE], 'readwrite');
+        await tx.objectStore(VAULT_STORE_V3).put({
           vault: dataBytes,
           sha256: savedSha256 === null ?
           /* data has been imported, consider unmodified */ sha256 :
           /* retain old value (considered modified) */ savedSha256
         }, STORAGE_KEY);
+        await tx.objectStore(QUICK_UNLOCK_STORE).delete(STORAGE_KEY);
+        await tx.done;
       }
 
-      deleteFromObsoleteStore(db) //OLD FORMAT, REMOVE 
-    })();
+      // Legacy stores remain available for recovery after a successful v1 save.
+    });
   }, [vaultData, vaultState.status]);
 
   const switchToQuickUnlock = async (vaultState: VaultState) => {
-    if (vaultState.status !== 'encrypted') return;
+    if (vaultState.status !== 'encrypted' || !vaultState.quickUnlock) return;
 
     //decrypt the file key using wrapper key
     const aesKeyBytes = await crypto.subtle.decrypt(
@@ -394,11 +405,7 @@ export function useEncryptedVault() {
 
     // Decrypt file contents
     const ivBuffer = toArrayBuffer(envelope.iv);
-    const decrypted = await aesDecryptData(
-      envelope.aesTransformation.algorithm,
-      ivBuffer,
-      aesKey,
-      envelope.encryptedData);
+    const decrypted = await decryptEnvelope(envelope, aesKey);
     const decoded = new TextDecoder().decode(decrypted);
     const vaultData = validateJson(JSON.parse(decoded));
 
@@ -454,11 +461,12 @@ export function useEncryptedVault() {
 
   const lockVault = useCallback(() => {
     (async () => {
+      await savePromiseRef.current;
       // Re-read from storage and reset state to trigger unlock flow
       const db = await oms4webDbPromise;
       const binary =
-        (await loadFromObsoleteStore(db)) || //OLD FORMAT, REMOVE 
-        (await db.get(VAULT_STORE_V3, STORAGE_KEY))?.vault;
+        (await db.get(VAULT_STORE_V3, STORAGE_KEY))?.vault ||
+        (await loadFromObsoleteStore(db));
 
       const quickUnlock = await db.get(QUICK_UNLOCK_STORE, STORAGE_KEY);
 

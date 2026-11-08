@@ -1,3 +1,5 @@
+import { decodeText } from '@/lib/protocol';
+import { bytesToBase64 } from '@/lib/base64';
 import React, { createContext, useState, useRef, useCallback, useEffect } from 'react';
 import {
   NostrSession,
@@ -22,6 +24,7 @@ const STORAGE_NOSTR_PAIRING = 'oms4web_nostr_pairing';
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface StoredPairing {
+  transportVersion?: number;
   topicHex: string;
   pskHex: string;
   relays: string[];
@@ -62,7 +65,7 @@ function getInitialPairing(): StoredPairing | null {
     const raw = localStorage.getItem(STORAGE_NOSTR_PAIRING);
     if (raw) {
       const stored: StoredPairing = JSON.parse(raw);
-      if (stored.expiresAt && Date.now() > stored.expiresAt) {
+      if (stored.transportVersion !== 1 || (stored.expiresAt && Date.now() > stored.expiresAt)) {
         console.log('[NostrContext] Stored pairing expired after 24h. Clearing storage.');
         localStorage.removeItem(STORAGE_NOSTR_PAIRING);
         return null;
@@ -93,6 +96,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const sessionRef = useRef<NostrSession | null>(null);
   const pendingUnlockResolveRef = useRef<((vaultData: VaultData) => void) | null>(null);
   const pendingUnlockRejectRef = useRef<((err: Error) => void) | null>(null);
+  const pendingRequestRef = useRef<ReturnType<typeof createKeyRequestPairing> | null>(null);
   const pendingEncryptedDataRef = useRef<Uint8Array | null>(null);
   const isUnlockRequestInFlightRef = useRef(false);
   const isSendingSecretRef = useRef(false);
@@ -135,10 +139,17 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentChunkIndex(0);
   }, []);
 
+  useEffect(() => {
+    const expireOnResume = () => { if (!document.hidden && sessionRef.current && !getInitialPairing()) disconnect(); };
+    document.addEventListener('visibilitychange', expireOnResume);
+    return () => document.removeEventListener('visibilitychange', expireOnResume);
+  }, [disconnect]);
+
   const savePairingToStorage = useCallback((topic: string, psk: Uint8Array, relays: string[], sKey: Uint8Array) => {
     try {
       const stored: StoredPairing = {
         topicHex: topic,
+        transportVersion: 1,
         pskHex: bytesToHex(psk),
         relays,
         secretKeyHex: bytesToHex(sKey),
@@ -188,9 +199,13 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           pendingEncryptedDataRef.current = null;
 
           try {
-            const req = createKeyRequestPairing('vault', encData);
+            const req = pendingRequestRef.current;
+            if (!req) throw new Error('No pending unlock request');
+            pendingRequestRef.current = null;
             const dummyContext = {
               keyPair: {} as CryptoKeyPair,
+              requestId: req.requestId,
+              paired: true,
               envelope: req.envelope,
               message: '',
             };
@@ -250,6 +265,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isUnlockRequestInFlightRef.current = true;
           try {
             const req = createKeyRequestPairing('vault', pendingEncryptedDataRef.current);
+            pendingRequestRef.current = req;
             session.sendRequest(req.base64Payload);
           } catch (err) {
             isUnlockRequestInFlightRef.current = false;
@@ -278,9 +294,13 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           pendingEncryptedDataRef.current = null;
 
           try {
-            const req = createKeyRequestPairing('vault', encData);
+            const req = pendingRequestRef.current;
+            if (!req) throw new Error('No pending unlock request');
+            pendingRequestRef.current = null;
             const dummyContext = {
               keyPair: {} as CryptoKeyPair,
+              requestId: req.requestId,
+              paired: true,
               envelope: req.envelope,
               message: '',
             };
@@ -320,7 +340,24 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         const req = createKeyRequestPairing('vault', encryptedData);
-        sessionRef.current?.sendRequest(req.base64Payload);
+        pendingRequestRef.current = req;
+        sessionRef.current?.sendRequest(req.base64Payload).catch(err => {
+          isUnlockRequestInFlightRef.current = false;
+          pendingRequestRef.current = null;
+          pendingEncryptedDataRef.current = null;
+          reject(err instanceof Error ? err : new Error(String(err)));
+        });
+        const activeRequest = req.requestId;
+        setTimeout(() => {
+          if (pendingRequestRef.current?.requestId === activeRequest) {
+            isUnlockRequestInFlightRef.current = false;
+            pendingRequestRef.current = null;
+            pendingEncryptedDataRef.current = null;
+            pendingUnlockResolveRef.current = null;
+            pendingUnlockRejectRef.current = null;
+            reject(new Error('Nostr unlock request timed out'));
+          }
+        }, DEFAULT_NOSTR_TTL * 1000);
       } catch (err) {
         isUnlockRequestInFlightRef.current = false;
         pendingEncryptedDataRef.current = null;
@@ -346,14 +383,15 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       let base64Payload: string;
 
-      if (secretTextOrOms.startsWith(OMS_PREFIX)) {
-        base64Payload = secretTextOrOms.slice(OMS_PREFIX.length).replace(/\s+/g, '');
+      const decoded = decodeText(secretTextOrOms);
+      if (decoded) {
+        base64Payload = bytesToBase64(decoded);
       } else if (settings?.publicKey) {
         const omsMsg = await createEncryptedMessage(secretTextOrOms, settings);
         base64Payload = (omsMsg.startsWith(OMS_PREFIX) ? omsMsg.slice(OMS_PREFIX.length) : omsMsg).replace(/\s+/g, '');
       } else {
         // Fallback: UTF-8 to Base64
-        base64Payload = btoa(unescape(encodeURIComponent(secretTextOrOms)));
+        throw new Error('An RSA public key is required to send a secret');
       }
 
       await sessionRef.current.sendRequest(base64Payload);

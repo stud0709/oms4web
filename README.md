@@ -58,3 +58,9 @@ npm run dev
 # Build for production
 npm run build
 ```
+
+## OMS v1 compatibility
+
+Update OneMoreSecret, omsCompanion and oms4web together. New messages are bare Base64 containing a binary `%OMS-` marker and protocol version 1; new encrypted files use `.oms`. Existing `oms00_` messages, `.oms00` files and RSA keys remain usable. Recreate Nostr pairings after updating. Existing clients cannot read v1 output.
+
+See the [wire specification](docs/protocol-v1.md), [legacy format](docs/protocol-v0.md), and [transition/release checklist](docs/protocol-transition.md).

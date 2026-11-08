@@ -1,3 +1,5 @@
+import { hasMagic } from '@/lib/protocol';
+import { isOmsText } from '@/lib/crypto';
 import {
   useState,
   useMemo,
@@ -224,7 +226,7 @@ const Index = () => {
           if (field.label.toLowerCase().includes(searchLower)) return true;
 
           // For encrypted custom fields we can't search by plaintext value.
-          if (!field.value || field.value.startsWith(OMS_PREFIX)) return false;
+          if (!field.value || isOmsText(field.value)) return false;
           return field.value.toLowerCase().includes(searchLower);
         }) ?? false;
 
@@ -390,7 +392,7 @@ const Index = () => {
       try {
         const encryptedBytes = await encryptVaultData(new TextEncoder().encode(jsonData), vaultData.settings);
         const blob = new Blob([new Uint8Array(encryptedBytes)], { type: 'application/octet-stream' });
-        downloadVault(`${name}${suffix}.json.oms00`, blob);
+        downloadVault(`${name}${suffix}.json.oms`, blob);
         toast(encryptedToast);
         return;
       } catch (err) {
@@ -428,11 +430,11 @@ const Index = () => {
     });
   };
 
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     // Handle .oms00 files as binary
-    if (file.name.endsWith(OMS_FILETYPE)) {
+    if (hasMagic(new Uint8Array(await file.slice(0, 5).arrayBuffer())) || file.name.endsWith(OMS_FILETYPE) || file.name.endsWith(".oms00")) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const arrayBuffer = e.target?.result as ArrayBuffer;
@@ -518,8 +520,8 @@ const Index = () => {
       if (!value) {
         return { value: '', readonly: false };
       }
-      if (value.startsWith(OMS_PREFIX) || value.startsWith(OMS4WEB_REF)) {
-        return { value, readonly: value.startsWith(OMS_PREFIX) };
+      if (isOmsText(value) || value.startsWith(OMS4WEB_REF)) {
+        return { value, readonly: isOmsText(value) };
       }
       if (!protectInMemory) {
         return { value, readonly: false };
@@ -653,7 +655,7 @@ const Index = () => {
             id: cf.id,
             label: cf.label,
             value: res.value,
-            protection: (res.value.startsWith(OMS_PREFIX) ? 'encrypted' : 'none') as CustomFieldProtection,
+            protection: (isOmsText(res.value) ? 'encrypted' : 'none') as CustomFieldProtection,
             readonly: res.readonly,
           };
         })
@@ -674,7 +676,7 @@ const Index = () => {
         title,
         username,
         password: passwordRes.value,
-        passwordReadonly: passwordRes.value.startsWith(OMS_PREFIX),
+        passwordReadonly: isOmsText(passwordRes.value),
         url,
         notes,
         hashtags: raw.hashtags,
@@ -693,11 +695,11 @@ const Index = () => {
     };
   }, [vaultData.settings]);
 
-  const handleMerge = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMerge = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.name.endsWith(OMS_FILETYPE)) {
+    if (hasMagic(new Uint8Array(await file.slice(0, 5).arrayBuffer())) || file.name.endsWith(OMS_FILETYPE) || file.name.endsWith(".oms00")) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const arrayBuffer = e.target?.result as ArrayBuffer;
@@ -969,14 +971,14 @@ const Index = () => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".json,.oms00"
+                    accept=".json,.oms,.oms00"
                     className="hidden"
                     onChange={handleImport}
                   />
                   <input
                     ref={mergeFileInputRef}
                     type="file"
-                    accept=".json,.oms00,.xml"
+                    accept=".json,.oms,.oms00,.xml"
                     className="hidden"
                     onChange={handleMerge}
                   />

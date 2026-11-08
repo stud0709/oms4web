@@ -118,7 +118,7 @@ export type VaultState = {
 {
   status: 'encrypted';
   encryptedData: Uint8Array;
-  quickUnlock: QuickUnlockData;
+  quickUnlock?: QuickUnlockData;
 } |
 {
   status: 'pin-locked';
@@ -148,6 +148,7 @@ export interface QrChunk {
 
 
 export interface RsaAesEnvelope {
+  protocolHeader?: import('../lib/protocol').ProtocolHeader;
   applicationId: number;
   rsaTransformation: RsaTransformation;
   fingerprint: Uint8Array;
@@ -178,6 +179,8 @@ export interface RsaTransformation {
 
 
 export interface KeyRequestContext {
+  requestId?: Uint8Array;
+  paired?: boolean;
   keyPair: CryptoKeyPair;
   envelope: RsaAesEnvelope;
   message: string; // OMS-encoded message for QR display

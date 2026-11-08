@@ -1,7 +1,8 @@
+import * as protocol from './protocol';
 /**
- * Key Request - TypeScript implementation based on 
+ * Key Request - TypeScript implementation based on
  * omscompanion/crypto/KeyRequest.java & KeyRequestPairing.java
- * 
+ *
  * Creates KEY_REQUEST (for air-gap & Android callback) or KEY_REQUEST_PAIRING (for Nostr pairing).
  */
 
@@ -14,6 +15,7 @@ import {
   readUnsignedShort,
   parseRsaAesEnvelope,
   aesDecryptData,
+  decryptEnvelope,
   writeString,
   toFormattedHex,
 } from './crypto';
@@ -29,7 +31,7 @@ import { setQuickUnlock as setupQuickUnlock, validateJson } from '@/hooks/useEnc
 
 /**
  * Create a KEY_REQUEST message from encrypted vault data (for Air-Gap QR or Android Intent)
- * 
+ *
  * Format (matching Java KeyRequest.java):
  * (1) Application ID = APPLICATION_KEY_REQUEST (4)
  * (2) Reference (file name as string)
@@ -76,20 +78,13 @@ export async function createKeyRequest(
     writeByteArray(envelope.encryptedAesKey),             // (7) Encrypted AES key
   );
 
-  console.log("Created Key Request:");
-  console.log(`Application-ID: ${applicationID}`);
-  console.log(`Reference: ${fileName}`);
-  console.log(`RSA public key: ${toFormattedHex(publicKeySpki)}`);
-  console.log(`fingerprint (encrypted file): ${toFormattedHex(envelope.fingerprint)}`);
-  console.log(`RSA transformation (encrypted file): ${envelope.rsaTransformation.idx} = ${envelope.rsaTransformation.algorithm.name}`);
-  console.log(`RSA transformation (key response): ${rsaTransformationKeyResponse.idx} = ${rsaTransformationKeyResponse.algorithm.name}`);
-  console.log(`encrypted AES key (encrypted file): ${toFormattedHex(envelope.encryptedAesKey)}`);
-
   // Encode as OMS text format
-  const message = OMS_PREFIX + bytesToBase64(messageBytes);
+  const requestId = crypto.getRandomValues(new Uint8Array(16));
+  const message = protocol.encodeText(wrapRequest(messageBytes, envelope.protocolHeader ? 1 : 0, requestId));
 
   return {
     keyPair,
+    requestId,
     envelope,
     message,
   };
@@ -107,7 +102,7 @@ export async function createKeyRequest(
 export function createKeyRequestPairing(
   fileName: string,
   encryptedData: Uint8Array
-): { envelope: ReturnType<typeof parseRsaAesEnvelope>; messageBytes: Uint8Array; base64Payload: string } {
+): { envelope: ReturnType<typeof parseRsaAesEnvelope>; messageBytes: Uint8Array; base64Payload: string; requestId: Uint8Array } {
   const envelope = parseRsaAesEnvelope(encryptedData);
 
   const messageBytes = concatArrays(
@@ -118,19 +113,15 @@ export function createKeyRequestPairing(
     writeByteArray(envelope.encryptedAesKey),                // (5) Encrypted AES key
   );
 
-  const base64Payload = bytesToBase64(messageBytes);
-
-  console.log("Created Key Request Pairing:");
-  console.log(`Application-ID: ${APPLICATION_IDS.KEY_REQUEST_PAIRING}`);
-  console.log(`Reference: ${fileName}`);
-  console.log(`fingerprint: ${toFormattedHex(envelope.fingerprint)}`);
-  console.log(`RSA transformation: ${envelope.rsaTransformation.idx} = ${envelope.rsaTransformation.algorithm.name}`);
-  console.log(`encrypted AES key: ${toFormattedHex(envelope.encryptedAesKey)}`);
+  const requestId = crypto.getRandomValues(new Uint8Array(16));
+  const framed = wrapRequest(messageBytes, envelope.protocolHeader ? 1 : 0, requestId);
+  const base64Payload = bytesToBase64(framed);
 
   return {
     envelope,
-    messageBytes,
+    messageBytes: framed,
     base64Payload,
+    requestId,
   };
 }
 
@@ -156,11 +147,15 @@ export async function processKeyResponse(
 
   let aesKeyBytes: Uint8Array;
 
+  if (context.requestId) {
+    const wrapped = protocol.readReply(responseBytes, context.requestId, !!context.paired);
+    aesKeyBytes = context.paired ? wrapped : new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, context.keyPair.privateKey, toArrayBuffer(wrapped)));
+    if (![16, 24, 32].includes(aesKeyBytes.length) || (context.envelope.protocolHeader && aesKeyBytes.length !== 32)) throw new Error('Invalid AES key length');
+  }
   // Case 1: Application ID 5 (KEY_RESPONSE with RSA-encrypted AES key)
-  if (responseBytes.length > 2 && readUnsignedShort(responseBytes, 0) === APPLICATION_IDS.KEY_RESPONSE && context.keyPair) {
+  else if (responseBytes.length > 2 && readUnsignedShort(responseBytes, 0) === APPLICATION_IDS.KEY_RESPONSE && context.keyPair) {
     const offset = 2;
     const [rsaEncryptedAesKey] = readByteArray(responseBytes, offset);
-    console.log(`Decrypting RSA-encrypted AES key (App ID 5)`);
     const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[DEFAULT_SETTINGS.rsaTransformationIdx];
     aesKeyBytes = new Uint8Array(
       await crypto.subtle.decrypt(
@@ -176,19 +171,16 @@ export async function processKeyResponse(
     [16, 24, 32].includes(readUnsignedShort(responseBytes, 0)) &&
     readUnsignedShort(responseBytes, 0) <= responseBytes.length - 2
   ) {
-    console.log(`Reading length-prefixed AES key material (${readUnsignedShort(responseBytes, 0)} bytes)`);
     const [rawKey] = readByteArray(responseBytes, 0);
     aesKeyBytes = rawKey;
   }
   // Case 3: Raw AES key bytes directly (16, 24, or 32 bytes)
   else if ([16, 24, 32].includes(responseBytes.length)) {
-    console.log(`Using raw AES key bytes (${responseBytes.length} bytes)`);
     aesKeyBytes = responseBytes;
   }
   // Case 4: Try RSA decryption if keyPair exists
   else if (context.keyPair) {
     try {
-      console.log(`Attempting RSA decryption of key material`);
       const rsaTransformationKeyResponse = RSA_TRANSFORMATIONS[DEFAULT_SETTINGS.rsaTransformationIdx];
       aesKeyBytes = new Uint8Array(
         await crypto.subtle.decrypt(
@@ -198,7 +190,6 @@ export async function processKeyResponse(
         )
       );
     } catch {
-      console.log(`Fallback: reading as byte array`);
       const [rawKey] = readByteArray(responseBytes, 0);
       aesKeyBytes = rawKey;
     }
@@ -211,11 +202,11 @@ export async function processKeyResponse(
     throw new Error('Failed to extract AES key from response');
   }
 
-  console.log(`Extracted AES key: ${toFormattedHex(aesKeyBytes)}`);
 
+
+  try {
   // Import the AES key
   const aesTransformation = context.envelope.aesTransformation;
-  console.log(`Setting up AES key for ${aesTransformation.algorithm}`);
   const aesKey = await crypto.subtle.importKey(
     'raw',
     toArrayBuffer(aesKeyBytes),
@@ -226,18 +217,23 @@ export async function processKeyResponse(
 
   // Decrypt file contents
   const ivBuffer = toArrayBuffer(context.envelope.iv);
-  console.log(`Decrypting file contents`);
-  const decryptedBytes = await aesDecryptData(aesTransformation.algorithm, ivBuffer, aesKey, context.envelope.encryptedData);
+  const decryptedBytes = await decryptEnvelope(context.envelope, aesKey);
 
   // Convert to string and validate JSON
   const s = new TextDecoder().decode(decryptedBytes);
   const vaultData = validateJson(JSON.parse(s));
 
   // Setup QuickUnlock
-  setupQuickUnlock(
-    aesKeyBytes, 
+  await setupQuickUnlock(
+    aesKeyBytes,
     vaultData.settings.workspaceProtection
   );
 
   return vaultData;
+  } finally { aesKeyBytes.fill(0); }
+}
+
+function wrapRequest(legacy: Uint8Array, target: number, id: Uint8Array): Uint8Array {
+  if (legacy.length > 16384) throw new Error('OMS request too large');
+  return protocol.control(readUnsignedShort(legacy, 0), protocol.concat(id, new Uint8Array([target]), legacy.slice(2)));
 }

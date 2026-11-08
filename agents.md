@@ -23,7 +23,7 @@
   2. If encrypted, vault state becomes `encrypted` or `pin-locked`; UI shows unlock dialogs.
   3. Decryption uses OMS key request/response QR or Android intent callback.
   4. When unlocked, vault data is edited in UI and auto-saved to IndexedDB (encrypted or plain depending on settings).
-  5. Export/import uses encrypted `.oms00` files or plain JSON.
+  5. Export/import uses encrypted `.oms` files or plain JSON; legacy `.oms00` imports remain supported.
 - **External dependencies/integrations:**
   - OneMoreSecret app (for encryption/decryption operations via QR or Android intent).
   - GitHub Pages deployment (via `gh-pages`).
@@ -39,7 +39,7 @@
 - **Build tools:** Vite, SWC plugin for React.
 - **Styling:** Tailwind CSS + `tailwindcss-animate`.
 - **Linting:** ESLint (typescript-eslint, react-hooks).
-- **Testing:** No testing framework or tests found.
+- **Testing:** Node's test runner checks protocol fixtures, production writers, tamper rejection and Nostr transport; TypeScript checks app types.
 - **Storage:** IndexedDB (no backend/database server).
 
 ## 4. Directory Structure
@@ -70,7 +70,7 @@
   - `AppSettings` includes encryption parameters, public key, and `workspaceProtection` (`none`, `encrypt`, `pin`, `quickUnlock`).
 - **Workspace protection states:**
   - `loading` → `encrypted` → `pin-locked` → `ready` (state machine in `useEncryptedVault`).
-- **OMS encryption envelope:** RSA-wrapped AES key + AES-encrypted payload (compatible with OneMoreSecret).
+- **OMS encryption envelope:** `%OMS-` v1 framing with fixed RSA-OAEP-SHA256/MGF1-SHA256, AES-256-GCM records and encrypted application/version; retain v0 readers. See `docs/protocol-v1.md`.
 - **Quick unlock:** Wraps vault AES key with a local AES-GCM key stored in IndexedDB to reduce unlock friction.
 - **PIN lock:** Generates random PIN and encrypts vault with PBKDF2-derived AES key; PIN delivered via OMS QR.
 - **References:** `oms4web://` + JSONPath expression to reference fields across entries.
@@ -79,7 +79,7 @@
 ## 7. Development Patterns
 - **Code organization:** Feature logic lives in hooks (`useEncryptedVault`) and lib files; UI is composed from dialog components and shadcn primitives.
 - **Error handling:** Mostly client-side toasts (`use-toast`, Sonner) and console logging; import/export errors show toast messages.
-- **Logging:** `console.log`/`console.error` in encryption and SW registration.
+- **Logging:** Avoid plaintext and key material in crypto logs.
 - **Configuration management:**
   - App constants in `src/lib/constants.ts`.
   - Build config in `vite.config.ts` (base path `SW_BASE` for GH Pages).
@@ -87,7 +87,7 @@
 - **Authentication/authorization:** None. Entirely local-only; relies on OMS encryption for protection.
 
 ## 8. Testing Strategy
-- **Tests:** No tests or testing framework found.
+- **Tests:** `npm test` runs shared JVM/WebCrypto interoperability fixtures and malformed/tampered payload checks; `npm run typecheck` checks app types.
 - **CI/CD:** No workflow configs detected; deployment is manual via `npm run deploy` (GitHub Pages).
 
 ## 9. Getting Started
