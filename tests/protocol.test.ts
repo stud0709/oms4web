@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import * as p from '../src/lib/protocol';
@@ -6,6 +6,8 @@ import { getFingerprint, decryptEnvelope, parseRsaAesEnvelope, createEncryptedMe
 import { encryptVaultData } from '../src/lib/fileEncryption';
 import { DEFAULT_SETTINGS } from '../src/lib/constants';
 import { decryptTransport, ReplayWindow } from '../src/lib/nostrTransport';
+import { NostrSession } from '../src/lib/nostrUtil';
+import { verifyEvent } from 'nostr-tools/pure';
 const fixture = JSON.parse(readFileSync(process.env.OMS_FIXTURES!, 'utf8'));
 const b64 = (s: string): Uint8Array => Uint8Array.from(Buffer.from(s, 'base64'));
 const privateKey = await crypto.subtle.importKey('pkcs8', p.buffer(b64(fixture.privateKey)), { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['decrypt']);
@@ -16,6 +18,94 @@ async function open(bytes: Uint8Array) {
   const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
   return { header, records, key, plain: await p.decryptRecords(header, key, records) };
 }
+
+class TestSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 3;
+  static instances: TestSocket[] = [];
+  readyState = TestSocket.CONNECTING;
+  sent: string[] = [];
+  onopen: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  constructor(readonly url: string) { TestSocket.instances.push(this); }
+  open() { this.readyState = TestSocket.OPEN; this.onopen?.(); }
+  close() { this.readyState = TestSocket.CLOSED; this.onclose?.(); }
+  send(text: string) {
+    assert.equal(this.readyState, TestSocket.OPEN, 'must not send to a closed relay');
+    this.sent.push(text);
+  }
+}
+
+function mockSockets(t: TestContext) {
+  const original = globalThis.WebSocket;
+  TestSocket.instances = [];
+  Object.defineProperty(globalThis, 'WebSocket', { configurable: true, value: TestSocket });
+  t.after(() => Object.defineProperty(globalThis, 'WebSocket', { configurable: true, value: original }));
+}
+
+test('restored Nostr credentials stay offline until a send and wait for a connected relay', async t => {
+  mockSockets(t);
+  const topic = '11'.repeat(32), psk = new Uint8Array(32).fill(22);
+  const session = new NostrSession(topic, psk, ['wss://relay.example']);
+  t.after(() => session.destroy());
+  assert.equal(TestSocket.instances.length, 0);
+  let finished = false;
+  const sending = session.sendRequest('test secret').then(() => { finished = true; });
+  assert.equal(TestSocket.instances.length, 1);
+  await Promise.resolve();
+  assert.equal(finished, false);
+  session.start();
+  assert.equal(TestSocket.instances.length, 1, 'starting twice must not create duplicate sockets');
+  const socket = TestSocket.instances[0];
+  socket.open();
+  await sending;
+  const published = socket.sent.map(text => JSON.parse(text)).find(message => message[0] === 'EVENT')?.[1];
+  assert.ok(published);
+  assert.ok(verifyEvent(published));
+  const content = JSON.parse(await decryptTransport(b64(published.content), psk, topic, published.pubkey, published.created_at));
+  assert.equal(content.type, 'request');
+  assert.equal(content.payload, 'test secret');
+});
+
+test('cancelling Nostr closes connecting sockets and rejects pending sends without reconnecting', async t => {
+  mockSockets(t);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const session = new NostrSession('11'.repeat(32), new Uint8Array(32), ['wss://relay.example']);
+  const rejected = assert.rejects(session.sendRequest('not sent'), /disconnected/);
+  const socket = TestSocket.instances[0];
+  session.destroy();
+  await rejected;
+  assert.equal(socket.readyState, TestSocket.CLOSED);
+  t.mock.timers.tick(60000);
+  assert.equal(TestSocket.instances.length, 1);
+  assert.equal(socket.sent.length, 0);
+});
+
+test('unreachable Nostr relays have bounded retries and cannot report a message as sent', async t => {
+  mockSockets(t);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const errors: Error[] = [];
+  const session = new NostrSession('11'.repeat(32), new Uint8Array(32), ['wss://one.example', 'wss://two.example'], 120, { onError: error => errors.push(error) });
+  t.after(() => session.destroy());
+  session.start();
+  for (const delay of [3000, 6000, 12000]) {
+    for (const socket of TestSocket.instances.filter(s => s.readyState === TestSocket.CONNECTING)) socket.close();
+    t.mock.timers.tick(delay);
+  }
+  for (const socket of TestSocket.instances.filter(s => s.readyState === TestSocket.CONNECTING)) socket.close();
+  assert.equal(session.getStatus(), 'error');
+  assert.equal(errors.length, 1);
+  assert.equal(TestSocket.instances.length, 8);
+  t.mock.timers.tick(60000);
+  assert.equal(TestSocket.instances.length, 8, 'failed relays must not be retried forever');
+  const rejected = assert.rejects(session.sendRequest('not sent'), /No Nostr relay is reachable/);
+  t.mock.timers.tick(10000);
+  await rejected;
+  assert.ok(TestSocket.instances.every(socket => socket.sent.every(text => JSON.parse(text)[0] !== 'EVENT')));
+});
 test('Java RSA text and multi-chunk file decrypt in WebCrypto', async () => {
   for (const [name, app, body] of [['rsaText', 8, 'textBody'], ['rsaFile', 3, 'fileBody']] as const) {
     const bytes = b64(fixture[name]), result = await open(bytes);

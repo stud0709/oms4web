@@ -388,7 +388,7 @@ export function PasswordCard({
                   <>
                     {!env.android && (
                       <>
-                        {isPaired && (
+                        {isNostrAvailable && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
@@ -486,7 +486,7 @@ export function PasswordCard({
                       <>
                         {!env.android && (
                           <>
-                            {isPaired && (
+                            {isNostrAvailable && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button

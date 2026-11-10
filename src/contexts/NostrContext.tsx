@@ -33,7 +33,8 @@ interface StoredPairing {
 }
 
 export interface NostrContextType {
-  status: NostrSessionStatus | 'disconnected';
+  status: NostrSessionStatus | 'disconnected' | 'idle';
+  error: string | null;
   isPaired: boolean;
   connectedRelaysCount: number;
   totalRelaysCount: number;
@@ -42,6 +43,7 @@ export interface NostrContextType {
   currentChunkIndex: number;
   startPairing: (settings?: AppSettings, relays?: string[]) => Promise<void>;
   disconnect: () => void;
+  cancelPairing: () => void;
   requestVaultUnlock: (encryptedData: Uint8Array) => Promise<VaultData>;
   sendSecret: (secretTextOrOms: string, settings?: AppSettings) => Promise<void>;
 }
@@ -82,9 +84,11 @@ function getInitialPairing(): StoredPairing | null {
 
 export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [initialPairing] = useState<StoredPairing | null>(() => getInitialPairing());
-  const [status, setStatus] = useState<NostrSessionStatus | 'disconnected'>(() =>
-    initialPairing ? 'peer_connected' : 'disconnected'
+  const [status, setStatus] = useState<NostrSessionStatus | 'disconnected' | 'idle'>(() =>
+    initialPairing ? 'idle' : 'disconnected'
   );
+  const [hasPairing, setHasPairing] = useState(Boolean(initialPairing));
+  const [error, setError] = useState<string | null>(null);
   const [connectedRelaysCount, setConnectedRelaysCount] = useState(0);
   const [totalRelaysCount, setTotalRelaysCount] = useState(() =>
     initialPairing ? initialPairing.relays.length : DEFAULT_NOSTR_RELAYS.length
@@ -94,6 +98,9 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
 
   const sessionRef = useRef<NostrSession | null>(null);
+  const pairingGenerationRef = useRef(0);
+  const pairingPendingRef = useRef(false);
+  const invalidatePendingPairing = useCallback(() => { ++pairingGenerationRef.current; }, []);
   const pendingUnlockResolveRef = useRef<((vaultData: VaultData) => void) | null>(null);
   const pendingUnlockRejectRef = useRef<((err: Error) => void) | null>(null);
   const pendingRequestRef = useRef<ReturnType<typeof createKeyRequestPairing> | null>(null);
@@ -101,7 +108,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isUnlockRequestInFlightRef = useRef(false);
   const isSendingSecretRef = useRef(false);
 
-  const isPaired = status === 'peer_connected' || status === 'transmitting';
+  const isPaired = hasPairing;
 
   // Cycle animated QR chunk index during pairing
   useEffect(() => {
@@ -115,6 +122,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [pairingChunks.length, status, isPaired]);
 
   const disconnect = useCallback(() => {
+    invalidatePendingPairing();
+    pairingPendingRef.current = false;
     try {
       localStorage.removeItem(STORAGE_NOSTR_PAIRING);
     } catch {
@@ -126,6 +135,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     isUnlockRequestInFlightRef.current = false;
     isSendingSecretRef.current = false;
+    pendingRequestRef.current = null;
     if (pendingUnlockRejectRef.current) {
       pendingUnlockRejectRef.current(new Error('Nostr session disconnected'));
       pendingUnlockResolveRef.current = null;
@@ -133,17 +143,23 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       pendingEncryptedDataRef.current = null;
     }
     setStatus('disconnected');
+    setHasPairing(false);
+    setError(null);
     setConnectedRelaysCount(0);
     setTopicHex('');
     setPairingChunks([]);
     setCurrentChunkIndex(0);
-  }, []);
+  }, [invalidatePendingPairing]);
+
+  const cancelPairing = useCallback(() => {
+    if (pairingPendingRef.current) disconnect();
+  }, [disconnect]);
 
   useEffect(() => {
-    const expireOnResume = () => { if (!document.hidden && sessionRef.current && !getInitialPairing()) disconnect(); };
+    const expireOnResume = () => { if (!document.hidden && hasPairing && sessionRef.current && !getInitialPairing()) disconnect(); };
     document.addEventListener('visibilitychange', expireOnResume);
     return () => document.removeEventListener('visibilitychange', expireOnResume);
-  }, [disconnect]);
+  }, [disconnect, hasPairing]);
 
   const savePairingToStorage = useCallback((topic: string, psk: Uint8Array, relays: string[], sKey: Uint8Array) => {
     try {
@@ -161,7 +177,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Restore stored pairing session on startup without synchronous setState
+  // Restore credentials on startup; sockets open only for an explicit Nostr action.
   useEffect(() => {
     if (!initialPairing || sessionRef.current) return;
 
@@ -174,8 +190,10 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const session = new NostrSession(topic, psk, relays, DEFAULT_NOSTR_TTL, {
       onStatusChange: (newStatus) => {
         setStatus(newStatus);
+        if (newStatus !== 'error') setError(null);
       },
       onPaired: () => {
+        setHasPairing(true);
         savePairingToStorage(topic, psk, relays, session.getSecretKey());
       },
       onRelayStatus: (url, isConnected) => {
@@ -219,18 +237,29 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       },
       onError: (err) => {
+        setError(err.message);
         console.error('[NostrContext] Session error:', err);
       },
     }, sKey);
 
     sessionRef.current = session;
-    session.start();
   }, [initialPairing, savePairingToStorage]);
 
   const startPairing = useCallback(async (settings?: AppSettings, customRelays?: string[]) => {
+    const generation = ++pairingGenerationRef.current;
+    pairingPendingRef.current = true;
     if (sessionRef.current) {
       sessionRef.current.destroy();
       sessionRef.current = null;
+    }
+    try { localStorage.removeItem(STORAGE_NOSTR_PAIRING); } catch { /* Storage may be unavailable. */ }
+    setHasPairing(false);
+    setError(null);
+    setPairingChunks([]);
+    if (!settings?.enableNostrPairing) {
+      setStatus('error');
+      setError('Enable Nostr Relay Pairing in Settings before pairing.');
+      return;
     }
 
     const relays = customRelays && customRelays.length > 0
@@ -246,11 +275,16 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const pairingMsg = await createNostrPairingMessage(topic, psk, relays, DEFAULT_NOSTR_TTL, settings);
+      if (generation !== pairingGenerationRef.current) return;
       const chunks = getQrSequence(pairingMsg);
       setPairingChunks(chunks);
       setCurrentChunkIndex(0);
     } catch (err) {
+      if (generation !== pairingGenerationRef.current) return;
+      setStatus('error');
+      setError(err instanceof Error ? err.message : String(err));
       console.error('[NostrContext] Failed to generate pairing message:', err);
+      return;
     }
 
     const relayStatuses = new Map<string, boolean>();
@@ -258,8 +292,11 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const session = new NostrSession(topic, psk, relays, DEFAULT_NOSTR_TTL, {
       onStatusChange: (newStatus) => {
         setStatus(newStatus);
+        if (newStatus !== 'error') setError(null);
       },
       onPaired: () => {
+        pairingPendingRef.current = false;
+        setHasPairing(true);
         savePairingToStorage(topic, psk, relays, session.getSecretKey());
         if (pendingEncryptedDataRef.current && !isUnlockRequestInFlightRef.current) {
           isUnlockRequestInFlightRef.current = true;
@@ -314,6 +351,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       },
       onError: (err) => {
+        setError(err.message);
         console.error('[NostrContext] Session error:', err);
       },
     });
@@ -323,6 +361,10 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [savePairingToStorage]);
 
   const requestVaultUnlock = useCallback(async (encryptedData: Uint8Array): Promise<VaultData> => {
+    if (!getInitialPairing()) {
+      disconnect();
+      throw new Error('Nostr pairing expired. Pair with OneMoreSecret again.');
+    }
     if (!sessionRef.current) {
       throw new Error('Nostr session is not active');
     }
@@ -345,6 +387,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isUnlockRequestInFlightRef.current = false;
           pendingRequestRef.current = null;
           pendingEncryptedDataRef.current = null;
+          pendingUnlockResolveRef.current = null;
+          pendingUnlockRejectRef.current = null;
           reject(err instanceof Error ? err : new Error(String(err)));
         });
         const activeRequest = req.requestId;
@@ -366,9 +410,13 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         reject(err instanceof Error ? err : new Error(String(err)));
       }
     });
-  }, []);
+  }, [disconnect]);
 
   const sendSecret = useCallback(async (secretTextOrOms: string, settings?: AppSettings): Promise<void> => {
+    if (!getInitialPairing()) {
+      disconnect();
+      throw new Error('Nostr pairing expired. Pair with OneMoreSecret again.');
+    }
     if (!sessionRef.current) {
       throw new Error('No active Nostr pairing');
     }
@@ -399,27 +447,33 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         title: 'Sent to OneMoreSecret',
         description: 'Secret transmitted securely over Nostr pairing.',
       });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      toast({ title: 'Nostr send failed', description: message, variant: 'destructive' });
     } finally {
       setTimeout(() => {
         isSendingSecretRef.current = false;
       }, 500);
     }
-  }, []);
+  }, [disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      invalidatePendingPairing();
       if (sessionRef.current) {
         sessionRef.current.destroy();
         sessionRef.current = null;
       }
     };
-  }, []);
+  }, [invalidatePendingPairing]);
 
   return (
     <NostrContext.Provider
       value={{
         status,
+        error,
         isPaired,
         connectedRelaysCount,
         totalRelaysCount,
@@ -428,6 +482,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentChunkIndex,
         startPairing,
         disconnect,
+        cancelPairing,
         requestVaultUnlock,
         sendSecret,
       }}

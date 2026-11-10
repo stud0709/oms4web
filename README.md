@@ -64,3 +64,5 @@ npm run build
 Update OneMoreSecret, omsCompanion and oms4web together. New messages are bare Base64 containing a binary `%OMS-` marker and protocol version 1; new encrypted files use `.oms`. Existing `oms00_` messages, `.oms00` files and RSA keys remain usable. Recreate Nostr pairings after updating. Existing clients cannot read v1 output.
 
 See the [wire specification](docs/protocol-v1.md), [legacy format](docs/protocol-v0.md), and [transition/release checklist](docs/protocol-transition.md).
+
+Nostr is optional. The default relays are `wss://relay.snort.social` and `wss://relay.nostr.net`. A saved pairing restores its credentials without opening relay connections at startup; connections begin when you explicitly pair, unlock via Nostr, or send a secret/PIN. Closing an unfinished pairing dialog cancels its sockets and retries. Failed relay connections have bounded retries and produce a visible error. If a configured relay cannot be reached, choose another `wss://` relay in Settings and create a new pairing so both devices use the same relay list. Existing saved relay lists are retained; use **Reset Defaults** in Settings to adopt the new defaults.

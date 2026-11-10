@@ -12,6 +12,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useNostr } from '@/hooks/useNostr';
 import { AppSettings } from '@/types/types';
 import { toast } from '@/hooks/use-toast';
@@ -29,6 +30,7 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
 }) => {
   const {
     status,
+    error,
     isPaired,
     connectedRelaysCount,
     totalRelaysCount,
@@ -36,16 +38,22 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
     pairingChunks,
     currentChunkIndex,
     startPairing,
+    cancelPairing,
   } = useNostr();
 
   // Always initiate a fresh pairing session whenever the dialog opens while not paired
-  const prevOpenRef = useRef(open);
+  const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current && !isPaired) {
-      startPairing(settings, settings?.nostrRelays);
+      void startPairing(settings, settings?.nostrRelays);
+    }
+    if (!open && prevOpenRef.current && !isPaired) {
+      cancelPairing();
     }
     prevOpenRef.current = open;
-  }, [open, isPaired, startPairing, settings]);
+  }, [open, isPaired, startPairing, cancelPairing, settings]);
+
+  useEffect(() => () => cancelPairing(), [cancelPairing]);
 
   // When pairing succeeds, show toast and close dialog automatically
   useEffect(() => {
@@ -72,6 +80,14 @@ export const NostrPairingDialog: React.FC<NostrPairingDialogProps> = ({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-3">
+          {error && (
+            <div role="alert" className="space-y-3 text-center">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="outline" onClick={() => void startPairing(settings, settings?.nostrRelays)}>
+                Retry pairing
+              </Button>
+            </div>
+          )}
           {pairingChunks.length > 0 && (
             <>
               <div className="p-4 bg-white rounded-lg shadow-sm border">

@@ -45,10 +45,8 @@ export const NOSTR_EVENT_KIND = 25000;
 export const DEFAULT_NOSTR_TTL = 120;
 export const DEFAULT_NOSTR_HEARTBEAT_INTERVAL_MS = 30000;
 export const DEFAULT_NOSTR_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
   'wss://relay.snort.social',
-  'wss://nostr.mom',
+  'wss://relay.nostr.net',
 ];
 
 export const DEFAULT_SETTINGS: AppSettings = {

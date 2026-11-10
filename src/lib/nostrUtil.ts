@@ -148,6 +148,10 @@ export class NostrSession {
   private events: NostrSessionEvents;
 
   private isDestroyed = false;
+  private isStarted = false;
+  private connectionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private reconnectAttempts = new Map<string, number>();
+  private connectionWaiters = new Set<{ resolve: () => void; reject: (error: Error) => void }>();
   private replay: ReplayWindow;
   private pendingRequests = new Map<string, number>();
 
@@ -189,7 +193,8 @@ export class NostrSession {
    * Connect to all configured relays and subscribe to the topic filter
    */
   public start(): void {
-    if (this.isDestroyed) return;
+    if (this.isDestroyed || this.isStarted) return;
+    this.isStarted = true;
 
     this.setStatus('connecting');
 
@@ -204,12 +209,18 @@ export class NostrSession {
     try {
       const ws = new WebSocket(relayUrl);
       this.sockets.set(relayUrl, ws);
+      this.connectionTimers.set(relayUrl, setTimeout(() => {
+        if (this.sockets.get(relayUrl) === ws && ws.readyState === WebSocket.CONNECTING) ws.close();
+      }, 10000));
 
       ws.onopen = () => {
         if (this.isDestroyed) {
           ws.close();
           return;
         }
+        clearTimeout(this.connectionTimers.get(relayUrl));
+        this.connectionTimers.delete(relayUrl);
+        this.reconnectAttempts.delete(relayUrl);
         this.events.onRelayStatus?.(relayUrl, true);
 
         // Subscribe to topic filter ["REQ", subId, {"kinds": [25000], "#t": [topic]}]
@@ -220,9 +231,10 @@ export class NostrSession {
         const reqMsg = JSON.stringify(['REQ', this.subId, filter]);
         ws.send(reqMsg);
 
-        if (this.status === 'connecting') {
+        if (this.status === 'connecting' || this.status === 'error') {
           this.setStatus('listening', 'Connected to relay');
         }
+        for (const waiter of this.connectionWaiters) waiter.resolve();
       };
 
       ws.onmessage = (event) => {
@@ -239,28 +251,63 @@ export class NostrSession {
       };
 
       ws.onerror = (err) => {
+        if (this.isDestroyed) return;
         console.warn(`[NostrSession] WebSocket error on ${relayUrl}:`, err);
         this.events.onRelayStatus?.(relayUrl, false);
       };
 
       ws.onclose = () => {
+        clearTimeout(this.connectionTimers.get(relayUrl));
+        this.connectionTimers.delete(relayUrl);
+        if (this.isDestroyed) return;
         this.events.onRelayStatus?.(relayUrl, false);
         this.sockets.delete(relayUrl);
 
-        // Resilient auto-reconnect if not explicitly destroyed
-        if (!this.isDestroyed) {
-          const timer = setTimeout(() => {
-            if (!this.isDestroyed) {
-              this.connectRelay(relayUrl);
-            }
-          }, 3000);
-          this.reconnectTimers.set(relayUrl, timer);
-        }
+        this.scheduleReconnect(relayUrl);
       };
     } catch (err) {
       console.warn(`[NostrSession] Failed to connect to ${relayUrl}:`, err);
       this.events.onRelayStatus?.(relayUrl, false);
+      this.scheduleReconnect(relayUrl);
     }
+  }
+
+  private scheduleReconnect(relayUrl: string): void {
+    if (this.isDestroyed) return;
+    const attempts = this.reconnectAttempts.get(relayUrl) ?? 0;
+    if (attempts < 3) {
+      this.reconnectAttempts.set(relayUrl, attempts + 1);
+      this.reconnectTimers.set(relayUrl, setTimeout(() => {
+        this.reconnectTimers.delete(relayUrl);
+        this.connectRelay(relayUrl);
+      }, 3000 * 2 ** attempts));
+    }
+    if (this.sockets.size === 0 && this.reconnectTimers.size === 0) {
+      const error = new Error('Cannot connect to the configured Nostr relays. Check your network or choose another relay in Settings.');
+      this.setStatus('error', error.message);
+      this.events.onError?.(error);
+      for (const waiter of this.connectionWaiters) waiter.reject(error);
+    }
+  }
+
+  /** A restored pairing stays offline until an explicit send/unlock action. */
+  private async waitForRelay(): Promise<void> {
+    if (this.isDestroyed) throw new Error('Nostr session disconnected');
+    if ([...this.sockets.values()].some(ws => ws.readyState === WebSocket.OPEN)) return;
+    if (this.status === 'error') {
+      // A new user action may retry a previously exhausted connection attempt.
+      this.isStarted = false;
+      this.reconnectAttempts.clear();
+    }
+    await new Promise<void>((resolve, reject) => {
+      const waiter = {
+        resolve: () => { clearTimeout(timer); this.connectionWaiters.delete(waiter); resolve(); },
+        reject: (error: Error) => { clearTimeout(timer); this.connectionWaiters.delete(waiter); reject(error); },
+      };
+      const timer = setTimeout(() => waiter.reject(new Error('No Nostr relay is reachable. Check your network or choose another relay in Settings.')), 10000);
+      this.connectionWaiters.add(waiter);
+      this.start();
+    });
   }
 
   /**
@@ -281,6 +328,7 @@ export class NostrSession {
     try {
       const combined = Uint8Array.from(atob(event.content), c => c.charCodeAt(0));
       const decryptedPlaintext = await decryptTransport(combined, this.psk, this.topicHex, event.pubkey, event.created_at);
+      if (this.isDestroyed) return;
       const parsedMsg = JSON.parse(decryptedPlaintext);
       if (parsedMsg.v !== 1 || !this.replay.accept(parsedMsg.msg_id, event.created_at)) return;
 
@@ -325,6 +373,7 @@ export class NostrSession {
     if (this.isDestroyed) return null;
 
     try {
+      await this.waitForRelay();
       const plaintext = JSON.stringify({ ...jsonPayload, v: 1, msg_id: crypto.randomUUID() });
       const timestamp = Math.floor(Date.now() / 1000);
       const encryptedContent = bytesToBase64(await encryptTransport(plaintext, this.psk, this.topicHex, this.publicKey, timestamp));
@@ -342,16 +391,19 @@ export class NostrSession {
 
       const eventMsg = JSON.stringify(['EVENT', finalizedEvent]);
 
+      let sent = false;
       for (const [url, ws] of this.sockets.entries()) {
         if (ws.readyState === WebSocket.OPEN) {
           try {
             ws.send(eventMsg);
+            sent = true;
           } catch (err) {
             console.warn(`[NostrSession] Failed to send event to ${url}:`, err);
           }
         }
       }
 
+      if (!sent) throw new Error('No connected Nostr relay could accept the message');
       return finalizedEvent;
     } catch (err) {
       console.error('[NostrSession] Failed to publish encrypted event:', err);
@@ -360,6 +412,7 @@ export class NostrSession {
   }
 
   public async sendRequest(payload: string, reqId?: string): Promise<void> {
+    await this.waitForRelay();
     this.setStatus('transmitting', 'Sending request payload');
     const id = reqId || crypto.randomUUID();
     for (const [key, expiry] of this.pendingRequests) if (expiry < Date.now()) this.pendingRequests.delete(key);
@@ -369,7 +422,7 @@ export class NostrSession {
       req_id: id,
       payload,
     });
-    if (!sent) { this.pendingRequests.delete(id); throw new Error('Nostr request could not be sent'); }
+    if (!sent) { this.pendingRequests.delete(id); throw new Error('Nostr request could not be sent. Check the relay connection.'); }
   }
 
   public async sendResponse(payload: string, replyTo?: string): Promise<void> {
@@ -393,13 +446,11 @@ export class NostrSession {
   public destroy(): void {
     if (this.isDestroyed) return;
 
-    try {
-      this.sendDisconnect();
-    } catch {
-      // ignore
-    }
-
     this.isDestroyed = true;
+
+    for (const waiter of this.connectionWaiters) waiter.reject(new Error('Nostr session disconnected'));
+    for (const timer of this.connectionTimers.values()) clearTimeout(timer);
+    this.connectionTimers.clear();
 
     for (const timer of this.reconnectTimers.values()) {
       clearTimeout(timer);
@@ -409,10 +460,10 @@ export class NostrSession {
     const closeMsg = JSON.stringify(['CLOSE', this.subId]);
     for (const ws of this.sockets.values()) {
       try {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(closeMsg);
-          ws.close();
-        }
+        ws.onclose = null;
+        ws.onerror = null;
+        if (ws.readyState === WebSocket.OPEN) ws.send(closeMsg);
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
       } catch (err) {
         console.warn('[NostrSession] Error while closing socket:', err);
       }

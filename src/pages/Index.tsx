@@ -958,7 +958,7 @@ const Index = () => {
                       </TooltipTrigger>
                       <TooltipContent>
                         {isPaired
-                          ? 'OneMoreSecret connected (Click to disconnect)'
+                          ? 'Saved Nostr pairing (click to disconnect)'
                           : 'Pair with OneMoreSecret (Nostr)'}
                       </TooltipContent>
                     </Tooltip>
