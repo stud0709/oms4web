@@ -124,7 +124,11 @@ const Index = () => {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
+  } = useRegisterSW({
+    onRegisterError(error) {
+      console.error('Service worker registration failed:', error);
+    },
+  });
 
   useEffect(() => {
     if (needRefresh) {

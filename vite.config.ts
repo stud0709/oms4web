@@ -20,7 +20,7 @@ export default defineConfig(({ mode, command }) => {
       VitePWA({
         base: base,
         registerType: 'prompt',
-        injectRegister: 'script', 
+        injectRegister: false,
         includeAssets: ['favicon.png', 'favicon_192.png', 'favicon_512.png'],
         strategies: 'injectManifest',
         filename: 'sw.ts',
