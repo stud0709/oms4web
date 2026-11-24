@@ -59,7 +59,6 @@ interface PasswordCardProps {
   onSoftDelete: (entry: PasswordEntry) => void;
   onTagClick: (tag: string) => void;
   applyRef: (entry: PasswordEntry) => PasswordEntry;
-  onAccess: (entryId: string) => void;
   setSearch: React.Dispatch<React.SetStateAction<string>>;
   settings?: AppSettings;
 }
@@ -71,7 +70,6 @@ export function PasswordCard({
   onSoftDelete,
   onTagClick,
   applyRef,
-  onAccess,
   setSearch,
   settings }: PasswordCardProps) {
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
@@ -232,19 +230,9 @@ export function PasswordCard({
     return nodes;
   };
 
-  const buttonClickListener = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const clickedButton = target.closest('button, a');
-
-    if (clickedButton) {
-      onAccess(entry.id);
-    }
-  }
-
   return (
     <TooltipProvider>
-      <Card className="group w-full min-w-0 overflow-hidden transition-all duration-300 hover:shadow-glow hover:border-primary/30"
-        onClick={buttonClickListener}>
+      <Card className="group w-full min-w-0 overflow-hidden transition-all duration-300 hover:shadow-glow hover:border-primary/30">
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
