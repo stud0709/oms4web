@@ -18,7 +18,7 @@ export function SearchBar({ value, onChange, onClear }: SearchBarProps) {
       <Input
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder="Search entries..."
+        placeholder="Search entries or #tags..."
         className="pl-10 pr-10 h-12 text-base bg-card border-border/50 focus:border-primary/50"
       />
       {value && (

@@ -91,6 +91,7 @@ const Index = () => {
   const mergeFileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const isTagSearch = selectedTags.size === 0 && search.startsWith('#');
 
   const INITIAL_RESULTS_RENDER = 50;
   const RESULTS_BATCH_SIZE = 50;
@@ -167,7 +168,8 @@ const Index = () => {
 
     const selectedTagsArr = Array.from(selectedTags);
 
-    const searchLower = search.toLowerCase().trim();
+    const entrySearch = isTagSearch ? '' : search;
+    const searchLower = entrySearch.toLowerCase().trim();
 
     const results = vaultData.entries
       .filter(entry => {
@@ -183,7 +185,7 @@ const Index = () => {
           return field.value.toLowerCase().includes(searchLower);
         }) ?? false;
 
-        const matchesSearch = !search ||
+        const matchesSearch = !entrySearch ||
           entry.id.toLowerCase().includes(searchLower) ||
           entry.id.replace(/-/g, '').toLowerCase().includes(searchLower.replace(/-/g, '')) ||
           view.title.toLowerCase().includes(searchLower) ||
@@ -203,7 +205,7 @@ const Index = () => {
       });
 
     return results.sort((a, b) => a.title.localeCompare(b.title));
-  }, [vaultData, search, selectedTags, toast, applyRef]);
+  }, [vaultData, search, isTagSearch, selectedTags, toast, applyRef]);
 
   useEffect(() => {
     setVisibleResultsCount(Math.min(INITIAL_RESULTS_RENDER, filteredEntries.length));
@@ -237,6 +239,10 @@ const Index = () => {
   );
 
   const visibleTags = useMemo(() => {
+    if (isTagSearch) {
+      const tagSearch = search.slice(1).toLowerCase().trim();
+      return allTags.filter(tag => tag.toLowerCase().includes(tagSearch));
+    }
     if (selectedTags.size === 0) return allTags;
 
     const tagsInResults = new Set<string>();
@@ -256,7 +262,7 @@ const Index = () => {
     }
 
     return ordered;
-  }, [allTags, filteredEntries, selectedTags]);
+  }, [allTags, filteredEntries, selectedTags, isTagSearch, search]);
 
   const handleSave = async (data: Omit<PasswordEntry, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => {
     if (editingEntry) {
@@ -755,7 +761,7 @@ const Index = () => {
   }
 
   const handleToggleTag = (tag: string) => {
-    if (search?.startsWith(OMS4WEB_REF)) {
+    if (isTagSearch || search?.startsWith(OMS4WEB_REF)) {
       setSearch('');
     }
 
@@ -934,6 +940,9 @@ const Index = () => {
             onChange={handleSearchChange}
             onClear={() => setSearch('')}
           />
+          {isTagSearch && visibleTags.length === 0 && (
+            <p className="mt-6 text-sm text-muted-foreground">No matching tags</p>
+          )}
           {visibleTags.length > 0 && (
             <div className="mt-6">
               <HashtagFilter
